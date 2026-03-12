@@ -57,6 +57,12 @@ export function Header({ user, profile }: HeaderProps) {
                 Dashboard
               </Link>
               <Link 
+                href="/seasons" 
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Seasons
+              </Link>
+              <Link 
                 href="/games" 
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
