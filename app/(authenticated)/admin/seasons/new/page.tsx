@@ -1,5 +1,7 @@
 "use client"
 
+console.log("[v0] NewSeasonPage module loaded")
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -13,6 +15,7 @@ import { Calendar, Loader2, ArrowLeft, Trophy } from "lucide-react"
 import Link from "next/link"
 
 export default function NewSeasonPage() {
+  console.log("[v0] NewSeasonPage component rendering")
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
