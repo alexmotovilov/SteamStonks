@@ -85,16 +85,36 @@ export default function AdminGamesPage() {
         return
       }
 
-      // Insert into database
+      // Parse release date - handle various formats from Steam
+      let releaseDate = null
+      if (gameData.release_date) {
+        try {
+          const dateStr = typeof gameData.release_date === 'string' 
+            ? gameData.release_date 
+            : gameData.release_date
+          const parsed = new Date(dateStr)
+          if (!isNaN(parsed.getTime())) {
+            releaseDate = parsed.toISOString().split("T")[0]
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+
+      // Insert into database with all available data
       const { error } = await supabase.from("games").insert({
         steam_appid: appid,
         name: gameData.name || name,
         header_image_url: gameData.header_image,
-        release_date: gameData.release_date?.date ? new Date(gameData.release_date.date).toISOString().split("T")[0] : null,
-        is_released: !gameData.release_date?.coming_soon,
+        release_date: releaseDate,
+        is_released: !gameData.coming_soon,
         developer: gameData.developers?.[0],
         publisher: gameData.publishers?.[0],
-        genres: gameData.genres?.map((g: { description: string }) => g.description) || [],
+        genres: gameData.genres || [],
+        current_player_count: gameData.player_count || null,
+        review_score_positive: gameData.reviews?.positive || null,
+        review_score_negative: gameData.reviews?.negative || null,
+        last_snapshot_at: new Date().toISOString(),
       })
 
       if (error) {
@@ -135,9 +155,10 @@ export default function AdminGamesPage() {
       const { error } = await supabase
         .from("games")
         .update({
-          current_player_count: gameData.player_count,
-          review_score_positive: gameData.review_positive,
-          review_score_negative: gameData.review_negative,
+          current_player_count: gameData.player_count || null,
+          review_score_positive: gameData.reviews?.positive || null,
+          review_score_negative: gameData.reviews?.negative || null,
+          is_released: !gameData.coming_soon,
           last_snapshot_at: new Date().toISOString(),
         })
         .eq("id", game.id)

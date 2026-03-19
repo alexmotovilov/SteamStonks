@@ -120,9 +120,11 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
 
             {game.genres && game.genres.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {game.genres.filter(Boolean).map((genre: string, index: number) => (
-                  <Badge key={`${genre}-${index}`} variant="outline">{genre}</Badge>
-                ))}
+                {game.genres
+                  .filter((g: string | null): g is string => typeof g === "string" && g.length > 0)
+                  .map((genre: string, index: number) => (
+                    <Badge key={`genre-${index}-${genre}`} variant="outline">{genre}</Badge>
+                  ))}
               </div>
             )}
 
