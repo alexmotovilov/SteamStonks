@@ -85,19 +85,18 @@ export default function AdminGamesPage() {
         return
       }
 
-      // Parse release date - handle various formats from Steam
+      // Parse release date - handle various formats from Steam (e.g., "Mar 15, 2024")
       let releaseDate = null
-      if (gameData.release_date) {
+      if (gameData.release_date && typeof gameData.release_date === 'string') {
         try {
-          const dateStr = typeof gameData.release_date === 'string' 
-            ? gameData.release_date 
-            : gameData.release_date
-          const parsed = new Date(dateStr)
+          // Try parsing the date string - Steam uses formats like "Mar 15, 2024"
+          const parsed = new Date(gameData.release_date)
           if (!isNaN(parsed.getTime())) {
             releaseDate = parsed.toISOString().split("T")[0]
           }
         } catch {
-          // Ignore parse errors
+          // Ignore parse errors - leave as null
+          console.log("[v0] Could not parse release date:", gameData.release_date)
         }
       }
 
@@ -152,6 +151,19 @@ export default function AdminGamesPage() {
 
       if (gameData.error) return
 
+      // Parse release date from Steam's format
+      let releaseDate = game.release_date // Keep existing if parsing fails
+      if (gameData.release_date && typeof gameData.release_date === 'string') {
+        try {
+          const parsed = new Date(gameData.release_date)
+          if (!isNaN(parsed.getTime())) {
+            releaseDate = parsed.toISOString().split("T")[0]
+          }
+        } catch {
+          // Keep existing release date
+        }
+      }
+
       const { error } = await supabase
         .from("games")
         .update({
@@ -159,6 +171,7 @@ export default function AdminGamesPage() {
           review_score_positive: gameData.reviews?.positive || null,
           review_score_negative: gameData.reviews?.negative || null,
           is_released: !gameData.coming_soon,
+          release_date: releaseDate,
           last_snapshot_at: new Date().toISOString(),
         })
         .eq("id", game.id)
