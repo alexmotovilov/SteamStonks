@@ -78,11 +78,11 @@ export function GameCard({ game, seasonId, hasPrediction }: GameCardProps) {
         </div>
 
         <div className="flex flex-wrap gap-1">
-          {game.genres
-            ?.filter((g): g is string => typeof g === "string" && g.length > 0)
+          {(game.genres || [])
+            .filter((g): g is string => g !== null && g !== undefined && typeof g === "string" && g.trim().length > 0)
             .slice(0, 3)
             .map((genre, index) => (
-              <Badge key={`genre-${index}-${genre}`} variant="outline" className="text-xs">
+              <Badge key={`genre-${game.id}-${index}`} variant="outline" className="text-xs">
                 {genre}
               </Badge>
             ))}
