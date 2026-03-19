@@ -120,8 +120,8 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
 
             {game.genres && game.genres.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {game.genres.map((genre: string) => (
-                  <Badge key={genre} variant="outline">{genre}</Badge>
+                {game.genres.filter(Boolean).map((genre: string, index: number) => (
+                  <Badge key={`${genre}-${index}`} variant="outline">{genre}</Badge>
                 ))}
               </div>
             )}
@@ -215,6 +215,7 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
             seasonId={seasonData.id}
             existingPrediction={weekOnePrediction}
             isReleased={game.is_released}
+            predictionLockDate={seasonData.prediction_lock_date}
           />
           <PredictionForm
             type="season_end"
@@ -223,6 +224,7 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
             seasonId={seasonData.id}
             existingPrediction={seasonEndPrediction}
             isReleased={game.is_released}
+            predictionLockDate={seasonData.prediction_lock_date}
           />
         </div>
       )}

@@ -27,6 +27,7 @@ interface PredictionFormProps {
     locked_at: string | null
   } | null
   isReleased: boolean
+  predictionLockDate?: string | null
 }
 
 export function PredictionForm({
@@ -36,6 +37,7 @@ export function PredictionForm({
   seasonId,
   existingPrediction,
   isReleased,
+  predictionLockDate,
 }: PredictionFormProps) {
   const [playerCountMin, setPlayerCountMin] = useState(
     existingPrediction?.player_count_min ?? 1000
@@ -52,7 +54,15 @@ export function PredictionForm({
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
-  const isLocked = existingPrediction?.is_locked || isReleased
+  // Week 1 predictions lock when the game releases
+  // Season End predictions lock at the admin-set prediction lock date
+  const isPredictionLockDatePassed = predictionLockDate 
+    ? new Date(predictionLockDate) < new Date() 
+    : false
+  
+  const isLocked = existingPrediction?.is_locked || 
+    (type === "week_one" && isReleased) || 
+    (type === "season_end" && isPredictionLockDatePassed)
   const title = type === "week_one" ? "Week 1 Prediction" : "Season End Prediction"
   const description =
     type === "week_one"
