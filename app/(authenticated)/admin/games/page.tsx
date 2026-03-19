@@ -64,7 +64,9 @@ export default function AdminGamesPage() {
     try {
       const res = await fetch(`/api/steam/search?q=${encodeURIComponent(steamSearchQuery)}`)
       const data = await res.json()
-      setSteamResults(data.results || [])
+      console.log("[v0] Steam search response:", data)
+      // API returns { games: [...] } not { results: [...] }
+      setSteamResults(data.games || data.results || [])
     } catch (err) {
       console.error("Steam search failed:", err)
     }
