@@ -44,6 +44,25 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Failed to fetch games" }, { status: 500 })
     }
 
+    // Auto-lock all unlocked predictions for released games
+    // This runs before the scoring loop so any predictions that should be locked
+    // (because their game has released) are already locked by the time we look
+    // for is_locked = true predictions below.
+    const releasedGameIds = (games || []).map((g) => g.id)
+    if (releasedGameIds.length > 0) {
+      const { error: lockError } = await supabase
+        .from("predictions")
+        .update({
+          is_locked: true,
+          locked_at: new Date().toISOString(),
+        })
+        .in("game_id", releasedGameIds)
+        .eq("is_locked", false)
+      if (lockError) {
+        console.error("[Score Calculator] Failed to auto-lock predictions:", lockError)
+      }
+    }
+
     const results = {
       gamesProcessed: 0,
       predictionsScored: 0,
