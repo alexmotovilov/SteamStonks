@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
-import { Lock, Loader2, Target, TrendingUp, CheckCircle2, XCircle, Trophy } from "lucide-react"
+import { Lock, Loader2, Target, TrendingUp, CheckCircle2, XCircle, Trophy, AlertTriangle } from "lucide-react"
 
 interface PredictionFormProps {
   type: "week_one" | "season_end"
@@ -32,10 +32,11 @@ interface PredictionFormProps {
   } | null
   isReleased: boolean
   predictionLockDate?: string | null
-  // Live game data for showing preliminary results before formal scoring
-  livePlayerCount?: number | null
-  liveReviewPositive?: number | null
-  liveReviewNegative?: number | null
+  // Historical snapshot data for determining results (week_after_release or season_end)
+  snapshotPlayerCount?: number | null
+  snapshotReviewPositive?: number | null
+  snapshotReviewNegative?: number | null
+  snapshotCapturedAt?: string | null
 }
 
 export function PredictionForm({
@@ -46,9 +47,10 @@ export function PredictionForm({
   existingPrediction,
   isReleased,
   predictionLockDate,
-  livePlayerCount,
-  liveReviewPositive,
-  liveReviewNegative,
+  snapshotPlayerCount,
+  snapshotReviewPositive,
+  snapshotReviewNegative,
+  snapshotCapturedAt,
 }: PredictionFormProps) {
   const [playerCountMin, setPlayerCountMin] = useState(
     existingPrediction?.player_count_min ?? 1000
@@ -78,25 +80,42 @@ export function PredictionForm({
   // Determine if prediction has been formally scored
   const isFormallyScored = existingPrediction?.scored_at !== null && existingPrediction?.scored_at !== undefined
   
-  // Calculate live review score percentage from positive/negative counts
-  const liveReviewScore = (liveReviewPositive !== null && liveReviewPositive !== undefined && 
-    liveReviewNegative !== null && liveReviewNegative !== undefined &&
-    (liveReviewPositive + liveReviewNegative) > 0)
-    ? (liveReviewPositive / (liveReviewPositive + liveReviewNegative)) * 100
+  // Calculate snapshot review score percentage from positive/negative counts
+  const snapshotReviewScore = (snapshotReviewPositive !== null && snapshotReviewPositive !== undefined && 
+    snapshotReviewNegative !== null && snapshotReviewNegative !== undefined &&
+    (snapshotReviewPositive + snapshotReviewNegative) > 0)
+    ? (snapshotReviewPositive / (snapshotReviewPositive + snapshotReviewNegative)) * 100
     : null
   
-  // Use formal scored data if available, otherwise use live data for Week 1 predictions on released games
+  // Check if the appropriate snapshot exists for this prediction type
+  const hasSnapshot = snapshotCapturedAt !== null && snapshotCapturedAt !== undefined
+  const snapshotDataComplete = hasSnapshot && 
+    snapshotPlayerCount !== null && snapshotPlayerCount !== undefined &&
+    snapshotReviewScore !== null
+  
+  // For Week 1: results show only after game is released AND we have a week_after_release snapshot
+  // For Season End: results show only after season ends AND we have a season_end snapshot
+  const canShowResults = existingPrediction && isLocked && (
+    isFormallyScored || 
+    (type === "week_one" && isReleased && hasSnapshot) ||
+    (type === "season_end" && isPredictionLockDatePassed && hasSnapshot)
+  )
+  
+  // Determine if snapshot data is missing when results should be available
+  const snapshotMissing = canShowResults && !isFormallyScored && !snapshotDataComplete
+  
+  // Use formal scored data if available, otherwise use snapshot data
   const actualPlayerCount = isFormallyScored 
     ? existingPrediction?.actual_player_count 
-    : (type === "week_one" && isReleased && existingPrediction) ? livePlayerCount : null
+    : snapshotPlayerCount
   const actualReviewScore = isFormallyScored 
     ? existingPrediction?.actual_review_score 
-    : (type === "week_one" && isReleased && existingPrediction) ? liveReviewScore : null
+    : snapshotReviewScore
   
-  // Show results if formally scored OR if it's a Week 1 prediction on a released game with live data
-  const showResults = isFormallyScored || 
-    (type === "week_one" && isReleased && existingPrediction && 
-     actualPlayerCount !== null && actualReviewScore !== null)
+  // Show results overlay if we have data to show (either formally scored or snapshot available)
+  const showResults = canShowResults && !snapshotMissing && (
+    isFormallyScored || snapshotDataComplete
+  )
   
   // Check if predictions were within range
   const playerCountCorrect = actualPlayerCount !== null && actualPlayerCount !== undefined &&
@@ -213,7 +232,26 @@ export function PredictionForm({
   }
 
   return (
-    <Card id={`prediction-${type}-${gameId}`} className={`border-border relative overflow-hidden ${isLocked && !showResults ? "opacity-75" : ""}`}>
+    <Card id={`prediction-${type}-${gameId}`} className={`border-border relative overflow-hidden ${isLocked && !showResults && !snapshotMissing ? "opacity-75" : ""}`}>
+      {/* Data Missing Overlay - shown when results should be available but snapshot data is missing */}
+      {snapshotMissing && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-[2px] bg-muted/40">
+          <div className="rounded-full p-4 bg-muted/60">
+            <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+          </div>
+          <p className="mt-3 text-lg font-bold text-muted-foreground">
+            Data Missing
+          </p>
+          <p className="text-sm text-muted-foreground mt-1 text-center px-4">
+            {type === "week_one" 
+              ? "Player/Review data from 1 week after release is unavailable"
+              : "Season end player/review data is unavailable"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-2 text-center px-4">
+            Results cannot be determined at this time.
+          </p>
+        </div>
+      )}
       {/* Result Overlay for Scored Predictions */}
       {showResults && (
         <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-[2px] ${

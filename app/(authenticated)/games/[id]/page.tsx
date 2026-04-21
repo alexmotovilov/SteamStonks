@@ -61,6 +61,25 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
   const weekOnePrediction = existingPredictions?.find((p) => p.prediction_type === "week_one")
   const seasonEndPrediction = existingPredictions?.find((p) => p.prediction_type === "season_end")
 
+  // Get historical snapshots for scoring (week_after_release and season_end)
+  const { data: weekOneSnapshot } = await supabase
+    .from("game_snapshots")
+    .select("*")
+    .eq("game_id", id)
+    .eq("snapshot_type", "week_after_release")
+    .order("captured_at", { ascending: false })
+    .limit(1)
+    .single()
+
+  const { data: seasonEndSnapshot } = await supabase
+    .from("game_snapshots")
+    .select("*")
+    .eq("game_id", id)
+    .eq("snapshot_type", "season_end")
+    .order("captured_at", { ascending: false })
+    .limit(1)
+    .single()
+
   // Calculate review percentage
   const reviewPercentage = game.review_score_positive && game.review_score_negative
     ? Math.round((game.review_score_positive / (game.review_score_positive + game.review_score_negative)) * 100)
@@ -218,9 +237,10 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
             existingPrediction={weekOnePrediction}
             isReleased={game.is_released}
             predictionLockDate={seasonData.prediction_lock_date}
-            livePlayerCount={game.current_player_count}
-            liveReviewPositive={game.review_score_positive}
-            liveReviewNegative={game.review_score_negative}
+            snapshotPlayerCount={weekOneSnapshot?.player_count}
+            snapshotReviewPositive={weekOneSnapshot?.review_positive}
+            snapshotReviewNegative={weekOneSnapshot?.review_negative}
+            snapshotCapturedAt={weekOneSnapshot?.captured_at}
           />
           <PredictionForm
             type="season_end"
@@ -230,9 +250,10 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
             existingPrediction={seasonEndPrediction}
             isReleased={game.is_released}
             predictionLockDate={seasonData.prediction_lock_date}
-            livePlayerCount={game.current_player_count}
-            liveReviewPositive={game.review_score_positive}
-            liveReviewNegative={game.review_score_negative}
+            snapshotPlayerCount={seasonEndSnapshot?.player_count}
+            snapshotReviewPositive={seasonEndSnapshot?.review_positive}
+            snapshotReviewNegative={seasonEndSnapshot?.review_negative}
+            snapshotCapturedAt={seasonEndSnapshot?.captured_at}
           />
         </div>
       )}
