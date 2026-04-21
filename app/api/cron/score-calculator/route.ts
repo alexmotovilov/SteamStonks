@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     // Get games that have been released and have unscored predictions
     const { data: games, error: gamesError } = await supabase
       .from("games")
-      .select("id, steam_appid, name, release_date, is_released, current_player_count, peak_player_count, review_score_positive, review_score_negative")
+      .select("id, steam_appid, name, release_date, is_released, peak_24h_player_count, peak_player_count, review_score_positive, review_score_negative")
       .eq("is_released", true)
 
     if (gamesError) {
