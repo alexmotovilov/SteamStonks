@@ -13,13 +13,13 @@ export const maxDuration = 60 // 60 seconds max for data collection
 
 /**
  * Cron job to collect Steam player counts and review data
- * Should be triggered hourly via Vercel Cron
+ * Should be triggered daily via Vercel Cron
  * 
  * Configure in vercel.json:
  * {
  *   "crons": [{
  *     "path": "/api/cron/steam-collector",
- *     "schedule": "0 * * * *"
+ *     "schedule": "0 6 * * *"
  *   }]
  * }
  */
@@ -87,14 +87,17 @@ export async function GET(request: Request) {
         }
 
         // Update game with latest data
+        // We store the daily snapshot player count as the "24h peak" since this runs once daily
         const updateData: Record<string, unknown> = {
           last_snapshot_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
 
         if (playerCount !== null) {
-          updateData.current_player_count = playerCount
-          // Update peak if current is higher
+          // Update peak_24h_player_count with the daily snapshot
+          updateData.peak_24h_player_count = playerCount
+          
+          // Also update all-time peak if current is higher
           const { data: currentGame } = await supabase
             .from("games")
             .select("peak_player_count")
@@ -159,7 +162,7 @@ function determineSnapshotType(
   isReleased: boolean
 ): "hourly" | "daily" | "week_after_release" | "season_end" {
   if (!releaseDate || !isReleased) {
-    return "hourly"
+    return "daily"
   }
 
   const release = new Date(releaseDate)
@@ -173,5 +176,5 @@ function determineSnapshotType(
     return "week_after_release"
   }
 
-  return "hourly"
+  return "daily"
 }

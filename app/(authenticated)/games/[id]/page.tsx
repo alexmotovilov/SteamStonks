@@ -161,9 +161,9 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <div className="text-xs text-muted-foreground">Current Players</div>
+                      <div className="text-xs text-muted-foreground">24h Peak Players</div>
                       <div className="text-sm font-medium text-foreground">
-                        {game.current_player_count?.toLocaleString() || "N/A"}
+                        {game.peak_24h_player_count?.toLocaleString() || "N/A"}
                       </div>
                     </div>
                   </div>

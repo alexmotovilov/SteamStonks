@@ -19,7 +19,7 @@ interface Game {
   header_image_url: string | null
   release_date: string | null
   is_released: boolean
-  current_player_count: number | null
+  peak_24h_player_count: number | null
   review_score_positive: number | null
   review_score_negative: number | null
 }
@@ -110,7 +110,7 @@ export default function AdminGamesPage() {
         developer: gameData.developers?.[0],
         publisher: gameData.publishers?.[0],
         genres: gameData.genres || [],
-        current_player_count: gameData.player_count || null,
+          peak_24h_player_count: gameData.player_count || null,
         review_score_positive: gameData.reviews?.positive || null,
         review_score_negative: gameData.reviews?.negative || null,
         last_snapshot_at: new Date().toISOString(),
@@ -167,7 +167,7 @@ export default function AdminGamesPage() {
       const { error } = await supabase
         .from("games")
         .update({
-          current_player_count: gameData.player_count || null,
+        peak_24h_player_count: gameData.player_count || null,
           review_score_positive: gameData.reviews?.positive || null,
           review_score_negative: gameData.reviews?.negative || null,
           is_released: !gameData.coming_soon,
@@ -286,7 +286,7 @@ export default function AdminGamesPage() {
                   <TableHead>Game</TableHead>
                   <TableHead>AppID</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Players</TableHead>
+                  <TableHead>24h Peak</TableHead>
                   <TableHead>Reviews</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -331,7 +331,7 @@ export default function AdminGamesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {game.current_player_count?.toLocaleString() || "-"}
+                        {game.peak_24h_player_count?.toLocaleString() || "-"}
                       </TableCell>
                       <TableCell>
                         {reviewScore !== null ? (
