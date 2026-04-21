@@ -32,6 +32,10 @@ interface PredictionFormProps {
   } | null
   isReleased: boolean
   predictionLockDate?: string | null
+  // Live game data for showing preliminary results before formal scoring
+  livePlayerCount?: number | null
+  liveReviewPositive?: number | null
+  liveReviewNegative?: number | null
 }
 
 export function PredictionForm({
@@ -42,6 +46,9 @@ export function PredictionForm({
   existingPrediction,
   isReleased,
   predictionLockDate,
+  livePlayerCount,
+  liveReviewPositive,
+  liveReviewNegative,
 }: PredictionFormProps) {
   const [playerCountMin, setPlayerCountMin] = useState(
     existingPrediction?.player_count_min ?? 1000
@@ -68,10 +75,28 @@ export function PredictionForm({
     (type === "week_one" && isReleased) || 
     (type === "season_end" && isPredictionLockDatePassed)
   
-  // Determine if prediction has been scored and if it was correct
-  const isScored = existingPrediction?.scored_at !== null && existingPrediction?.scored_at !== undefined
-  const actualPlayerCount = existingPrediction?.actual_player_count
-  const actualReviewScore = existingPrediction?.actual_review_score
+  // Determine if prediction has been formally scored
+  const isFormallyScored = existingPrediction?.scored_at !== null && existingPrediction?.scored_at !== undefined
+  
+  // Calculate live review score percentage from positive/negative counts
+  const liveReviewScore = (liveReviewPositive !== null && liveReviewPositive !== undefined && 
+    liveReviewNegative !== null && liveReviewNegative !== undefined &&
+    (liveReviewPositive + liveReviewNegative) > 0)
+    ? (liveReviewPositive / (liveReviewPositive + liveReviewNegative)) * 100
+    : null
+  
+  // Use formal scored data if available, otherwise use live data for Week 1 predictions on released games
+  const actualPlayerCount = isFormallyScored 
+    ? existingPrediction?.actual_player_count 
+    : (type === "week_one" && isReleased && existingPrediction) ? livePlayerCount : null
+  const actualReviewScore = isFormallyScored 
+    ? existingPrediction?.actual_review_score 
+    : (type === "week_one" && isReleased && existingPrediction) ? liveReviewScore : null
+  
+  // Show results if formally scored OR if it's a Week 1 prediction on a released game with live data
+  const showResults = isFormallyScored || 
+    (type === "week_one" && isReleased && existingPrediction && 
+     actualPlayerCount !== null && actualReviewScore !== null)
   
   // Check if predictions were within range
   const playerCountCorrect = actualPlayerCount !== null && actualPlayerCount !== undefined &&
@@ -87,6 +112,7 @@ export function PredictionForm({
   const bothCorrect = playerCountCorrect && reviewScoreCorrect
   const partialCorrect = playerCountCorrect || reviewScoreCorrect
   const finalPoints = existingPrediction?.final_points ?? 0
+  const isPreliminary = !isFormallyScored && showResults
   
   const title = type === "week_one" ? "Week 1 Prediction" : "Season End Prediction"
   const description =
@@ -187,9 +213,9 @@ export function PredictionForm({
   }
 
   return (
-    <Card id={`prediction-${type}-${gameId}`} className={`border-border relative overflow-hidden ${isLocked && !isScored ? "opacity-75" : ""}`}>
+    <Card id={`prediction-${type}-${gameId}`} className={`border-border relative overflow-hidden ${isLocked && !showResults ? "opacity-75" : ""}`}>
       {/* Result Overlay for Scored Predictions */}
-      {isScored && (
+      {showResults && (
         <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-[2px] ${
           bothCorrect 
             ? "bg-success/20" 
@@ -221,9 +247,15 @@ export function PredictionForm({
           }`}>
             {bothCorrect ? "Perfect!" : partialCorrect ? "Partial" : "Missed"}
           </p>
-          <p className="text-2xl font-bold text-foreground mt-1">
-            +{finalPoints} pts
-          </p>
+          {isPreliminary ? (
+            <p className="text-sm text-muted-foreground mt-1">
+              Preliminary Result
+            </p>
+          ) : (
+            <p className="text-2xl font-bold text-foreground mt-1">
+              +{finalPoints} pts
+            </p>
+          )}
           <div className="mt-3 text-xs text-muted-foreground text-center px-4">
             <p>Actual: {actualPlayerCount?.toLocaleString() ?? "N/A"} players</p>
             <p>Review: {actualReviewScore?.toFixed(1) ?? "N/A"}% positive</p>

@@ -218,6 +218,9 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
             existingPrediction={weekOnePrediction}
             isReleased={game.is_released}
             predictionLockDate={seasonData.prediction_lock_date}
+            livePlayerCount={game.current_player_count}
+            liveReviewPositive={game.review_score_positive}
+            liveReviewNegative={game.review_score_negative}
           />
           <PredictionForm
             type="season_end"
@@ -227,6 +230,9 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
             existingPrediction={seasonEndPrediction}
             isReleased={game.is_released}
             predictionLockDate={seasonData.prediction_lock_date}
+            livePlayerCount={game.current_player_count}
+            liveReviewPositive={game.review_score_positive}
+            liveReviewNegative={game.review_score_negative}
           />
         </div>
       )}
