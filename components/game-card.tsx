@@ -16,7 +16,7 @@ interface GameCardProps {
     genres: string[] | null
     developer: string | null
     is_released: boolean
-    current_player_count: number | null
+    peak_24h_player_count: number | null
     review_score_positive: number | null
     review_score_negative: number | null
   }
@@ -78,11 +78,14 @@ export function GameCard({ game, seasonId, hasPrediction }: GameCardProps) {
         </div>
 
         <div className="flex flex-wrap gap-1">
-          {game.genres?.slice(0, 3).map((genre) => (
-            <Badge key={genre} variant="outline" className="text-xs">
-              {genre}
-            </Badge>
-          ))}
+          {(game.genres || [])
+            .filter((g): g is string => g !== null && g !== undefined && typeof g === "string" && g.trim().length > 0)
+            .slice(0, 3)
+            .map((genre, index) => (
+              <Badge key={`genre-${game.id}-${index}`} variant="outline" className="text-xs">
+                {genre}
+              </Badge>
+            ))}
         </div>
 
         <div className="flex items-center justify-between text-sm">
@@ -94,10 +97,10 @@ export function GameCard({ game, seasonId, hasPrediction }: GameCardProps) {
           
           {game.is_released && (
             <div className="flex items-center gap-3">
-              {game.current_player_count !== null && (
-                <div className="flex items-center gap-1 text-muted-foreground">
+              {game.peak_24h_player_count !== null && (
+                <div className="flex items-center gap-1 text-muted-foreground" title="24h Peak Players">
                   <Users className="h-4 w-4" />
-                  <span>{game.current_player_count.toLocaleString()}</span>
+                  <span>{game.peak_24h_player_count.toLocaleString()}</span>
                 </div>
               )}
               {reviewPercentage !== null && (

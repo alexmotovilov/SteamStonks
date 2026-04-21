@@ -69,6 +69,28 @@ export default function NominateGamePage() {
         throw new Error("You must be logged in to nominate games")
       }
 
+      // Ensure profile exists (for users created before the auto-profile trigger)
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .single()
+
+      if (!profile) {
+        // Create profile for existing user
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert({
+            id: user.id,
+            display_name: user.email?.split("@")[0] || "Player",
+            username: `${user.email?.split("@")[0] || "player"}_${user.id.substring(0, 4)}`,
+          })
+        
+        if (profileError) {
+          throw new Error("Failed to create profile. Please try again.")
+        }
+      }
+
       // Get active season
       const { data: activeSeason } = await supabase
         .from("seasons")

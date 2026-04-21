@@ -10,7 +10,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.log("[v0] Searching Steam for:", query)
     const results = await searchGames(query)
+    console.log("[v0] Steam searchGames returned:", results.length, "results")
+    
+    if (results.length === 0) {
+      // Return empty array if no results
+      return NextResponse.json({ games: [] })
+    }
     
     // Fetch details for first 10 results to get images and release dates
     const detailedResults = await Promise.all(
@@ -26,6 +33,7 @@ export async function GET(request: NextRequest) {
       })
     )
 
+    console.log("[v0] Returning", detailedResults.length, "detailed results")
     return NextResponse.json({ games: detailedResults })
   } catch (error) {
     console.error("[API] Steam search error:", error)

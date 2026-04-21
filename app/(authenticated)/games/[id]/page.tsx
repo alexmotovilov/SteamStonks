@@ -61,6 +61,25 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
   const weekOnePrediction = existingPredictions?.find((p) => p.prediction_type === "week_one")
   const seasonEndPrediction = existingPredictions?.find((p) => p.prediction_type === "season_end")
 
+  // Get historical snapshots for scoring (week_after_release and season_end)
+  const { data: weekOneSnapshot } = await supabase
+    .from("game_snapshots")
+    .select("*")
+    .eq("game_id", id)
+    .eq("snapshot_type", "week_after_release")
+    .order("captured_at", { ascending: false })
+    .limit(1)
+    .single()
+
+  const { data: seasonEndSnapshot } = await supabase
+    .from("game_snapshots")
+    .select("*")
+    .eq("game_id", id)
+    .eq("snapshot_type", "season_end")
+    .order("captured_at", { ascending: false })
+    .limit(1)
+    .single()
+
   // Calculate review percentage
   const reviewPercentage = game.review_score_positive && game.review_score_negative
     ? Math.round((game.review_score_positive / (game.review_score_positive + game.review_score_negative)) * 100)
@@ -120,9 +139,11 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
 
             {game.genres && game.genres.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {game.genres.map((genre: string) => (
-                  <Badge key={genre} variant="outline">{genre}</Badge>
-                ))}
+                {(game.genres || [])
+                  .filter((g: string | null): g is string => g !== null && g !== undefined && typeof g === "string" && g.trim().length > 0)
+                  .map((genre: string, index: number) => (
+                    <Badge key={`genre-${game.id}-${index}`} variant="outline">{genre}</Badge>
+                  ))}
               </div>
             )}
 
@@ -140,9 +161,9 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <div className="text-xs text-muted-foreground">Current Players</div>
+                      <div className="text-xs text-muted-foreground">24h Peak Players</div>
                       <div className="text-sm font-medium text-foreground">
-                        {game.current_player_count?.toLocaleString() || "N/A"}
+                        {game.peak_24h_player_count?.toLocaleString() || "N/A"}
                       </div>
                     </div>
                   </div>
@@ -215,6 +236,11 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
             seasonId={seasonData.id}
             existingPrediction={weekOnePrediction}
             isReleased={game.is_released}
+            predictionLockDate={seasonData.prediction_lock_date}
+            snapshotPlayerCount={weekOneSnapshot?.player_count}
+            snapshotReviewPositive={weekOneSnapshot?.review_positive}
+            snapshotReviewNegative={weekOneSnapshot?.review_negative}
+            snapshotCapturedAt={weekOneSnapshot?.captured_at}
           />
           <PredictionForm
             type="season_end"
@@ -223,6 +249,11 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
             seasonId={seasonData.id}
             existingPrediction={seasonEndPrediction}
             isReleased={game.is_released}
+            predictionLockDate={seasonData.prediction_lock_date}
+            snapshotPlayerCount={seasonEndSnapshot?.player_count}
+            snapshotReviewPositive={seasonEndSnapshot?.review_positive}
+            snapshotReviewNegative={seasonEndSnapshot?.review_negative}
+            snapshotCapturedAt={seasonEndSnapshot?.captured_at}
           />
         </div>
       )}

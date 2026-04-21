@@ -19,7 +19,7 @@ interface Game {
   header_image_url: string | null
   release_date: string | null
   is_released: boolean
-  current_player_count: number | null
+  peak_24h_player_count: number | null
   review_score_positive: number | null
   review_score_negative: number | null
 }
@@ -64,7 +64,9 @@ export default function AdminGamesPage() {
     try {
       const res = await fetch(`/api/steam/search?q=${encodeURIComponent(steamSearchQuery)}`)
       const data = await res.json()
-      setSteamResults(data.results || [])
+      console.log("[v0] Steam search response:", data)
+      // API returns { games: [...] } not { results: [...] }
+      setSteamResults(data.games || data.results || [])
     } catch (err) {
       console.error("Steam search failed:", err)
     }
@@ -83,16 +85,35 @@ export default function AdminGamesPage() {
         return
       }
 
-      // Insert into database
+      // Parse release date - handle various formats from Steam (e.g., "Mar 15, 2024")
+      let releaseDate = null
+      if (gameData.release_date && typeof gameData.release_date === 'string') {
+        try {
+          // Try parsing the date string - Steam uses formats like "Mar 15, 2024"
+          const parsed = new Date(gameData.release_date)
+          if (!isNaN(parsed.getTime())) {
+            releaseDate = parsed.toISOString().split("T")[0]
+          }
+        } catch {
+          // Ignore parse errors - leave as null
+          console.log("[v0] Could not parse release date:", gameData.release_date)
+        }
+      }
+
+      // Insert into database with all available data
       const { error } = await supabase.from("games").insert({
         steam_appid: appid,
         name: gameData.name || name,
         header_image_url: gameData.header_image,
-        release_date: gameData.release_date?.date ? new Date(gameData.release_date.date).toISOString().split("T")[0] : null,
-        is_released: !gameData.release_date?.coming_soon,
+        release_date: releaseDate,
+        is_released: !gameData.coming_soon,
         developer: gameData.developers?.[0],
         publisher: gameData.publishers?.[0],
-        genres: gameData.genres?.map((g: { description: string }) => g.description) || [],
+        genres: gameData.genres || [],
+          peak_24h_player_count: gameData.player_count || null,
+        review_score_positive: gameData.reviews?.positive || null,
+        review_score_negative: gameData.reviews?.negative || null,
+        last_snapshot_at: new Date().toISOString(),
       })
 
       if (error) {
@@ -130,12 +151,27 @@ export default function AdminGamesPage() {
 
       if (gameData.error) return
 
+      // Parse release date from Steam's format
+      let releaseDate = game.release_date // Keep existing if parsing fails
+      if (gameData.release_date && typeof gameData.release_date === 'string') {
+        try {
+          const parsed = new Date(gameData.release_date)
+          if (!isNaN(parsed.getTime())) {
+            releaseDate = parsed.toISOString().split("T")[0]
+          }
+        } catch {
+          // Keep existing release date
+        }
+      }
+
       const { error } = await supabase
         .from("games")
         .update({
-          current_player_count: gameData.player_count,
-          review_score_positive: gameData.review_positive,
-          review_score_negative: gameData.review_negative,
+        peak_24h_player_count: gameData.player_count || null,
+          review_score_positive: gameData.reviews?.positive || null,
+          review_score_negative: gameData.reviews?.negative || null,
+          is_released: !gameData.coming_soon,
+          release_date: releaseDate,
           last_snapshot_at: new Date().toISOString(),
         })
         .eq("id", game.id)
@@ -250,7 +286,7 @@ export default function AdminGamesPage() {
                   <TableHead>Game</TableHead>
                   <TableHead>AppID</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Players</TableHead>
+                  <TableHead>24h Peak</TableHead>
                   <TableHead>Reviews</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -295,7 +331,7 @@ export default function AdminGamesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {game.current_player_count?.toLocaleString() || "-"}
+                        {game.peak_24h_player_count?.toLocaleString() || "-"}
                       </TableCell>
                       <TableCell>
                         {reviewScore !== null ? (

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
-import { Lock, Loader2, Target, TrendingUp, CheckCircle2 } from "lucide-react"
+import { Lock, Loader2, Target, TrendingUp, CheckCircle2, XCircle, Trophy, AlertTriangle } from "lucide-react"
 
 interface PredictionFormProps {
   type: "week_one" | "season_end"
@@ -25,8 +25,18 @@ interface PredictionFormProps {
     review_score_max: number | null
     is_locked: boolean
     locked_at: string | null
+    actual_player_count: number | null
+    actual_review_score: number | null
+    final_points: number | null
+    scored_at: string | null
   } | null
   isReleased: boolean
+  predictionLockDate?: string | null
+  // Historical snapshot data for determining results (week_after_release or season_end)
+  snapshotPlayerCount?: number | null
+  snapshotReviewPositive?: number | null
+  snapshotReviewNegative?: number | null
+  snapshotCapturedAt?: string | null
 }
 
 export function PredictionForm({
@@ -36,6 +46,11 @@ export function PredictionForm({
   seasonId,
   existingPrediction,
   isReleased,
+  predictionLockDate,
+  snapshotPlayerCount,
+  snapshotReviewPositive,
+  snapshotReviewNegative,
+  snapshotCapturedAt,
 }: PredictionFormProps) {
   const [playerCountMin, setPlayerCountMin] = useState(
     existingPrediction?.player_count_min ?? 1000
@@ -52,7 +67,72 @@ export function PredictionForm({
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
-  const isLocked = existingPrediction?.is_locked || isReleased
+  // Week 1 predictions lock when the game releases
+  // Season End predictions lock at the admin-set prediction lock date
+  const isPredictionLockDatePassed = predictionLockDate 
+    ? new Date(predictionLockDate) < new Date() 
+    : false
+  
+  const isLocked = existingPrediction?.is_locked || 
+    (type === "week_one" && isReleased) || 
+    (type === "season_end" && isPredictionLockDatePassed)
+  
+  // Determine if prediction has been formally scored
+  const isFormallyScored = existingPrediction?.scored_at !== null && existingPrediction?.scored_at !== undefined
+  
+  // Calculate snapshot review score percentage from positive/negative counts
+  const snapshotReviewScore = (snapshotReviewPositive !== null && snapshotReviewPositive !== undefined && 
+    snapshotReviewNegative !== null && snapshotReviewNegative !== undefined &&
+    (snapshotReviewPositive + snapshotReviewNegative) > 0)
+    ? (snapshotReviewPositive / (snapshotReviewPositive + snapshotReviewNegative)) * 100
+    : null
+  
+  // Check if the appropriate snapshot exists for this prediction type
+  const hasSnapshot = snapshotCapturedAt !== null && snapshotCapturedAt !== undefined
+  const snapshotDataComplete = hasSnapshot && 
+    snapshotPlayerCount !== null && snapshotPlayerCount !== undefined &&
+    snapshotReviewScore !== null
+  
+  // For Week 1: results show only after game is released AND we have a week_after_release snapshot
+  // For Season End: results show only after season ends AND we have a season_end snapshot
+  const canShowResults = existingPrediction && isLocked && (
+    isFormallyScored || 
+    (type === "week_one" && isReleased && hasSnapshot) ||
+    (type === "season_end" && isPredictionLockDatePassed && hasSnapshot)
+  )
+  
+  // Determine if snapshot data is missing when results should be available
+  const snapshotMissing = canShowResults && !isFormallyScored && !snapshotDataComplete
+  
+  // Use formal scored data if available, otherwise use snapshot data
+  const actualPlayerCount = isFormallyScored 
+    ? existingPrediction?.actual_player_count 
+    : snapshotPlayerCount
+  const actualReviewScore = isFormallyScored 
+    ? existingPrediction?.actual_review_score 
+    : snapshotReviewScore
+  
+  // Show results overlay if we have data to show (either formally scored or snapshot available)
+  const showResults = canShowResults && !snapshotMissing && (
+    isFormallyScored || snapshotDataComplete
+  )
+  
+  // Check if predictions were within range
+  const playerCountCorrect = actualPlayerCount !== null && actualPlayerCount !== undefined &&
+    existingPrediction?.player_count_min !== null && existingPrediction?.player_count_max !== null &&
+    actualPlayerCount >= existingPrediction.player_count_min && 
+    actualPlayerCount <= existingPrediction.player_count_max
+  
+  const reviewScoreCorrect = actualReviewScore !== null && actualReviewScore !== undefined &&
+    existingPrediction?.review_score_min !== null && existingPrediction?.review_score_max !== null &&
+    actualReviewScore >= existingPrediction.review_score_min && 
+    actualReviewScore <= existingPrediction.review_score_max
+  
+  const bothCorrect = playerCountCorrect && reviewScoreCorrect
+  const partialCorrect = playerCountCorrect || reviewScoreCorrect
+  const finalPoints = existingPrediction?.final_points ?? 0
+  const isPreliminary = !isFormallyScored && showResults
+  
   const title = type === "week_one" ? "Week 1 Prediction" : "Season End Prediction"
   const description =
     type === "week_one"
@@ -152,7 +232,85 @@ export function PredictionForm({
   }
 
   return (
-    <Card className={`border-border ${isLocked ? "opacity-75" : ""}`}>
+    <Card id={`prediction-${type}-${gameId}`} className={`border-border relative overflow-hidden ${isLocked && !showResults && !snapshotMissing ? "opacity-75" : ""}`}>
+      {/* Data Missing Overlay - shown when results should be available but snapshot data is missing */}
+      {snapshotMissing && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-[2px] bg-muted/40">
+          <div className="rounded-full p-4 bg-muted/60">
+            <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+          </div>
+          <p className="mt-3 text-lg font-bold text-muted-foreground">
+            Data Missing
+          </p>
+          <p className="text-sm text-muted-foreground mt-1 text-center px-4">
+            {type === "week_one" 
+              ? "Player/Review data from 1 week after release is unavailable"
+              : "Season end player/review data is unavailable"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-2 text-center px-4">
+            Results cannot be determined at this time.
+          </p>
+        </div>
+      )}
+      {/* Result Overlay for Scored Predictions */}
+      {showResults && (
+        <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-[2px] ${
+          bothCorrect 
+            ? "bg-success/20" 
+            : partialCorrect 
+              ? "bg-warning/20" 
+              : "bg-destructive/20"
+        }`}>
+          <div className={`rounded-full p-4 ${
+            bothCorrect 
+              ? "bg-success/30" 
+              : partialCorrect 
+                ? "bg-warning/30" 
+                : "bg-destructive/30"
+          }`}>
+            {bothCorrect ? (
+              <Trophy className="h-12 w-12 text-success" />
+            ) : partialCorrect ? (
+              <CheckCircle2 className="h-12 w-12 text-warning" />
+            ) : (
+              <XCircle className="h-12 w-12 text-destructive" />
+            )}
+          </div>
+          <p className={`mt-3 text-lg font-bold ${
+            bothCorrect 
+              ? "text-success" 
+              : partialCorrect 
+                ? "text-warning" 
+                : "text-destructive"
+          }`}>
+            {bothCorrect ? "Perfect!" : partialCorrect ? "Partial" : "Missed"}
+          </p>
+          {isPreliminary ? (
+            <p className="text-sm text-muted-foreground mt-1">
+              Preliminary Result
+            </p>
+          ) : (
+            <p className="text-2xl font-bold text-foreground mt-1">
+              +{finalPoints} pts
+            </p>
+          )}
+          <div className="mt-3 text-xs text-muted-foreground text-center px-4">
+            <p>Actual: {actualPlayerCount?.toLocaleString() ?? "N/A"} players</p>
+            <p>Review: {actualReviewScore?.toFixed(1) ?? "N/A"}% positive</p>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="mt-3 text-xs"
+            onClick={() => {
+              const card = document.getElementById(`prediction-${type}-${gameId}`)
+              card?.classList.toggle("show-details")
+            }}
+          >
+            View Details
+          </Button>
+        </div>
+      )}
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
