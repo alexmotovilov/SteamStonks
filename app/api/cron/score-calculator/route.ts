@@ -90,18 +90,30 @@ export async function GET(request: Request) {
         )
 
         if (daysSinceRelease >= 7) {
-          // Get week 1 snapshot
-          const { data: weekOneSnapshot } = await supabase
+          // Compute 24h peak: MAX(player_count) from snapshots in the last 24 hours
+          // This is the value predictions are scored against - the game's max concurrent
+          // players in the 24 hours prior to the score-calculator job running
+          const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+          const { data: recentSnapshots } = await supabase
             .from("game_snapshots")
-            .select("*")
+            .select("player_count")
             .eq("game_id", game.id)
-            .eq("snapshot_type", "week_after_release")
-            .order("captured_at", { ascending: false })
-            .limit(1)
-            .single()
+            .gte("captured_at", twentyFourHoursAgo)
+            .not("player_count", "is", null)
+
+          const peak24h = recentSnapshots && recentSnapshots.length > 0
+            ? Math.max(...recentSnapshots.map((s) => s.player_count as number))
+            : null
+
+          if (peak24h === null) {
+            console.log(
+              `[Score Calculator] Skipping week_one predictions for ${game.name}: no snapshots in last 24h`
+            )
+            continue
+          }
 
           const actualMetrics = {
-            player_count: weekOneSnapshot?.player_count ?? game.peak_player_count ?? 0,
+            player_count: peak24h,
             review_score: reviewScore,
           }
 

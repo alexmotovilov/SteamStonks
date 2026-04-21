@@ -136,8 +136,8 @@ export function PredictionForm({
   const title = type === "week_one" ? "Week 1 Prediction" : "Season End Prediction"
   const description =
     type === "week_one"
-      ? "Predict metrics 1 week after release"
-      : "Predict metrics at end of season"
+      ? "Predict the 24h peak concurrent players & review score 1 week after release"
+      : "Predict the 24h peak concurrent players & review score at end of season"
 
   // Calculate multiplier based on range narrowness
   const playerRangeMultiplier = Math.max(1, 2 - (playerCountMax - playerCountMin) / 100000)
@@ -295,7 +295,7 @@ export function PredictionForm({
             </p>
           )}
           <div className="mt-3 text-xs text-muted-foreground text-center px-4">
-            <p>Actual: {actualPlayerCount?.toLocaleString() ?? "N/A"} players</p>
+            <p>24h Peak: {actualPlayerCount?.toLocaleString() ?? "N/A"} players</p>
             <p>Review: {actualReviewScore?.toFixed(1) ?? "N/A"}% positive</p>
           </div>
           <Button 
@@ -353,7 +353,12 @@ export function PredictionForm({
 
           {/* Player Count Prediction */}
           <div className="space-y-4">
-            <Label className="text-foreground">Peak Concurrent Players</Label>
+            <div>
+              <Label className="text-foreground">24h Peak Concurrent Players</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Scored against the maximum concurrent players recorded in the 24 hours prior to scoring
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Minimum</Label>
