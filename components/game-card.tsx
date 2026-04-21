@@ -22,9 +22,15 @@ interface GameCardProps {
   }
   seasonId?: string
   hasPrediction?: boolean
+  /** Computed 24h peak from game_snapshots. Falls back to game.peak_24h_player_count if not provided. */
+  peak24h?: number | null
+  /** True when fewer than 24 snapshots exist in the 24h window */
+  peakPartial?: boolean
 }
 
-export function GameCard({ game, seasonId, hasPrediction }: GameCardProps) {
+export function GameCard({ game, seasonId, hasPrediction, peak24h, peakPartial }: GameCardProps) {
+  const effectivePeak = peak24h !== undefined ? peak24h : game.peak_24h_player_count
+  const isPartial = peakPartial ?? false
   const reviewPercentage = game.review_score_positive && game.review_score_negative
     ? Math.round((game.review_score_positive / (game.review_score_positive + game.review_score_negative)) * 100)
     : null
@@ -97,10 +103,16 @@ export function GameCard({ game, seasonId, hasPrediction }: GameCardProps) {
           
           {game.is_released && (
             <div className="flex items-center gap-3">
-              {game.peak_24h_player_count !== null && (
-                <div className="flex items-center gap-1 text-muted-foreground" title="24h Peak Players">
+              {effectivePeak !== null && effectivePeak !== undefined && (
+                <div
+                  className="flex items-center gap-1 text-muted-foreground"
+                  title={isPartial ? "24h Peak (partial - fewer than 24 snapshots)" : "24h Peak Players"}
+                >
                   <Users className="h-4 w-4" />
-                  <span>{game.peak_24h_player_count.toLocaleString()}</span>
+                  <span>
+                    {effectivePeak.toLocaleString()}
+                    {isPartial && <span className="text-xs ml-1">(partial)</span>}
+                  </span>
                 </div>
               )}
               {reviewPercentage !== null && (
