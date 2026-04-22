@@ -225,7 +225,6 @@ export function PredictionForm({
 
       router.refresh()
     } catch (err) {
-      console.error("Lock error full details:", JSON.stringify(err, null, 2))
       setError(err instanceof Error ? err.message : "Failed to lock prediction")
     } finally {
       setSaving(false)
