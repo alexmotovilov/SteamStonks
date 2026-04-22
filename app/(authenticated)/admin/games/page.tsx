@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Trash2, RefreshCw, ExternalLink } from "lucide-react"
 import Link from "next/link"
 
@@ -22,6 +22,13 @@ interface Game {
   peak_24h_player_count: number | null
   review_score_positive: number | null
   review_score_negative: number | null
+  season_id: string | null
+}
+
+interface Season {
+  id: string
+  name: string
+  status: string
 }
 
 interface SteamSearchResult {
@@ -31,17 +38,20 @@ interface SteamSearchResult {
 
 export default function AdminGamesPage() {
   const [games, setGames] = useState<Game[]>([])
+  const [seasons, setSeasons] = useState<Season[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [steamSearchQuery, setSteamSearchQuery] = useState("")
   const [steamResults, setSteamResults] = useState<SteamSearchResult[]>([])
   const [searchingSteam, setSearchingSteam] = useState(false)
   const [addingGame, setAddingGame] = useState<number | null>(null)
+  const [assigningGame, setAssigningGame] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     fetchGames()
+    fetchSeasons()
   }, [])
 
   async function fetchGames() {
@@ -57,15 +67,40 @@ export default function AdminGamesPage() {
     setLoading(false)
   }
 
+  async function fetchSeasons() {
+    const { data } = await supabase
+      .from("seasons")
+      .select("id, name, status")
+      .in("status", ["upcoming", "active"])
+      .order("start_date", { ascending: false })
+
+    if (data) setSeasons(data)
+  }
+
+  async function assignSeason(gameId: string, seasonId: string | null) {
+    setAssigningGame(gameId)
+    const { error } = await supabase
+      .from("games")
+      .update({ season_id: seasonId, updated_at: new Date().toISOString() })
+      .eq("id", gameId)
+
+    if (!error) {
+      setGames(games.map((g) =>
+        g.id === gameId ? { ...g, season_id: seasonId } : g
+      ))
+    } else {
+      console.error("Failed to assign season:", error)
+    }
+    setAssigningGame(null)
+  }
+
   async function searchSteam() {
     if (!steamSearchQuery.trim()) return
-    
+
     setSearchingSteam(true)
     try {
       const res = await fetch(`/api/steam/search?q=${encodeURIComponent(steamSearchQuery)}`)
       const data = await res.json()
-      console.log("[v0] Steam search response:", data)
-      // API returns { games: [...] } not { results: [...] }
       setSteamResults(data.games || data.results || [])
     } catch (err) {
       console.error("Steam search failed:", err)
@@ -76,7 +111,6 @@ export default function AdminGamesPage() {
   async function addGameFromSteam(appid: number, name: string) {
     setAddingGame(appid)
     try {
-      // Fetch detailed game info from Steam
       const res = await fetch(`/api/steam/game/${appid}`)
       const gameData = await res.json()
 
@@ -85,22 +119,18 @@ export default function AdminGamesPage() {
         return
       }
 
-      // Parse release date - handle various formats from Steam (e.g., "Mar 15, 2024")
       let releaseDate = null
-      if (gameData.release_date && typeof gameData.release_date === 'string') {
+      if (gameData.release_date && typeof gameData.release_date === "string") {
         try {
-          // Try parsing the date string - Steam uses formats like "Mar 15, 2024"
           const parsed = new Date(gameData.release_date)
           if (!isNaN(parsed.getTime())) {
             releaseDate = parsed.toISOString().split("T")[0]
           }
         } catch {
-          // Ignore parse errors - leave as null
           console.log("[v0] Could not parse release date:", gameData.release_date)
         }
       }
 
-      // Insert into database with all available data
       const { error } = await supabase.from("games").insert({
         steam_appid: appid,
         name: gameData.name || name,
@@ -110,7 +140,7 @@ export default function AdminGamesPage() {
         developer: gameData.developers?.[0],
         publisher: gameData.publishers?.[0],
         genres: gameData.genres || [],
-          peak_24h_player_count: gameData.player_count || null,
+        peak_24h_player_count: gameData.player_count || null,
         review_score_positive: gameData.reviews?.positive || null,
         review_score_negative: gameData.reviews?.negative || null,
         last_snapshot_at: new Date().toISOString(),
@@ -151,9 +181,8 @@ export default function AdminGamesPage() {
 
       if (gameData.error) return
 
-      // Parse release date from Steam's format
-      let releaseDate = game.release_date // Keep existing if parsing fails
-      if (gameData.release_date && typeof gameData.release_date === 'string') {
+      let releaseDate = game.release_date
+      if (gameData.release_date && typeof gameData.release_date === "string") {
         try {
           const parsed = new Date(gameData.release_date)
           if (!isNaN(parsed.getTime())) {
@@ -167,7 +196,7 @@ export default function AdminGamesPage() {
       const { error } = await supabase
         .from("games")
         .update({
-        peak_24h_player_count: gameData.player_count || null,
+          peak_24h_player_count: gameData.player_count || null,
           review_score_positive: gameData.reviews?.positive || null,
           review_score_negative: gameData.reviews?.negative || null,
           is_released: !gameData.coming_soon,
@@ -193,6 +222,11 @@ export default function AdminGamesPage() {
     const total = (positive || 0) + (negative || 0)
     if (total === 0) return null
     return Math.round(((positive || 0) / total) * 100)
+  }
+
+  const getSeasonName = (seasonId: string | null) => {
+    if (!seasonId) return null
+    return seasons.find((s) => s.id === seasonId)?.name ?? null
   }
 
   return (
@@ -261,7 +295,7 @@ export default function AdminGamesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Games ({games.length})</CardTitle>
-          <CardDescription>All games available for predictions</CardDescription>
+          <CardDescription>All games available for predictions. Use the Season column to assign games to an active season.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="mb-4">
@@ -286,6 +320,7 @@ export default function AdminGamesPage() {
                   <TableHead>Game</TableHead>
                   <TableHead>AppID</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Season</TableHead>
                   <TableHead>24h Peak</TableHead>
                   <TableHead>Reviews</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -294,6 +329,8 @@ export default function AdminGamesPage() {
               <TableBody>
                 {filteredGames.map((game) => {
                   const reviewScore = getReviewScore(game.review_score_positive, game.review_score_negative)
+                  const isAssigning = assigningGame === game.id
+
                   return (
                     <TableRow key={game.id}>
                       <TableCell>
@@ -329,6 +366,49 @@ export default function AdminGamesPage() {
                         <Badge variant={game.is_released ? "default" : "secondary"}>
                           {game.is_released ? "Released" : "Upcoming"}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={game.season_id ?? "unassigned"}
+                          onValueChange={(value) =>
+                            assignSeason(game.id, value === "unassigned" ? null : value)
+                          }
+                          disabled={isAssigning}
+                        >
+                          <SelectTrigger className="w-[160px] h-8 text-xs">
+                            <SelectValue>
+                              {isAssigning ? (
+                                <span className="text-muted-foreground">Saving...</span>
+                              ) : game.season_id ? (
+                                getSeasonName(game.season_id) ?? (
+                                  <span className="text-muted-foreground italic">Unknown season</span>
+                                )
+                              ) : (
+                                <span className="text-muted-foreground">Unassigned</span>
+                              )}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">
+                              <span className="text-muted-foreground">Unassigned</span>
+                            </SelectItem>
+                            {seasons.map((season) => (
+                              <SelectItem key={season.id} value={season.id}>
+                                <div className="flex items-center gap-2">
+                                  {season.name}
+                                  <Badge variant="outline" className="text-[10px] py-0 h-4">
+                                    {season.status}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                            {seasons.length === 0 && (
+                              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                No active seasons
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         {game.peak_24h_player_count?.toLocaleString() || "-"}

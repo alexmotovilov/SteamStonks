@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { Calendar, ArrowLeft, Users, Trophy, Gamepad2, Play, CheckCircle, Clock } from "lucide-react"
 import { SeasonStatusActions } from "@/components/admin/season-status-actions"
+import { ManualSnapshotButton } from "@/components/admin/manual-snapshot-button"
 
 const statusColors: Record<string, string> = {
   upcoming: "bg-blue-500/20 text-blue-400 border-blue-500/50",
@@ -185,6 +186,16 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
           </CardHeader>
           <CardContent>
             <SeasonStatusActions seasonId={season.id} currentStatus={season.status} />
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-sm text-muted-foreground mb-3">
+                Manual recovery — use if the automatic snapshot failed or needs to be re-taken.
+              </p>
+              <ManualSnapshotButton
+                seasonId={season.id}
+                seasonName={season.name}
+                currentStatus={season.status}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
