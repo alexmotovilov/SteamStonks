@@ -35,7 +35,7 @@ export default function AdminGamesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [steamSearchQuery, setSteamSearchQuery] = useState("")
   const [steamResults, setSteamResults] = useState<SteamSearchResult[]>([])
-  const [searchingStea, setSearchingSteam] = useState(false)
+  const [searchingSteam, setSearchingSteam] = useState(false)
   const [addingGame, setAddingGame] = useState<number | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const supabase = createClient()
@@ -222,8 +222,8 @@ export default function AdminGamesPage() {
                   onChange={(e) => setSteamSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && searchSteam()}
                 />
-                <Button onClick={searchSteam} disabled={searchingStea}>
-                  {searchingStea ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                <Button onClick={searchSteam} disabled={searchingSteam}>
+                  {searchingSteam ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 </Button>
               </div>
               <div className="max-h-[300px] overflow-y-auto space-y-2">
@@ -249,7 +249,7 @@ export default function AdminGamesPage() {
                     </Button>
                   </div>
                 ))}
-                {steamResults.length === 0 && steamSearchQuery && !searchingStea && (
+                {steamResults.length === 0 && steamSearchQuery && !searchingSteam && (
                   <p className="text-center text-muted-foreground py-4">No results found</p>
                 )}
               </div>
