@@ -77,6 +77,7 @@ export async function GET(request: Request) {
           player_count: playerCount,
           review_positive: reviews?.total_positive ?? null,
           review_negative: reviews?.total_negative ?? null,
+          peak_players: playerCount,
           snapshot_type: snapshotType,
         })
 
@@ -171,7 +172,7 @@ function determineSnapshotType(
     (now.getTime() - release.getTime()) / (1000 * 60 * 60 * 24)
   )
 
-  // Week 1 snapshot (7 days after release)
+  // Week 1 snapshot window: days 6–8 after release
   if (daysSinceRelease >= 6 && daysSinceRelease <= 8) {
     return "week_after_release"
   }
