@@ -117,15 +117,20 @@ export function PredictionForm({
     isFormallyScored || snapshotDataComplete
   )
   
-  // Check if predictions were within range
-  const playerCountCorrect = actualPlayerCount !== null && actualPlayerCount !== undefined &&
-    existingPrediction?.player_count_min !== null && existingPrediction?.player_count_max !== null &&
-    actualPlayerCount >= existingPrediction.player_count_min && 
+  // Check if predictions were within range. Guard on existingPrediction itself so
+  // neither null nor undefined can slip through to an unsafe property access.
+  const playerCountCorrect =
+    !!existingPrediction &&
+    actualPlayerCount !== null && actualPlayerCount !== undefined &&
+    existingPrediction.player_count_min !== null && existingPrediction.player_count_max !== null &&
+    actualPlayerCount >= existingPrediction.player_count_min &&
     actualPlayerCount <= existingPrediction.player_count_max
-  
-  const reviewScoreCorrect = actualReviewScore !== null && actualReviewScore !== undefined &&
-    existingPrediction?.review_score_min !== null && existingPrediction?.review_score_max !== null &&
-    actualReviewScore >= existingPrediction.review_score_min && 
+
+  const reviewScoreCorrect =
+    !!existingPrediction &&
+    actualReviewScore !== null && actualReviewScore !== undefined &&
+    existingPrediction.review_score_min !== null && existingPrediction.review_score_max !== null &&
+    actualReviewScore >= existingPrediction.review_score_min &&
     actualReviewScore <= existingPrediction.review_score_max
   
   const bothCorrect = playerCountCorrect && reviewScoreCorrect

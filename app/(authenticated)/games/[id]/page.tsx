@@ -58,8 +58,12 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
     .eq("game_id", id)
     .eq("season_id", seasonId || "")
 
-  const weekOnePrediction = existingPredictions?.find((p) => p.prediction_type === "week_one")
-  const seasonEndPrediction = existingPredictions?.find((p) => p.prediction_type === "season_end")
+  // Coerce `undefined` (no prediction found) to `null` so PredictionForm receives a
+  // well-defined prop and never attempts to read properties off undefined.
+  const weekOnePrediction =
+    existingPredictions?.find((p) => p.prediction_type === "week_one") ?? null
+  const seasonEndPrediction =
+    existingPredictions?.find((p) => p.prediction_type === "season_end") ?? null
 
   // Get historical snapshots for scoring (week_after_release and season_end)
   const { data: weekOneSnapshot } = await supabase
