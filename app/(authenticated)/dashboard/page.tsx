@@ -84,7 +84,7 @@ export default async function DashboardPage() {
               </div>
               {!seasonEntry ? (
                 <Button asChild size="lg">
-                  <Link href={`/seasons/${activeSeason.slug}/join`}>
+                  <Link href={`/seasons/${activeSeason.slug ?? activeSeason.id}/join`}>
                     Join Season
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
