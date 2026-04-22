@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
-import { Lock, Loader2, Target, TrendingUp, CheckCircle2, XCircle, Trophy, AlertTriangle } from "lucide-react"
+import { Lock, Loader2, Target, TrendingUp, CheckCircle2, XCircle, Trophy, AlertTriangle, ArrowLeft } from "lucide-react"
 
 interface PredictionFormProps {
   type: "week_one" | "season_end"
@@ -65,6 +65,9 @@ export function PredictionForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  // When true, the result overlay is hidden and the underlying (locked, read-only)
+  // prediction form is revealed so the user can review their original inputs.
+  const [showDetails, setShowDetails] = useState(false)
   const router = useRouter()
 
   // Week 1 predictions lock when the game releases
@@ -258,7 +261,7 @@ export function PredictionForm({
         </div>
       )}
       {/* Result Overlay for Scored Predictions */}
-      {showResults && (
+      {showResults && !showDetails && (
         <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-[2px] ${
           bothCorrect 
             ? "bg-success/20" 
@@ -303,14 +306,11 @@ export function PredictionForm({
             <p>24h Peak: {actualPlayerCount?.toLocaleString() ?? "N/A"} players</p>
             <p>Review: {actualReviewScore?.toFixed(1) ?? "N/A"}% positive</p>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="mt-3 text-xs"
-            onClick={() => {
-              const card = document.getElementById(`prediction-${type}-${gameId}`)
-              card?.classList.toggle("show-details")
-            }}
+            onClick={() => setShowDetails(true)}
           >
             View Details
           </Button>
@@ -338,6 +338,18 @@ export function PredictionForm({
             </Badge>
           )}
         </div>
+        {showResults && showDetails && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3 w-fit"
+            onClick={() => setShowDetails(false)}
+          >
+            <ArrowLeft className="mr-2 h-3 w-3" />
+            Back to Results
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
