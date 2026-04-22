@@ -69,7 +69,7 @@ export function calculatePredictionScore(
 
   // Calculate multipliers
   const timeBonus = calculateTimeBonus(prediction.locked_at, gameReleaseDate)
-  const narrownessBonus = calculateNarrownessBonu(
+  const narrownessBonus = calculateNarownessBonus(
     prediction.player_count_min ?? 0,
     prediction.player_count_max ?? MAX_PLAYER_RANGE,
     prediction.review_score_min ?? 0,
@@ -161,7 +161,7 @@ function calculateTimeBonus(lockedAt: string | null, releaseDate?: Date): number
  * Calculate bonus for narrow prediction ranges
  * Narrower ranges are riskier but earn more (up to 0.4x bonus)
  */
-function calculateNarrownessBonu(
+function calculateNarownessBonus(
   playerMin: number,
   playerMax: number,
   reviewMin: number,
