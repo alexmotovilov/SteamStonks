@@ -128,15 +128,8 @@ function calculateRangeScore(
       accuracy: Math.round(centeredness * 100),
     }
   } else {
-    // Miss - score decreases with distance from range
-    const distance = actual < min ? min - actual : actual - max
-    const penaltyRatio = Math.min(distance / maxPossibleValue, 1)
-    const score = Math.max(0, MAX_BASE_POINTS * (1 - penaltyRatio * 2))
-
-    return {
-      score: Math.round(score),
-      accuracy: 0,
-    }
+    // Miss - predictions outside the range earn no points regardless of proximity
+    return { score: 0, accuracy: 0 }
   }
 }
 
