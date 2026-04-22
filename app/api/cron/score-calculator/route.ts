@@ -82,18 +82,19 @@ export async function GET(request: Request) {
       const weekOnePredictions = predictions.filter(p => p.prediction_type === "week_one")
       const seasonEndPredictions = predictions.filter(p => p.prediction_type === "season_end")
 
+      const releaseDate = game.release_date ? new Date(game.release_date) : undefined
+
       // Score week_one predictions (7+ days after release)
-      if (weekOnePredictions.length > 0 && game.release_date) {
-        const releaseDate = new Date(game.release_date)
+      if (weekOnePredictions.length > 0 && releaseDate) {
         const daysSinceRelease = Math.floor(
           (Date.now() - releaseDate.getTime()) / (1000 * 60 * 60 * 24)
         )
 
         if (daysSinceRelease >= 7) {
-          // Get week 1 snapshot
+          // Prefer week_after_release snapshot; fall back to peak if missing
           const { data: weekOneSnapshot } = await supabase
             .from("game_snapshots")
-            .select("*")
+            .select("player_count, review_positive, review_negative")
             .eq("game_id", game.id)
             .eq("snapshot_type", "week_after_release")
             .order("captured_at", { ascending: false })
@@ -130,7 +131,62 @@ export async function GET(request: Request) {
 
               results.predictionsScored++
             } catch (err) {
-              console.error(`[Score Calculator] Error scoring prediction ${prediction.id}:`, err)
+              console.error(`[Score Calculator] Error scoring week_one prediction ${prediction.id}:`, err)
+              results.errors++
+            }
+          }
+        }
+      }
+
+      // Score season_end predictions — requires a season_end snapshot to exist
+      if (seasonEndPredictions.length > 0) {
+        const { data: seasonEndSnapshot } = await supabase
+          .from("game_snapshots")
+          .select("player_count, review_positive, review_negative")
+          .eq("game_id", game.id)
+          .eq("snapshot_type", "season_end")
+          .order("captured_at", { ascending: false })
+          .limit(1)
+          .single()
+
+        if (seasonEndSnapshot) {
+          const snapshotReviewTotal =
+            (seasonEndSnapshot.review_positive ?? 0) + (seasonEndSnapshot.review_negative ?? 0)
+          const snapshotReviewScore = snapshotReviewTotal > 0
+            ? Math.round(((seasonEndSnapshot.review_positive ?? 0) / snapshotReviewTotal) * 100)
+            : reviewScore
+
+          const actualMetrics = {
+            player_count: seasonEndSnapshot.player_count ?? game.peak_player_count ?? 0,
+            review_score: snapshotReviewScore,
+          }
+
+          const crowdMedian = calculateCrowdMedian(seasonEndPredictions)
+
+          for (const prediction of seasonEndPredictions) {
+            try {
+              const scoreResult = calculatePredictionScore(
+                prediction,
+                actualMetrics,
+                crowdMedian,
+                releaseDate
+              )
+
+              await supabase
+                .from("predictions")
+                .update({
+                  actual_player_count: actualMetrics.player_count,
+                  actual_review_score: actualMetrics.review_score,
+                  base_points: scoreResult.base_points,
+                  multiplier: scoreResult.multiplier,
+                  final_points: scoreResult.final_points,
+                  scored_at: new Date().toISOString(),
+                })
+                .eq("id", prediction.id)
+
+              results.predictionsScored++
+            } catch (err) {
+              console.error(`[Score Calculator] Error scoring season_end prediction ${prediction.id}:`, err)
               results.errors++
             }
           }
