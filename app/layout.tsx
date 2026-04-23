@@ -37,6 +37,26 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
+        {/* Fixed background image with dark overlay */}
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: -1,
+            backgroundImage: "url('/background.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center top",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: -1,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+          }}
+        />
         {children}
         <Analytics />
       </body>

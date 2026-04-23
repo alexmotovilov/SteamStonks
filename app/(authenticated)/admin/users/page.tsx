@@ -342,13 +342,13 @@ export default function AdminUsersPage() {
                           }}
                         >
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={!!actionLoading} title="Adjust points">
+                            <Button variant="outline" size="sm" disabled={!!actionLoading} title="Adjust tokens">
                               {isLoading(user.id, "adjust_tokens") ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <Coins className="h-4 w-4 text-muted-foreground" />
                               )}
-                              <span className="ml-1.5 hidden sm:inline">Points</span>
+                              <span className="ml-1.5 hidden sm:inline">Tokens</span>
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="bg-card border-border">
