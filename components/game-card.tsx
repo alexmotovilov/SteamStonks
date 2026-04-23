@@ -22,9 +22,10 @@ interface GameCardProps {
   }
   seasonId?: string
   hasPrediction?: boolean
+  dimmed?: boolean
 }
 
-export function GameCard({ game, seasonId, hasPrediction }: GameCardProps) {
+export function GameCard({ game, seasonId, hasPrediction, dimmed }: GameCardProps) {
   const reviewPercentage = game.review_score_positive && game.review_score_negative
     ? Math.round((game.review_score_positive / (game.review_score_positive + game.review_score_negative)) * 100)
     : null
@@ -38,7 +39,7 @@ export function GameCard({ game, seasonId, hasPrediction }: GameCardProps) {
     : "TBA"
 
   return (
-    <Card className="overflow-hidden border-border bg-card hover:border-primary/50 transition-colors group">
+    <Card className={`overflow-hidden border-border bg-card transition-colors group ${dimmed ? "opacity-50 grayscale hover:opacity-70" : "hover:border-primary/50"}`}>
       <CardHeader className="p-0">
         <div className="relative aspect-[460/215] overflow-hidden">
           {game.header_image_url ? (
@@ -115,10 +116,10 @@ export function GameCard({ game, seasonId, hasPrediction }: GameCardProps) {
       </CardContent>
 
       <CardFooter className="p-4 pt-0">
-        <Button asChild className="w-full" variant={hasPrediction ? "outline" : "default"}>
+        <Button asChild className="w-full" variant={dimmed ? "ghost" : hasPrediction ? "outline" : "default"}>
           <Link href={`/games/${game.id}${seasonId ? `?season=${seasonId}` : ""}`}>
             <Target className="mr-2 h-4 w-4" />
-            {hasPrediction ? "View Prediction" : "Make Prediction"}
+            {dimmed ? "View Results" : hasPrediction ? "View Prediction" : "Make Prediction"}
           </Link>
         </Button>
       </CardFooter>

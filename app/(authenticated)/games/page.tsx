@@ -10,34 +10,80 @@ import { Search, Plus, Gamepad2 } from "lucide-react"
 
 export default async function GamesPage() {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Get active season
-  const { data: activeSeason } = await supabase
+  // Get active/upcoming season (the one players are currently participating in)
+  const { data: currentSeason } = await supabase
     .from("seasons")
     .select("*")
-    .eq("status", "active")
+    .in("status", ["active", "upcoming"])
+    .order("start_date", { ascending: false })
+    .limit(1)
     .single()
 
-  // Get all games
+  // Get all games with their season's status so we can categorise them
   const { data: games } = await supabase
     .from("games")
-    .select("*")
+    .select(`
+      *,
+      seasons:season_id (
+        id,
+        name,
+        status
+      )
+    `)
     .order("release_date", { ascending: true })
 
-  // Get user's predictions for the active season
+  // Get user's predictions for the current season
   const { data: userPredictions } = await supabase
     .from("predictions")
     .select("game_id")
     .eq("user_id", user?.id || "")
-    .eq("season_id", activeSeason?.id || "")
+    .eq("season_id", currentSeason?.id || "")
 
   const predictedGameIds = new Set(userPredictions?.map((p) => p.game_id) || [])
 
-  // Separate games into upcoming and released
-  const upcomingGames = games?.filter((g) => !g.is_released) || []
-  const releasedGames = games?.filter((g) => g.is_released) || []
+  // Categorise games
+  // Current season: games assigned to the active/upcoming season
+  const currentSeasonGames = games?.filter(
+    (g) => g.season_id && g.seasons?.status &&
+      ["active", "upcoming"].includes(g.seasons.status)
+  ) || []
+
+  // Past season: games assigned to completed/scoring seasons
+  const pastSeasonGames = games?.filter(
+    (g) => g.season_id && g.seasons?.status &&
+      ["completed", "scoring"].includes(g.seasons.status)
+  ) || []
+
+  // Unassigned: games with no season
+  const unassignedGames = games?.filter((g) => !g.season_id) || []
+
+  // All tab shows everything
+  const allGames = games || []
+
+  // Default to current season tab if there is one, otherwise all
+  const defaultTab = currentSeason ? "current" : "all"
+
+  function EmptyState({ message, showNominate = false }: { message: string; showNominate?: boolean }) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <Gamepad2 className="h-12 w-12 text-muted-foreground mb-4" />
+          <CardTitle className="text-lg text-foreground mb-2">No Games Here</CardTitle>
+          <CardDescription className="text-center text-muted-foreground mb-4">
+            {message}
+          </CardDescription>
+          {showNominate && (
+            <Button asChild>
+              <Link href="/games/nominate">Nominate a Game</Link>
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -57,13 +103,13 @@ export default async function GamesPage() {
         </Button>
       </div>
 
-      {/* Season Info */}
-      {activeSeason && (
+      {/* Active Season Banner */}
+      {currentSeason && (
         <Card className="border-primary/50">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <Badge>Active Season</Badge>
-              <span className="text-lg font-semibold text-foreground">{activeSeason.name}</span>
+              <Badge>{currentSeason.status === "active" ? "Active Season" : "Upcoming Season"}</Badge>
+              <span className="text-lg font-semibold text-foreground">{currentSeason.name}</span>
             </div>
           </CardHeader>
           <CardContent>
@@ -77,102 +123,105 @@ export default async function GamesPage() {
       {/* Search (UI only for now) */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input 
-          placeholder="Search games..." 
+        <Input
+          placeholder="Search games..."
           className="pl-10 bg-input border-border"
           disabled
         />
       </div>
 
       {/* Games Tabs */}
-      <Tabs defaultValue="upcoming" className="space-y-6">
+      <Tabs defaultValue={defaultTab} className="space-y-6">
         <TabsList className="bg-secondary">
-          <TabsTrigger value="upcoming" className="data-[state=active]:bg-background">
-            Upcoming ({upcomingGames.length})
-          </TabsTrigger>
-          <TabsTrigger value="released" className="data-[state=active]:bg-background">
-            Released ({releasedGames.length})
-          </TabsTrigger>
+          {currentSeason && (
+            <TabsTrigger value="current" className="data-[state=active]:bg-background">
+              {currentSeason.status === "active" ? "Active Season" : "Upcoming Season"}
+              {currentSeasonGames.length > 0 && (
+                <Badge variant="secondary" className="ml-2 scale-75">
+                  {currentSeasonGames.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          )}
+          {pastSeasonGames.length > 0 && (
+            <TabsTrigger value="past" className="data-[state=active]:bg-background">
+              Past Seasons
+              <Badge variant="outline" className="ml-2 scale-75 opacity-70">
+                {pastSeasonGames.length}
+              </Badge>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="all" className="data-[state=active]:bg-background">
-            All ({games?.length || 0})
+            All ({allGames.length})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="upcoming" className="space-y-4">
-          {upcomingGames.length > 0 ? (
+        {/* Current Season Tab */}
+        {currentSeason && (
+          <TabsContent value="current" className="space-y-4">
+            {currentSeasonGames.length > 0 ? (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {currentSeasonGames.map((game) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    seasonId={currentSeason.id}
+                    hasPrediction={predictedGameIds.has(game.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                message="No games have been added to this season yet."
+                showNominate
+              />
+            )}
+          </TabsContent>
+        )}
+
+        {/* Past Seasons Tab */}
+        {pastSeasonGames.length > 0 && (
+          <TabsContent value="past" className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              These games are from completed seasons. Predictions are closed but you can view results.
+            </p>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {upcomingGames.map((game) => (
-                <GameCard 
-                  key={game.id} 
-                  game={game} 
-                  seasonId={activeSeason?.id}
-                  hasPrediction={predictedGameIds.has(game.id)}
+              {pastSeasonGames.map((game) => (
+                <GameCard
+                  key={game.id}
+                  game={game}
+                  seasonId={game.season_id}
+                  hasPrediction={false}
+                  dimmed
                 />
               ))}
             </div>
-          ) : (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Gamepad2 className="h-12 w-12 text-muted-foreground mb-4" />
-                <CardTitle className="text-lg text-foreground mb-2">No Upcoming Games</CardTitle>
-                <CardDescription className="text-center text-muted-foreground mb-4">
-                  No games have been added for prediction yet. Be the first to nominate one!
-                </CardDescription>
-                <Button asChild>
-                  <Link href="/games/nominate">Nominate a Game</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+          </TabsContent>
+        )}
 
-        <TabsContent value="released" className="space-y-4">
-          {releasedGames.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {releasedGames.map((game) => (
-                <GameCard 
-                  key={game.id} 
-                  game={game} 
-                  seasonId={activeSeason?.id}
-                  hasPrediction={predictedGameIds.has(game.id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Gamepad2 className="h-12 w-12 text-muted-foreground mb-4" />
-                <CardTitle className="text-lg text-foreground mb-2">No Released Games</CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Games will appear here after they release.
-                </CardDescription>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
+        {/* All Tab */}
         <TabsContent value="all" className="space-y-4">
-          {games && games.length > 0 ? (
+          {allGames.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {games.map((game) => (
-                <GameCard 
-                  key={game.id} 
-                  game={game} 
-                  seasonId={activeSeason?.id}
-                  hasPrediction={predictedGameIds.has(game.id)}
-                />
-              ))}
+              {allGames.map((game) => {
+                const isPast = game.seasons?.status &&
+                  ["completed", "scoring"].includes(game.seasons.status)
+                return (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    seasonId={isPast ? game.season_id : currentSeason?.id}
+                    hasPrediction={!isPast && predictedGameIds.has(game.id)}
+                    dimmed={!!isPast}
+                  />
+                )
+              })}
             </div>
           ) : (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Gamepad2 className="h-12 w-12 text-muted-foreground mb-4" />
-                <CardTitle className="text-lg text-foreground mb-2">No Games Yet</CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Nominate your first game to get started.
-                </CardDescription>
-              </CardContent>
-            </Card>
+            <EmptyState
+              message="No games have been added yet. Be the first to nominate one!"
+              showNominate
+            />
           )}
         </TabsContent>
       </Tabs>

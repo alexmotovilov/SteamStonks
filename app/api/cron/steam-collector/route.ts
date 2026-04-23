@@ -49,7 +49,8 @@ export async function GET(request: Request) {
 
     const { data: games, error: gamesError } = await supabase
       .from("games")
-      .select("id, steam_appid, name, release_date, is_released, peak_player_count")
+      .select("id, steam_appid, name, release_date, is_released, peak_player_count, seasons!inner(status)")
+      .in("seasons.status", ["upcoming", "active"])
       .order("last_snapshot_at", { ascending: true, nullsFirst: true })
       .limit(50)
 

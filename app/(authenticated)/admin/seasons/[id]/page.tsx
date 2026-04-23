@@ -35,10 +35,11 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
     .select("*", { count: "exact", head: true })
     .eq("season_id", id)
 
-  // Get games for this season
+  // Get games for this season only
   const { data: games, count: gameCount } = await supabase
     .from("games")
     .select("*", { count: "exact" })
+    .eq("season_id", id)
     .order("release_date", { ascending: true })
 
   // Get prediction count

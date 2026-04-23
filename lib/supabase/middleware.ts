@@ -33,36 +33,39 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect dashboard routes - redirect to login if not authenticated
+  // Check ban status for authenticated users on all protected routes
+  // (exclude /banned itself and auth pages to avoid redirect loops)
   if (
-    request.nextUrl.pathname.startsWith('/dashboard') &&
-    !user
+    user &&
+    !request.nextUrl.pathname.startsWith('/banned') &&
+    !request.nextUrl.pathname.startsWith('/auth') &&
+    !request.nextUrl.pathname.startsWith('/api')
   ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
-  }
-
-  // Protect admin routes - redirect if not admin
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    if (!user) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/auth/login'
-      return NextResponse.redirect(url)
-    }
-    
-    // Check if user is admin
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_admin')
+      .select('is_banned, is_admin')
       .eq('id', user.id)
       .single()
-    
-    if (!profile?.is_admin) {
+
+    if (profile?.is_banned) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/banned'
+      return NextResponse.redirect(url)
+    }
+
+    // Protect admin routes — redirect non-admins
+    if (request.nextUrl.pathname.startsWith('/admin') && !profile?.is_admin) {
       const url = request.nextUrl.clone()
       url.pathname = '/dashboard'
       return NextResponse.redirect(url)
     }
+  }
+
+  // Protect admin routes for unauthenticated users
+  if (request.nextUrl.pathname.startsWith('/admin') && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    return NextResponse.redirect(url)
   }
 
   // Redirect authenticated users away from auth pages

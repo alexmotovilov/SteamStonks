@@ -17,6 +17,7 @@ interface PredictionFormProps {
   gameId: string
   gameName: string
   seasonId: string
+  seasonStatus: string
   existingPrediction?: {
     id: string
     player_count_min: number | null
@@ -44,6 +45,7 @@ export function PredictionForm({
   gameId,
   gameName,
   seasonId,
+  seasonStatus,
   existingPrediction,
   isReleased,
   predictionLockDate,
@@ -67,14 +69,19 @@ export function PredictionForm({
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
+  // Season is closed if it's in scoring or completed state
+  const isSeasonClosed = seasonStatus === "scoring" || seasonStatus === "completed"
+
   // Week 1 predictions lock when the game releases
   // Season End predictions lock at the admin-set prediction lock date
-  const isPredictionLockDatePassed = predictionLockDate 
-    ? new Date(predictionLockDate) < new Date() 
+  // All predictions lock when the season closes
+  const isPredictionLockDatePassed = predictionLockDate
+    ? new Date(predictionLockDate) < new Date()
     : false
-  
-  const isLocked = existingPrediction?.is_locked || 
-    (type === "week_one" && isReleased) || 
+
+  const isLocked = isSeasonClosed ||
+    existingPrediction?.is_locked ||
+    (type === "week_one" && isReleased) ||
     (type === "season_end" && isPredictionLockDatePassed)
   
   // Determine if prediction has been formally scored
@@ -119,13 +126,13 @@ export function PredictionForm({
   
   // Check if predictions were within range
   const playerCountCorrect = actualPlayerCount !== null && actualPlayerCount !== undefined &&
-    existingPrediction?.player_count_min !== null && existingPrediction?.player_count_max !== null &&
-    actualPlayerCount >= existingPrediction.player_count_min && 
+    existingPrediction?.player_count_min != null && existingPrediction?.player_count_max != null &&
+    actualPlayerCount >= existingPrediction.player_count_min &&
     actualPlayerCount <= existingPrediction.player_count_max
-  
+
   const reviewScoreCorrect = actualReviewScore !== null && actualReviewScore !== undefined &&
-    existingPrediction?.review_score_min !== null && existingPrediction?.review_score_max !== null &&
-    actualReviewScore >= existingPrediction.review_score_min && 
+    existingPrediction?.review_score_min != null && existingPrediction?.review_score_max != null &&
+    actualReviewScore >= existingPrediction.review_score_min &&
     actualReviewScore <= existingPrediction.review_score_max
   
   const bothCorrect = playerCountCorrect && reviewScoreCorrect

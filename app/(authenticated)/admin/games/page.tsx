@@ -71,7 +71,6 @@ export default function AdminGamesPage() {
     const { data } = await supabase
       .from("seasons")
       .select("id, name, status")
-      .in("status", ["upcoming", "active"])
       .order("start_date", { ascending: false })
 
     if (data) setSeasons(data)
@@ -373,7 +372,7 @@ export default function AdminGamesPage() {
                           onValueChange={(value) =>
                             assignSeason(game.id, value === "unassigned" ? null : value)
                           }
-                          disabled={isAssigning}
+                          disabled={isAssigning || seasons.find(s => s.id === game.season_id)?.status === "completed"}
                         >
                           <SelectTrigger className="w-[160px] h-8 text-xs">
                             <SelectValue>
@@ -392,7 +391,7 @@ export default function AdminGamesPage() {
                             <SelectItem value="unassigned">
                               <span className="text-muted-foreground">Unassigned</span>
                             </SelectItem>
-                            {seasons.map((season) => (
+                            {seasons.filter(s => s.status !== "completed").map((season) => (
                               <SelectItem key={season.id} value={season.id}>
                                 <div className="flex items-center gap-2">
                                   {season.name}
@@ -402,7 +401,7 @@ export default function AdminGamesPage() {
                                 </div>
                               </SelectItem>
                             ))}
-                            {seasons.length === 0 && (
+                            {seasons.filter(s => s.status !== "completed").length === 0 && (
                               <div className="px-2 py-1.5 text-xs text-muted-foreground">
                                 No active seasons
                               </div>

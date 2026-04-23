@@ -229,32 +229,43 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
       {/* Prediction Forms */}
       {seasonData && (
         <div className="grid md:grid-cols-2 gap-6">
-          <PredictionForm
-            type="week_one"
-            gameId={game.id}
-            gameName={game.name}
-            seasonId={seasonData.id}
-            existingPrediction={weekOnePrediction}
-            isReleased={game.is_released}
-            predictionLockDate={seasonData.prediction_lock_date}
-            snapshotPlayerCount={weekOneSnapshot?.player_count}
-            snapshotReviewPositive={weekOneSnapshot?.review_positive}
-            snapshotReviewNegative={weekOneSnapshot?.review_negative}
-            snapshotCapturedAt={weekOneSnapshot?.captured_at}
-          />
-          <PredictionForm
-            type="season_end"
-            gameId={game.id}
-            gameName={game.name}
-            seasonId={seasonData.id}
-            existingPrediction={seasonEndPrediction}
-            isReleased={game.is_released}
-            predictionLockDate={seasonData.prediction_lock_date}
-            snapshotPlayerCount={seasonEndSnapshot?.player_count}
-            snapshotReviewPositive={seasonEndSnapshot?.review_positive}
-            snapshotReviewNegative={seasonEndSnapshot?.review_negative}
-            snapshotCapturedAt={seasonEndSnapshot?.captured_at}
-          />
+          {(seasonData.status === "active" || weekOnePrediction) && (
+            <PredictionForm
+              type="week_one"
+              gameId={game.id}
+              gameName={game.name}
+              seasonId={seasonData.id}
+              seasonStatus={seasonData.status}
+              existingPrediction={weekOnePrediction}
+              isReleased={game.is_released}
+              predictionLockDate={seasonData.prediction_lock_date}
+              snapshotPlayerCount={weekOneSnapshot?.player_count}
+              snapshotReviewPositive={weekOneSnapshot?.review_positive}
+              snapshotReviewNegative={weekOneSnapshot?.review_negative}
+              snapshotCapturedAt={weekOneSnapshot?.captured_at}
+            />
+          )}
+          {(seasonData.status === "active" || seasonEndPrediction) && (
+            <PredictionForm
+              type="season_end"
+              gameId={game.id}
+              gameName={game.name}
+              seasonId={seasonData.id}
+              seasonStatus={seasonData.status}
+              existingPrediction={seasonEndPrediction}
+              isReleased={game.is_released}
+              predictionLockDate={seasonData.prediction_lock_date}
+              snapshotPlayerCount={seasonEndSnapshot?.player_count}
+              snapshotReviewPositive={seasonEndSnapshot?.review_positive}
+              snapshotReviewNegative={seasonEndSnapshot?.review_negative}
+              snapshotCapturedAt={seasonEndSnapshot?.captured_at}
+            />
+          )}
+          {seasonData.status !== "active" && !weekOnePrediction && !seasonEndPrediction && (
+            <div className="md:col-span-2 text-center py-8 text-muted-foreground">
+              No predictions were made for this game during the season.
+            </div>
+          )}
         </div>
       )}
     </div>
