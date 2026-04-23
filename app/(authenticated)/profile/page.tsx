@@ -15,7 +15,7 @@ interface Profile {
   username: string | null
   display_name: string | null
   avatar_url: string | null
-  points_balance: number
+  token_balance: number
   is_admin: boolean
   created_at: string
 }
@@ -226,13 +226,13 @@ export default function ProfilePage() {
         <div className="space-y-6">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Points Balance</CardTitle>
+              <CardTitle className="text-lg">Token Balance</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
                 <Trophy className="h-6 w-6 text-primary" />
                 <span className="text-3xl font-bold text-foreground">
-                  {profile.points_balance.toLocaleString()}
+                  {profile.token_balance.toLocaleString()}
                 </span>
               </div>
             </CardContent>

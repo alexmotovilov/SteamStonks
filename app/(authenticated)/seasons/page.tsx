@@ -117,7 +117,7 @@ export default async function SeasonsPage() {
                       <div className="flex items-center gap-2">
                         <Trophy className="h-4 w-4 text-primary" />
                         <span className="text-sm text-foreground font-medium">
-                          {season.entry_fee_points} points entry
+                          {season.entry_fee_tokens} tokens entry
                         </span>
                       </div>
                       <Button asChild size="sm">

@@ -130,9 +130,9 @@ export default async function AdminPage() {
                   </div>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Entry Fee</span>
+                  <span className="text-muted-foreground">Entry Fee (tokens)</span>
                   <div className="font-medium text-foreground">
-                    {activeSeason.entry_fee_points} points
+                    {activeSeason.entry_fee_tokens} tokens
                   </div>
                 </div>
               </div>

@@ -3,13 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
-import { Trophy, Target, Gamepad2, TrendingUp, Calendar, Users, ArrowRight } from "lucide-react"
+import { Trophy, Target, Gamepad2, TrendingUp, Calendar, Users, ArrowRight, Zap, Coins } from "lucide-react"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
@@ -30,6 +30,20 @@ export default async function DashboardPage() {
     .eq("user_id", user?.id)
     .eq("season_id", activeSeason?.id || "")
 
+  // Sum final_points directly from predictions — always current,
+  // doesn't depend on the leaderboard cron having run
+  const { data: scoredPredictions } = await supabase
+    .from("predictions")
+    .select("final_points")
+    .eq("user_id", user?.id)
+    .eq("season_id", activeSeason?.id || "")
+    .not("final_points", "is", null)
+
+  const totalPoints = (scoredPredictions ?? []).reduce(
+    (sum, p) => sum + (p.final_points ?? 0), 0
+  )
+  const scoredCount = scoredPredictions?.length ?? 0
+
   // Check if user has joined the active season
   const { data: seasonEntry } = await supabase
     .from("season_entries")
@@ -38,10 +52,10 @@ export default async function DashboardPage() {
     .eq("season_id", activeSeason?.id || "")
     .single()
 
-  // Get user's rank in current season
+  // Get user's rank from leaderboard (best effort — may lag behind scoring)
   const { data: leaderboardEntry } = await supabase
     .from("leaderboards")
-    .select("rank, total_points")
+    .select("rank")
     .eq("user_id", user?.id)
     .eq("season_id", activeSeason?.id || "")
     .single()
@@ -52,7 +66,7 @@ export default async function DashboardPage() {
     .select("*", { count: "exact", head: true })
     .eq("season_id", activeSeason?.id || "")
 
-  // Get upcoming games count
+  // Get upcoming games count for active season
   const { count: upcomingGames } = await supabase
     .from("games")
     .select("*", { count: "exact", head: true })
@@ -84,7 +98,7 @@ export default async function DashboardPage() {
               </div>
               {!seasonEntry ? (
                 <Button asChild size="lg">
-                  <Link href={`/seasons/${activeSeason.slug ?? activeSeason.id}/join`}>
+                  <Link href={`/seasons/${activeSeason.id}`}>
                     Join Season
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
@@ -125,21 +139,26 @@ export default async function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-border">
+
+        {/* Season Points — primary stat, shown prominently */}
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Points Balance</CardTitle>
-            <Trophy className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Season Points</CardTitle>
+            <Zap className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {profile?.points_balance?.toLocaleString() || 0}
+              {totalPoints.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              Available to spend
+              {scoredCount > 0
+                ? `From ${scoredCount} scored prediction${scoredCount !== 1 ? "s" : ""}`
+                : activeSeason ? "No scored predictions yet" : "No active season"}
             </p>
           </CardContent>
         </Card>
 
+        {/* Season Rank */}
         <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Season Rank</CardTitle>
@@ -150,11 +169,14 @@ export default async function DashboardPage() {
               {leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : "--"}
             </div>
             <p className="text-xs text-muted-foreground">
-              {leaderboardEntry?.total_points ? `${leaderboardEntry.total_points} pts earned` : "Not ranked yet"}
+              {leaderboardEntry?.rank
+                ? `Out of ${totalPlayers || 0} players`
+                : "Rankings update daily"}
             </p>
           </CardContent>
         </Card>
 
+        {/* Predictions Made */}
         <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Predictions Made</CardTitle>
@@ -170,17 +192,18 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Token Balance */}
         <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Games Available</CardTitle>
-            <Gamepad2 className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Token Balance</CardTitle>
+            <Coins className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {upcomingGames || 0}
+              {profile?.token_balance?.toLocaleString() || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Upcoming releases
+              Available for season entry
             </p>
           </CardContent>
         </Card>

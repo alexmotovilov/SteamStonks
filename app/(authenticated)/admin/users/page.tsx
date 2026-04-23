@@ -46,7 +46,7 @@ interface UserProfile {
   username: string | null
   display_name: string | null
   avatar_url: string | null
-  points_balance: number
+  token_balance: number
   is_admin: boolean
   is_banned: boolean
   created_at: string
@@ -111,7 +111,7 @@ export default function AdminUsersPage() {
       const messages: Record<string, string> = {
         set_admin: value ? "Admin access granted" : "Admin access revoked",
         set_banned: value ? "User banned" : "User unbanned",
-        adjust_points: `Points balance updated`,
+        adjust_tokens: `Token balance updated`,
         reset_password: "Password reset email sent",
       }
 
@@ -239,7 +239,7 @@ export default function AdminUsersPage() {
                             @{user.username || "no-username"} · Joined {joinDate}
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            {user.points_balance.toLocaleString()} pts · {user.prediction_count} predictions
+                            {user.token_balance.toLocaleString()} tokens · {user.prediction_count} predictions
                           </div>
                         </div>
                       </div>
@@ -333,17 +333,17 @@ export default function AdminUsersPage() {
                           </AlertDialogContent>
                         </AlertDialog>
 
-                        {/* Adjust Points */}
+                        {/* Adjust Tokens */}
                         <Dialog
                           open={pointsDialogOpen === user.id}
                           onOpenChange={(open) => {
                             setPointsDialogOpen(open ? user.id : null)
-                            if (open) setPointsInputs((p) => ({ ...p, [user.id]: String(user.points_balance) }))
+                            if (open) setPointsInputs((p) => ({ ...p, [user.id]: String(user.token_balance) }))
                           }}
                         >
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm" disabled={!!actionLoading} title="Adjust points">
-                              {isLoading(user.id, "adjust_points") ? (
+                              {isLoading(user.id, "adjust_tokens") ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <Coins className="h-4 w-4 text-muted-foreground" />
@@ -353,9 +353,9 @@ export default function AdminUsersPage() {
                           </DialogTrigger>
                           <DialogContent className="bg-card border-border">
                             <DialogHeader>
-                              <DialogTitle className="text-foreground">Adjust Points Balance</DialogTitle>
+                              <DialogTitle className="text-foreground">Adjust Token Balance</DialogTitle>
                               <DialogDescription className="text-muted-foreground">
-                                Set the exact points balance for {user.display_name}. Current: {user.points_balance.toLocaleString()} pts.
+                                Set the exact token balance for {user.display_name}. Current: {user.token_balance.toLocaleString()} tokens.
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-2 py-2">
@@ -363,7 +363,7 @@ export default function AdminUsersPage() {
                               <Input
                                 type="number"
                                 min={0}
-                                value={pointsInputs[user.id] ?? user.points_balance}
+                                value={pointsInputs[user.id] ?? user.token_balance}
                                 onChange={(e) =>
                                   setPointsInputs((p) => ({ ...p, [user.id]: e.target.value }))
                                 }
@@ -376,7 +376,7 @@ export default function AdminUsersPage() {
                               </Button>
                               <Button
                                 onClick={async () => {
-                                  await performAction(user.id, "adjust_points", pointsInputs[user.id])
+                                  await performAction(user.id, "adjust_tokens", pointsInputs[user.id])
                                   setPointsDialogOpen(null)
                                 }}
                               >

@@ -48,7 +48,7 @@ export function JoinSeasonButton({ seasonId, entryFee, currentBalance }: JoinSea
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ 
-          points_balance: currentBalance - entryFee,
+          token_balance: currentBalance - entryFee,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)
@@ -61,14 +61,14 @@ export function JoinSeasonButton({ seasonId, entryFee, currentBalance }: JoinSea
         .insert({
           season_id: seasonId,
           user_id: user.id,
-          points_paid: entryFee,
+          tokens_paid: entryFee,
         })
 
       if (entryError) {
         // Rollback points deduction
         await supabase
           .from("profiles")
-          .update({ points_balance: currentBalance })
+          .update({ token_balance: currentBalance })
           .eq("id", user.id)
         throw entryError
       }
@@ -85,7 +85,7 @@ export function JoinSeasonButton({ seasonId, entryFee, currentBalance }: JoinSea
     return (
       <Button disabled>
         <Trophy className="mr-2 h-4 w-4" />
-        Insufficient Points ({currentBalance}/{entryFee})
+        Insufficient Tokens ({currentBalance}/{entryFee})
       </Button>
     )
   }
@@ -95,18 +95,18 @@ export function JoinSeasonButton({ seasonId, entryFee, currentBalance }: JoinSea
       <AlertDialogTrigger asChild>
         <Button>
           <Trophy className="mr-2 h-4 w-4" />
-          Join Season ({entryFee} pts)
+          Join Season ({entryFee} tokens)
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent className="bg-card border-border">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-foreground">Join this Season?</AlertDialogTitle>
           <AlertDialogDescription className="text-muted-foreground">
-            This will deduct <strong>{entryFee} points</strong> from your balance.
+            This will deduct <strong>{entryFee} tokens</strong> from your balance.
             <br /><br />
-            Your current balance: <strong>{currentBalance} points</strong>
+            Your current balance: <strong>{currentBalance} tokens</strong>
             <br />
-            Balance after joining: <strong>{currentBalance - entryFee} points</strong>
+            Balance after joining: <strong>{currentBalance - entryFee} tokens</strong>
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error && (

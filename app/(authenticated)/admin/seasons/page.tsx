@@ -97,8 +97,8 @@ export default async function AdminSeasonsPage() {
                   <div className="flex items-center gap-2">
                     <Trophy className="h-4 w-4 text-muted-foreground" />
                     <div className="text-sm">
-                      <span className="text-muted-foreground">Entry Fee: </span>
-                      <span className="text-foreground">{season.entry_fee_points} pts</span>
+                      <span className="text-muted-foreground">Entry Fee (tokens): </span>
+                      <span className="text-foreground">{season.entry_fee_tokens} tokens</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

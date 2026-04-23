@@ -40,10 +40,10 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
 
   const isJoined = !!userEntry
 
-  // Get user's profile for points balance
+  // Get user's token balance
   const { data: profile } = await supabase
     .from("profiles")
-    .select("points_balance")
+    .select("token_balance")
     .eq("id", user?.id || "")
     .single()
 
@@ -85,7 +85,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
     .order("rank", { ascending: true })
     .limit(10)
 
-  const canJoin = season.status === "active" && !isJoined && (profile?.points_balance || 0) >= season.entry_fee_points
+  const canJoin = season.status === "active" && !isJoined && (profile?.token_balance || 0) >= season.entry_fee_tokens
 
   return (
     <div className="space-y-8">
@@ -113,8 +113,8 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
         {canJoin && (
           <JoinSeasonButton 
             seasonId={season.id} 
-            entryFee={season.entry_fee_points}
-            currentBalance={profile?.points_balance || 0}
+            entryFee={season.entry_fee_tokens}
+            currentBalance={profile?.token_balance || 0}
           />
         )}
       </div>
@@ -145,11 +145,11 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
 
         <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Entry Fee</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Entry Fee (tokens)</CardTitle>
             <Trophy className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{season.entry_fee_points} pts</div>
+            <div className="text-2xl font-bold text-foreground">{season.entry_fee_tokens} tokens</div>
           </CardContent>
         </Card>
 
@@ -189,13 +189,13 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
                 <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">Join to make predictions</h3>
                 <p className="text-muted-foreground mb-4">
-                  Pay the entry fee to unlock predictions and compete for prizes
+                  Spend tokens to unlock predictions and compete for prizes
                 </p>
                 {canJoin && (
                   <JoinSeasonButton 
                     seasonId={season.id} 
-                    entryFee={season.entry_fee_points}
-                    currentBalance={profile?.points_balance || 0}
+                    entryFee={season.entry_fee_tokens}
+                    currentBalance={profile?.token_balance || 0}
                   />
                 )}
               </CardContent>

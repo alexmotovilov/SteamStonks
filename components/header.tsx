@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { TrendingUp, User, LogOut, Settings, Trophy, Gamepad2 } from "lucide-react"
+import { TrendingUp, User, LogOut, Settings, Zap, Coins, Gamepad2 } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 interface HeaderProps {
@@ -20,12 +20,14 @@ interface HeaderProps {
   profile?: {
     display_name: string | null
     avatar_url: string | null
-    points_balance: number
+    token_balance: number
     is_admin: boolean
   } | null
+  // null means no active season; number is the user's current points total
+  seasonPoints: number | null
 }
 
-export function Header({ user, profile }: HeaderProps) {
+export function Header({ user, profile, seasonPoints }: HeaderProps) {
   const router = useRouter()
 
   async function handleSignOut() {
@@ -47,36 +49,36 @@ export function Header({ user, profile }: HeaderProps) {
             <TrendingUp className="h-6 w-6" />
             <span className="text-lg font-bold text-foreground">Steam Stonks</span>
           </Link>
-          
+
           {user && (
             <nav className="hidden md:flex items-center gap-4">
-              <Link 
-                href="/dashboard" 
+              <Link
+                href="/dashboard"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Dashboard
               </Link>
-              <Link 
-                href="/seasons" 
+              <Link
+                href="/seasons"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Seasons
               </Link>
-              <Link 
-                href="/games" 
+              <Link
+                href="/games"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Games
               </Link>
-              <Link 
-                href="/leaderboard" 
+              <Link
+                href="/leaderboard"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Leaderboard
               </Link>
               {profile?.is_admin && (
-                <Link 
-                  href="/admin" 
+                <Link
+                  href="/admin"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Admin
@@ -89,13 +91,16 @@ export function Header({ user, profile }: HeaderProps) {
         <div className="flex items-center gap-4">
           {user ? (
             <>
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary">
-                <Trophy className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">
-                  {profile?.points_balance?.toLocaleString() || 0} pts
-                </span>
-              </div>
-              
+              {/* Season points — only shown when there's an active season */}
+              {seasonPoints !== null && (
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary">
+                  <Zap className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">
+                    {seasonPoints.toLocaleString()} pts
+                  </span>
+                </div>
+              )}
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
@@ -117,6 +122,12 @@ export function Header({ user, profile }: HeaderProps) {
                         {user.email}
                       </p>
                     </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  {/* Token balance in dropdown — relevant but not primary */}
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground">
+                    <Coins className="h-4 w-4" />
+                    <span>{profile?.token_balance?.toLocaleString() || 0} tokens</span>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>

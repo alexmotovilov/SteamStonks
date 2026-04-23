@@ -64,14 +64,14 @@ export async function PATCH(
         return NextResponse.json({ success: true })
       }
 
-      case "adjust_points": {
+      case "adjust_tokens": {
         const points = parseInt(value)
         if (isNaN(points)) {
           return NextResponse.json({ error: "Invalid points value" }, { status: 400 })
         }
         const { error } = await supabaseAdmin
           .from("profiles")
-          .update({ points_balance: points, updated_at: new Date().toISOString() })
+          .update({ token_balance: points, updated_at: new Date().toISOString() })
           .eq("id", targetUserId)
         if (error) throw error
         return NextResponse.json({ success: true })

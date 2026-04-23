@@ -48,8 +48,8 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
     .select("*", { count: "exact", head: true })
     .eq("season_id", id)
 
-  // Calculate prize pool (entry fee * participants)
-  const prizePool = (season.entry_fee_points || 0) * (participantCount || 0)
+  // Calculate prize pool (entry fee (tokens) * participants)
+  const prizePool = (season.entry_fee_tokens || 0) * (participantCount || 0)
 
   return (
     <div className="space-y-8">
@@ -163,8 +163,8 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Entry Fee</p>
-                <p className="font-medium text-foreground">{season.entry_fee_points} points</p>
+                <p className="text-sm text-muted-foreground">Entry Fee (tokens)</p>
+                <p className="font-medium text-foreground">{season.entry_fee_tokens} tokens</p>
               </div>
             </div>
             <div>

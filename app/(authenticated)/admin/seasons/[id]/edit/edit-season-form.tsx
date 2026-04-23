@@ -9,40 +9,70 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Calendar, Loader2, ArrowLeft, Trophy } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Calendar, Loader2, ArrowLeft, Trophy, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 
-export default function NewSeasonPage() {
+interface Season {
+  id: string
+  name: string
+  slug: string | null
+  description: string | null
+  start_date: string
+  end_date: string
+  prediction_lock_date: string | null
+  entry_fee_tokens: number
+  status: string
+}
+
+const statusColors: Record<string, string> = {
+  upcoming: "bg-blue-500/20 text-blue-400 border-blue-500/50",
+  active: "bg-success/20 text-success border-success/50",
+  scoring: "bg-warning/20 text-warning border-warning/50",
+  completed: "bg-muted text-muted-foreground border-border",
+}
+
+// Format a UTC date string to local datetime-local input value (YYYY-MM-DDTHH:MM)
+function toDatetimeLocal(value: string | null): string {
+  if (!value) return ""
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return ""
+  // datetime-local needs YYYY-MM-DDTHH:MM in local time
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// Format a UTC date string to date input value (YYYY-MM-DD)
+function toDateInput(value: string | null): string {
+  if (!value) return ""
+  return new Date(value).toISOString().split("T")[0]
+}
+
+export function EditSeasonForm({ season }: { season: Season }) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   const [formData, setFormData] = useState({
-    name: "",
-    slug: "",
-    description: "",
-    start_date: "",
-    end_date: "",
-    prediction_lock_date: "",
-    entry_fee_tokens: 100,
+    name: season.name,
+    slug: season.slug ?? "",
+    description: season.description ?? "",
+    start_date: toDateInput(season.start_date),
+    end_date: toDateInput(season.end_date),
+    prediction_lock_date: toDatetimeLocal(season.prediction_lock_date),
+    entry_fee_tokens: season.entry_fee_tokens,
   })
 
-  // Auto-generate slug from name
-  function handleNameChange(name: string) {
-    const slug = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-    setFormData({ ...formData, name, slug })
-  }
+  const isCompleted = season.status === "completed"
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     setError(null)
+    setSaved(false)
 
     try {
-      // Validation
       if (!formData.name || !formData.start_date || !formData.end_date) {
         throw new Error("Name, start date, and end date are required")
       }
@@ -51,30 +81,41 @@ export default function NewSeasonPage() {
         throw new Error("End date must be after start date")
       }
 
-      const supabase = createClient()
-      
-      const { error: insertError } = await supabase.from("seasons").insert({
-        name: formData.name,
-        slug: formData.slug || formData.name.toLowerCase().replace(/\s+/g, "-"),
-        description: formData.description || null,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        prediction_lock_date: formData.prediction_lock_date || null,
-        entry_fee_tokens: formData.entry_fee_tokens,
-        status: "upcoming",
-      })
-
-      if (insertError) {
-        if (insertError.message.includes("duplicate")) {
-          throw new Error("A season with this slug already exists")
-        }
-        throw insertError
+      if (
+        formData.prediction_lock_date &&
+        new Date(formData.prediction_lock_date) >= new Date(formData.end_date)
+      ) {
+        throw new Error("Prediction lock date must be before the end date")
       }
 
-      router.push("/admin/seasons")
+      const supabase = createClient()
+
+      const { error: updateError } = await supabase
+        .from("seasons")
+        .update({
+          name: formData.name,
+          slug: formData.slug || formData.name.toLowerCase().replace(/\s+/g, "-"),
+          description: formData.description || null,
+          start_date: formData.start_date,
+          end_date: formData.end_date,
+          prediction_lock_date: formData.prediction_lock_date || null,
+          entry_fee_tokens: formData.entry_fee_tokens,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", season.id)
+
+      if (updateError) {
+        if (updateError.message.includes("duplicate")) {
+          throw new Error("A season with this slug already exists")
+        }
+        throw updateError
+      }
+
+      setSaved(true)
       router.refresh()
+      setTimeout(() => setSaved(false), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create season")
+      setError(err instanceof Error ? err.message : "Failed to save changes")
     } finally {
       setSaving(false)
     }
@@ -85,7 +126,7 @@ export default function NewSeasonPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="icon">
-          <Link href="/admin/seasons">
+          <Link href={`/admin/seasons/${season.id}`}>
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
@@ -94,11 +135,24 @@ export default function NewSeasonPage() {
             <Calendar className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Create Season</h1>
-            <p className="text-muted-foreground">Set up a new seasonal competition</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-foreground">Edit Season</h1>
+              <Badge className={statusColors[season.status]}>
+                {season.status.charAt(0).toUpperCase() + season.status.slice(1)}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground">{season.name}</p>
           </div>
         </div>
       </div>
+
+      {isCompleted && (
+        <Alert className="border-warning/50 bg-warning/10">
+          <AlertDescription className="text-warning">
+            This season is completed. Changes to dates and entry fees are saved but have no effect on scoring or rankings.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 lg:grid-cols-2">
@@ -116,14 +170,21 @@ export default function NewSeasonPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
+              {saved && (
+                <Alert className="border-success/50 bg-success/10">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  <AlertDescription className="text-success">
+                    Changes saved successfully
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-foreground">Season Name *</Label>
                 <Input
                   id="name"
-                  placeholder="Summer 2026"
                   value={formData.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="bg-input border-border text-foreground"
                   required
                 />
@@ -133,13 +194,12 @@ export default function NewSeasonPage() {
                 <Label htmlFor="slug" className="text-foreground">URL Slug</Label>
                 <Input
                   id="slug"
-                  placeholder="summer-2026"
                   value={formData.slug}
                   onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                   className="bg-input border-border text-foreground"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Auto-generated from name. Used in URLs.
+                  Used in URLs. Changing this won&apos;t break existing links since routes use the season ID.
                 </p>
               </div>
 
@@ -147,10 +207,10 @@ export default function NewSeasonPage() {
                 <Label htmlFor="description" className="text-foreground">Description</Label>
                 <Textarea
                   id="description"
-                  placeholder="Predict the biggest releases of the summer season..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="bg-input border-border text-foreground min-h-24"
+                  placeholder="Describe this season..."
                 />
               </div>
             </CardContent>
@@ -198,11 +258,13 @@ export default function NewSeasonPage() {
                   id="prediction_lock_date"
                   type="datetime-local"
                   value={formData.prediction_lock_date}
-                  onChange={(e) => setFormData({ ...formData, prediction_lock_date: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, prediction_lock_date: e.target.value })
+                  }
                   className="bg-input border-border text-foreground"
                 />
                 <p className="text-xs text-muted-foreground">
-                  After this date, players cannot modify their predictions
+                  After this date, players cannot modify their season_end predictions
                 </p>
               </div>
 
@@ -216,30 +278,32 @@ export default function NewSeasonPage() {
                   type="number"
                   min={0}
                   value={formData.entry_fee_tokens}
-                  onChange={(e) => setFormData({ ...formData, entry_fee_tokens: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, entry_fee_tokens: parseInt(e.target.value) || 0 })
+                  }
                   className="bg-input border-border text-foreground"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Tokens deducted from player balance when joining. Set to 0 for free entry.
+                  Only affects new entries — players who already joined are unaffected
                 </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Submit */}
+        {/* Actions */}
         <div className="flex justify-end gap-4 mt-6">
           <Button asChild variant="outline">
-            <Link href="/admin/seasons">Cancel</Link>
+            <Link href={`/admin/seasons/${season.id}`}>Cancel</Link>
           </Button>
           <Button type="submit" disabled={saving}>
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                Saving...
               </>
             ) : (
-              "Create Season"
+              "Save Changes"
             )}
           </Button>
         </div>
