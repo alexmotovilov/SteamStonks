@@ -1,30 +1,25 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { calculatePredictionScore, calculateCrowdMedian, calculateRankings } from "@/lib/scoring"
+import {
+  scoreWeekOnePrediction,
+  resolveBoosterEffects,
+  resolveEquipmentEffects,
+  resolveRiteEffects,
+  calculateRankings,
+  type WeekOnePrediction,
+  type ActualMetrics,
+} from "@/lib/scoring"
+import { scoreLadder, scoreAuspiciousOmens } from "@/lib/ladder-scoring"
 
-// Use service role for cron jobs (bypasses RLS)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
 export const runtime = "nodejs"
-export const maxDuration = 60
+export const maxDuration = 300
 
-/**
- * Cron job to calculate prediction scores
- * Should be triggered daily or after game releases
- * 
- * Configure in vercel.json:
- * {
- *   "crons": [{
- *     "path": "/api/cron/score-calculator",
- *     "schedule": "0 4 * * *"
- *   }]
- * }
- */
 export async function GET(request: Request) {
-  // Verify authorization
   const authHeader = request.headers.get("authorization")
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     if (process.env.NODE_ENV === "production" && process.env.CRON_SECRET) {
@@ -33,237 +28,365 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Get games that have been released and have unscored predictions
-    const { data: games, error: gamesError } = await supabase
-      .from("games")
-      .select("id, steam_appid, name, release_date, is_released, peak_24h_player_count, peak_player_count, review_score_positive, review_score_negative")
-      .eq("is_released", true)
-
-    if (gamesError) {
-      console.error("[Score Calculator] Failed to fetch games:", gamesError)
-      return NextResponse.json({ error: "Failed to fetch games" }, { status: 500 })
-    }
-
     const results = {
-      gamesProcessed: 0,
-      predictionsScored: 0,
+      weekOnePredictionsScored: 0,
+      ladderRankingsScored: 0,
       errors: 0,
     }
 
+    // ── 1. Score week-one predictions ────────────────────────────────────────
+
+    // Find all released games with unscored locked predictions
+    const { data: games } = await supabase
+      .from("games")
+      .select(`
+        id, name, release_date, is_released,
+        peak_24h_player_count, peak_player_count,
+        review_score_positive, review_score_negative,
+        seasons!inner(status)
+      `)
+      .eq("is_released", true)
+      .in("seasons.status", ["active", "scoring"])
+
     for (const game of games || []) {
-      // Skip games without review data
-      if (game.review_score_positive === null || game.review_score_negative === null) {
-        continue
+      if (!game.release_date) continue
+
+      const releaseDate = new Date(game.release_date)
+      const daysSinceRelease = Math.floor(
+        (Date.now() - releaseDate.getTime()) / (1000 * 60 * 60 * 24)
+      )
+
+      // Only score after 7 days post-release
+      if (daysSinceRelease < 7) continue
+
+      // Get week_after_release snapshot
+      const { data: snapshot } = await supabase
+        .from("game_snapshots")
+        .select("player_count, review_positive, review_negative")
+        .eq("game_id", game.id)
+        .eq("snapshot_type", "week_after_release")
+        .order("captured_at", { ascending: false })
+        .limit(1)
+        .single()
+
+      if (!snapshot) continue
+
+      const snapshotReviewTotal = (snapshot.review_positive ?? 0) + (snapshot.review_negative ?? 0)
+      const reviewScore = snapshotReviewTotal > 0
+        ? Math.round(((snapshot.review_positive ?? 0) / snapshotReviewTotal) * 100)
+        : null
+
+      if (reviewScore === null) continue
+
+      const actual: ActualMetrics = {
+        player_count: snapshot.player_count ?? game.peak_24h_player_count ?? 0,
+        review_score: reviewScore,
       }
 
-      // Calculate review percentage
-      const totalReviews = game.review_score_positive + game.review_score_negative
-      const reviewScore = totalReviews > 0
-        ? Math.round((game.review_score_positive / totalReviews) * 100)
-        : 0
-
-      // Get the appropriate player count based on prediction type
-      // For week_one predictions, we need the week 1 snapshot
-      // For season_end, we use the current/peak count
-
-      // Get unscored predictions for this game
-      const { data: predictions, error: predError } = await supabase
+      // Get unscored locked week_one predictions for this game
+      const { data: predictions } = await supabase
         .from("predictions")
         .select("*")
         .eq("game_id", game.id)
+        .eq("prediction_type", "week_one")
         .eq("is_locked", true)
         .is("scored_at", null)
 
-      if (predError || !predictions || predictions.length === 0) {
-        continue
-      }
-
-      // Separate by prediction type
-      const weekOnePredictions = predictions.filter(p => p.prediction_type === "week_one")
-      const seasonEndPredictions = predictions.filter(p => p.prediction_type === "season_end")
-
-      const releaseDate = game.release_date ? new Date(game.release_date) : undefined
-
-      // Score week_one predictions (7+ days after release)
-      if (weekOnePredictions.length > 0 && releaseDate) {
-        const daysSinceRelease = Math.floor(
-          (Date.now() - releaseDate.getTime()) / (1000 * 60 * 60 * 24)
-        )
-
-        if (daysSinceRelease >= 7) {
-          // Prefer week_after_release snapshot; fall back to peak if missing
-          const { data: weekOneSnapshot } = await supabase
-            .from("game_snapshots")
-            .select("player_count, review_positive, review_negative")
-            .eq("game_id", game.id)
-            .eq("snapshot_type", "week_after_release")
-            .order("captured_at", { ascending: false })
-            .limit(1)
+      for (const pred of predictions || []) {
+        try {
+          // Get player's season entry for equipment and tier score
+          const { data: entry } = await supabase
+            .from("season_entries")
+            .select("equipment_id, equipment_tier_score, first_prediction_bonus_claimed")
+            .eq("user_id", pred.user_id)
+            .eq("season_id", pred.season_id)
             .single()
 
-          const actualMetrics = {
-            player_count: weekOneSnapshot?.player_count ?? game.peak_player_count ?? 0,
-            review_score: reviewScore,
+          const boosters  = resolveBoosterEffects(pred.applied_boosters ?? [])
+          const equipment = resolveEquipmentEffects(entry?.equipment_id ?? null, entry?.equipment_tier_score ?? 0)
+          const rites     = resolveRiteEffects(pred.applied_rites ?? {})
+
+          // Check if this is the player's first prediction this season
+          const isFirst = !entry?.first_prediction_bonus_claimed
+
+          const scoreResult = scoreWeekOnePrediction(
+            pred as WeekOnePrediction,
+            actual,
+            boosters,
+            equipment,
+            rites,
+            releaseDate,
+            isFirst
+          )
+
+          // Update prediction with scoring results
+          await supabase
+            .from("predictions")
+            .update({
+              result:               scoreResult.result,
+              players_correct:      scoreResult.players_correct,
+              reviews_correct:      scoreResult.reviews_correct,
+              actual_player_count:  scoreResult.actual_player_count,
+              actual_review_score:  scoreResult.actual_review_score,
+              players_window_low:   scoreResult.players_window_low,
+              players_window_high:  scoreResult.players_window_high,
+              reviews_window_low:   scoreResult.reviews_window_low,
+              reviews_window_high:  scoreResult.reviews_window_high,
+              mana_players:         scoreResult.mana_players,
+              mana_reviews:         scoreResult.mana_reviews,
+              mana_both_bonus:      scoreResult.mana_both_bonus,
+              mana_early_lock:      scoreResult.mana_early_lock,
+              mana_boosters:        scoreResult.mana_boosters,
+              mana_equipment:       scoreResult.mana_equipment,
+              mana_first_prediction: scoreResult.mana_first_prediction,
+              drops_awarded:        scoreResult.drops_awarded,
+              final_points:         scoreResult.final_mana,
+              scored_at:            new Date().toISOString(),
+            })
+            .eq("id", pred.id)
+
+          // Award drops to inventory
+          if (scoreResult.drops_awarded > 0) {
+            await awardDrops(pred.user_id, pred.id, pred.season_id, scoreResult.drops_awarded)
           }
 
-          const crowdMedian = calculateCrowdMedian(weekOnePredictions)
+          // Update season entry atomically via RPC
+          const isCorrect = scoreResult.result !== 'failed'
+          await supabase.rpc("increment_season_mana", {
+            p_user_id:        pred.user_id,
+            p_season_id:      pred.season_id,
+            p_mana:           scoreResult.final_mana,
+            p_tier_increment: isCorrect ? 1 : 0,
+            p_claim_first:    isFirst,
+          })
 
-          for (const prediction of weekOnePredictions) {
-            try {
-              const scoreResult = calculatePredictionScore(
-                prediction,
-                actualMetrics,
-                crowdMedian,
-                releaseDate
-              )
-
-              await supabase
-                .from("predictions")
-                .update({
-                  actual_player_count: actualMetrics.player_count,
-                  actual_review_score: actualMetrics.review_score,
-                  base_points: scoreResult.base_points,
-                  multiplier: scoreResult.multiplier,
-                  final_points: scoreResult.final_points,
-                  scored_at: new Date().toISOString(),
-                })
-                .eq("id", prediction.id)
-
-              results.predictionsScored++
-            } catch (err) {
-              console.error(`[Score Calculator] Error scoring week_one prediction ${prediction.id}:`, err)
-              results.errors++
-            }
-          }
+          results.weekOnePredictionsScored++
+        } catch (err) {
+          console.error(`[Score Calculator] Error scoring prediction ${pred.id}:`, err)
+          results.errors++
         }
       }
-
-      // Score season_end predictions — requires a season_end snapshot to exist
-      if (seasonEndPredictions.length > 0) {
-        const { data: seasonEndSnapshot } = await supabase
-          .from("game_snapshots")
-          .select("player_count, review_positive, review_negative")
-          .eq("game_id", game.id)
-          .eq("snapshot_type", "season_end")
-          .order("captured_at", { ascending: false })
-          .limit(1)
-          .single()
-
-        if (seasonEndSnapshot) {
-          const snapshotReviewTotal =
-            (seasonEndSnapshot.review_positive ?? 0) + (seasonEndSnapshot.review_negative ?? 0)
-          const snapshotReviewScore = snapshotReviewTotal > 0
-            ? Math.round(((seasonEndSnapshot.review_positive ?? 0) / snapshotReviewTotal) * 100)
-            : reviewScore
-
-          const actualMetrics = {
-            player_count: seasonEndSnapshot.player_count ?? game.peak_player_count ?? 0,
-            review_score: snapshotReviewScore,
-          }
-
-          const crowdMedian = calculateCrowdMedian(seasonEndPredictions)
-
-          for (const prediction of seasonEndPredictions) {
-            try {
-              const scoreResult = calculatePredictionScore(
-                prediction,
-                actualMetrics,
-                crowdMedian,
-                releaseDate
-              )
-
-              await supabase
-                .from("predictions")
-                .update({
-                  actual_player_count: actualMetrics.player_count,
-                  actual_review_score: actualMetrics.review_score,
-                  base_points: scoreResult.base_points,
-                  multiplier: scoreResult.multiplier,
-                  final_points: scoreResult.final_points,
-                  scored_at: new Date().toISOString(),
-                })
-                .eq("id", prediction.id)
-
-              results.predictionsScored++
-            } catch (err) {
-              console.error(`[Score Calculator] Error scoring season_end prediction ${prediction.id}:`, err)
-              results.errors++
-            }
-          }
-        }
-      }
-
-      results.gamesProcessed++
     }
 
-    // Update leaderboards for active seasons
+    // ── 2. Score ladder rankings (season end) ─────────────────────────────────
+
+    const { data: scoringSeasons } = await supabase
+      .from("seasons")
+      .select("id, end_date")
+      .eq("status", "scoring")
+
+    for (const season of scoringSeasons || []) {
+      // Get all ladder rankings for this season that haven't been scored yet
+      const { data: ladders } = await supabase
+        .from("ladder_rankings")
+        .select("*")
+        .eq("season_id", season.id)
+        .is("scored_at", null)
+
+      if (!ladders || ladders.length === 0) continue
+
+      // Build actual top 8: rank games by their highest peak_player_count
+      const { data: seasonGames } = await supabase
+        .from("games")
+        .select("id, peak_player_count")
+        .eq("season_id", season.id)
+        .eq("is_released", true)
+        .not("peak_player_count", "is", null)
+        .order("peak_player_count", { ascending: false })
+        .limit(8)
+
+      const actualTop8 = (seasonGames ?? []).map(g => g.id)
+
+      if (actualTop8.length < 2) continue  // need at least 2 games to score
+
+      for (const ladder of ladders) {
+        try {
+          const playerLadder: string[] = ladder.ranked_games ?? []
+          const ladderResult = scoreLadder(playerLadder, actualTop8)
+
+          // Score Auspicious Omens
+          const markedGameIds = (ladder.ranked_games ?? []).filter((_: string, i: number) => {
+            // AO marks stored in rite_history — fetch them
+            return false // placeholder, resolved below
+          })
+
+          // Get AO marks from rite_history
+          const { data: aoRites } = await supabase
+            .from("rite_history")
+            .select("metadata")
+            .eq("user_id", ladder.user_id)
+            .eq("season_id", season.id)
+            .eq("rite_slug", "auspicious_omens")
+
+          const aoMarkedGameIds: string[] = (aoRites ?? [])
+            .map(r => r.metadata?.game_id)
+            .filter(Boolean)
+
+          const aoResult = scoreAuspiciousOmens(aoMarkedGameIds, actualTop8)
+
+          const totalLadderMana = ladderResult.total_mana + aoResult.total_reward
+
+          await supabase
+            .from("ladder_rankings")
+            .update({
+              binary_mana:    ladderResult.binary_mana,
+              sequence_mana:  ladderResult.sequence_mana,
+              sequence_length: ladderResult.sequence_length,
+              total_mana:     ladderResult.total_mana,
+              ao_all_correct: aoResult.all_correct,
+              ao_mana_reward: aoResult.total_reward,
+              scored_at:      new Date().toISOString(),
+            })
+            .eq("id", ladder.id)
+
+          // Credit mana to season entry
+          if (totalLadderMana > 0) {
+            await supabase.rpc("increment_season_mana", {
+              p_user_id:       ladder.user_id,
+              p_season_id:     season.id,
+              p_mana:          totalLadderMana,
+              p_tier_increment: 0,
+              p_claim_first:   false,
+            })
+          }
+
+          results.ladderRankingsScored++
+        } catch (err) {
+          console.error(`[Score Calculator] Error scoring ladder ${ladder.id}:`, err)
+          results.errors++
+        }
+      }
+    }
+
+    // ── 3. Update leaderboards ────────────────────────────────────────────────
+
     await updateLeaderboards()
 
-    console.log(`[Score Calculator] Completed: ${results.gamesProcessed} games, ${results.predictionsScored} predictions`)
-
     return NextResponse.json({
-      message: "Score calculation complete",
+      message: "Scoring complete",
       ...results,
     })
   } catch (error) {
     console.error("[Score Calculator] Unexpected error:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
-/**
- * Update leaderboard rankings for active seasons
- */
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function awardDrops(
+  userId: string,
+  predictionId: string,
+  seasonId: string,
+  count: number
+) {
+  // Fetch the drop table (ordered by rarity, most rare first)
+  const { data: items } = await supabase
+    .from("items")
+    .select("id, slug, drop_rate")
+    .eq("is_droppable", true)
+    .not("drop_rate", "is", null)
+    .order("drop_rate", { ascending: true }) // lowest rate first = rarest first
+
+  if (!items || items.length === 0) return
+
+  for (let i = 0; i < count; i++) {
+    // Roll for an item: iterate from rarest to most common
+    // First item where roll <= drop_rate wins
+    const roll = Math.random() * 100
+    let awarded = items[items.length - 1] // fallback to most common
+
+    for (const item of items) {
+      if (roll <= item.drop_rate) {
+        awarded = item
+        break
+      }
+    }
+
+    // Add to inventory
+    await supabase
+      .from("inventory")
+      .upsert(
+        { user_id: userId, item_id: awarded.id, quantity: 1, updated_at: new Date().toISOString() },
+        {
+          onConflict: "user_id,item_id",
+          ignoreDuplicates: false,
+        }
+      )
+
+    // Increment quantity
+    await supabase.rpc("increment_inventory", {
+      p_user_id: userId,
+      p_item_id: awarded.id,
+    })
+
+    // Log drop
+    await supabase.from("drop_history").insert({
+      user_id:       userId,
+      prediction_id: predictionId,
+      season_id:     seasonId,
+      item_id:       awarded.id,
+      source:        "prediction_players",  // simplified; could be more specific
+    })
+  }
+}
+
 async function updateLeaderboards() {
-  // Get active seasons
   const { data: seasons } = await supabase
     .from("seasons")
     .select("id")
     .in("status", ["active", "scoring"])
 
   for (const season of seasons || []) {
-    // Calculate total points per user
-    const { data: userScores } = await supabase
-      .from("predictions")
-      .select("user_id, final_points")
+    // Sum prediction_mana_earned per user from season_entries
+    const { data: entries } = await supabase
+      .from("season_entries")
+      .select("user_id, prediction_mana_earned")
       .eq("season_id", season.id)
-      .not("final_points", "is", null)
 
-    if (!userScores || userScores.length === 0) continue
+    if (!entries || entries.length === 0) continue
 
-    // Aggregate scores by user
     const scoreMap = new Map<string, number>()
-    for (const score of userScores) {
-      const current = scoreMap.get(score.user_id) || 0
-      scoreMap.set(score.user_id, current + (score.final_points || 0))
+    for (const entry of entries) {
+      scoreMap.set(entry.user_id, entry.prediction_mana_earned ?? 0)
     }
 
-    // Calculate rankings
     const rankings = calculateRankings(scoreMap)
 
-    // Upsert leaderboard entries
-    for (const entry of rankings) {
-      const { data: predStats } = await supabase
-        .from("predictions")
-        .select("id, final_points")
-        .eq("user_id", entry.userId)
-        .eq("season_id", season.id)
+    // Get prediction stats per user
+    const { data: predStats } = await supabase
+      .from("predictions")
+      .select("user_id, result, final_points")
+      .eq("season_id", season.id)
+      .not("scored_at", "is", null)
 
-      const predictionsMade = predStats?.length || 0
-      const predictionsScored = predStats?.filter(p => p.final_points !== null).length || 0
+    const statsByUser = new Map<string, { perfect: number; partial: number; failed: number; week_one_mana: number }>()
+    for (const p of predStats || []) {
+      const existing = statsByUser.get(p.user_id) ?? { perfect: 0, partial: 0, failed: 0, week_one_mana: 0 }
+      if (p.result === 'perfect') existing.perfect++
+      if (p.result === 'partial') existing.partial++
+      if (p.result === 'failed')  existing.failed++
+      existing.week_one_mana += p.final_points ?? 0
+      statsByUser.set(p.user_id, existing)
+    }
+
+    for (const entry of rankings) {
+      const stats = statsByUser.get(entry.userId) ?? { perfect: 0, partial: 0, failed: 0, week_one_mana: 0 }
 
       await supabase.from("leaderboards").upsert(
         {
-          season_id: season.id,
-          user_id: entry.userId,
-          total_points: entry.totalPoints,
-          predictions_made: predictionsMade,
-          predictions_scored: predictionsScored,
-          rank: entry.rank,
-          updated_at: new Date().toISOString(),
+          season_id:              season.id,
+          user_id:                entry.userId,
+          total_points:           entry.totalPoints,
+          prediction_mana_earned: entry.totalPoints,
+          week_one_mana:          stats.week_one_mana,
+          perfect_count:          stats.perfect,
+          partial_count:          stats.partial,
+          failed_count:           stats.failed,
+          predictions_made:       stats.perfect + stats.partial + stats.failed,
+          predictions_scored:     stats.perfect + stats.partial + stats.failed,
+          rank:                   entry.rank,
+          updated_at:             new Date().toISOString(),
         },
         { onConflict: "season_id,user_id" }
       )

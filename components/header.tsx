@@ -12,8 +12,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { TrendingUp, User, LogOut, Settings, Zap, Coins, Gamepad2 } from "lucide-react"
+import { TrendingUp, User, LogOut, Settings, Coins, Gamepad2 } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
+import { SeasonPointsBadge } from "@/components/season-points-badge"
 
 interface HeaderProps {
   user: SupabaseUser | null
@@ -23,13 +24,10 @@ interface HeaderProps {
     token_balance: number
     is_admin: boolean
   } | null
-  // null means no active season; number is the user's current points total
-  seasonPoints: number | null
 }
 
-export function Header({ user, profile, seasonPoints }: HeaderProps) {
+export function Header({ user, profile }: HeaderProps) {
   const router = useRouter()
-
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -91,15 +89,8 @@ export function Header({ user, profile, seasonPoints }: HeaderProps) {
         <div className="flex items-center gap-4">
           {user ? (
             <>
-              {/* Season points — only shown when there's an active season */}
-              {seasonPoints !== null && (
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary">
-                  <Zap className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">
-                    {seasonPoints.toLocaleString()} pts
-                  </span>
-                </div>
-              )}
+              {/* Season points badge — fetches client-side to avoid hydration mismatch */}
+              {user && <SeasonPointsBadge user={user} />}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

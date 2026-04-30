@@ -111,6 +111,25 @@ export async function GET(request: Request) {
         if (!game.is_released && game.release_date) {
           if (new Date(game.release_date) <= new Date()) {
             updateData.is_released = true
+
+            // Auto-lock this game's ladder position for all players who have it ranked
+            const { data: affectedLadders } = await supabase
+              .from("ladder_rankings")
+              .select("user_id, season_id, ranked_games, locked_game_ids")
+              .contains("ranked_games", JSON.stringify([game.id]))
+
+            for (const ladder of affectedLadders ?? []) {
+              const alreadyLocked = (ladder.locked_game_ids ?? []).includes(game.id)
+              if (!alreadyLocked) {
+                await supabase.rpc("lock_ladder_game", {
+                  p_user_id:   ladder.user_id,
+                  p_season_id: ladder.season_id,
+                  p_game_id:   game.id,
+                })
+              }
+            }
+
+            console.log(`[Steam Collector] ${game.name} released — ladder positions locked for ${affectedLadders?.length ?? 0} players`)
           }
         }
 
