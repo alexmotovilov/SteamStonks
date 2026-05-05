@@ -59,27 +59,42 @@ export async function GET(request: Request) {
       // Only score after 7 days post-release
       if (daysSinceRelease < 7) continue
 
-      // Get week_after_release snapshot
-      const { data: snapshot } = await supabase
+      // Week-one player count = highest peak recorded in the 7 days post-release
+      // This guarantees weekend peaks are captured regardless of release day
+      const sevenDaysAfter = new Date(releaseDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+      const { data: weekSnapshots } = await supabase
         .from("game_snapshots")
-        .select("player_count, review_positive, review_negative")
+        .select("player_count, review_positive, review_negative, captured_at")
         .eq("game_id", game.id)
-        .eq("snapshot_type", "week_after_release")
+        .gte("captured_at", releaseDate.toISOString())
+        .lte("captured_at", sevenDaysAfter.toISOString())
+        .not("player_count", "is", null)
         .order("captured_at", { ascending: false })
-        .limit(1)
-        .single()
 
-      if (!snapshot) continue
+      if (!weekSnapshots || weekSnapshots.length === 0) {
+        console.log(`[Score Calculator] No snapshots in 7-day window for ${game.name}, skipping`)
+        continue
+      }
 
-      const snapshotReviewTotal = (snapshot.review_positive ?? 0) + (snapshot.review_negative ?? 0)
+      // Peak player count in the 7-day window
+      const peakPlayerCount = Math.max(...weekSnapshots.map(s => s.player_count ?? 0))
+
+      // For reviews, use the most recent snapshot in the window
+      // (reviews accumulate over time so later = more representative)
+      const latestSnapshot = weekSnapshots[0]
+      const snapshotReviewTotal = (latestSnapshot.review_positive ?? 0) + (latestSnapshot.review_negative ?? 0)
       const reviewScore = snapshotReviewTotal > 0
-        ? Math.round(((snapshot.review_positive ?? 0) / snapshotReviewTotal) * 100)
+        ? Math.round(((latestSnapshot.review_positive ?? 0) / snapshotReviewTotal) * 100)
         : null
 
-      if (reviewScore === null) continue
+      if (reviewScore === null) {
+        console.log(`[Score Calculator] No review data for ${game.name}, skipping`)
+        continue
+      }
 
       const actual: ActualMetrics = {
-        player_count: snapshot.player_count ?? game.peak_24h_player_count ?? 0,
+        player_count: peakPlayerCount,
         review_score: reviewScore,
       }
 

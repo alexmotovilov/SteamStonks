@@ -317,8 +317,8 @@ export default function AdminUsersPage() {
                               </AlertDialogTitle>
                               <AlertDialogDescription className="text-muted-foreground">
                                 {user.is_banned
-                                  ? `${user.display_name} will regain access to SteamStonks.`
-                                  : `${user.display_name} will be immediately locked out of SteamStonks.`}
+                                  ? `${user.display_name} will regain access to Prognos.`
+                                  : `${user.display_name} will be immediately locked out of Prognos.`}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

@@ -21,7 +21,7 @@ export default async function LandingPage() {
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2 text-primary">
             <TrendingUp className="h-6 w-6" />
-            <span className="text-lg font-bold text-foreground">Steam Stonks</span>
+            <span className="text-lg font-bold text-foreground">Prognos</span>
           </div>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost">
@@ -217,7 +217,7 @@ export default async function LandingPage() {
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold text-foreground mb-4">Real Prizes, Real Competition</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Every season, the top 10 players win physical prizes funded by entry fees.
+            Every season, the top 10 players win physical prizes funded by season entry tokens.
           </p>
         </div>
 
@@ -286,7 +286,7 @@ export default async function LandingPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <TrendingUp className="h-5 w-5" />
-              <span className="text-sm">Steam Stonks - Predict. Compete. Win.</span>
+              <span className="text-sm">Prognos - Predict. Compete. Win.</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link href="/rules" className="hover:text-foreground transition-colors">Rules</Link>

@@ -22,6 +22,8 @@ import {
   type BoosterEffects,
   type EquipmentTierEffect,
 } from "@/lib/scoring"
+import { GemSlider } from "@/components/gem-slider"
+import { ManaIcon } from "@/components/mana-icon"
 import { distributionToGradient, computeAuguryDistribution } from "@/lib/ladder-scoring"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -101,8 +103,9 @@ interface PredictionFormProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PLAYERS_MAX = 2000000 // slider upper bound
-const PLAYERS_STEP = 1000
+const PLAYERS_MIN = 100     // log scale — log(0) is undefined
+const PLAYERS_MAX = 2000000
+const PLAYERS_STEP = 100    // step less important with log scale
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -150,7 +153,7 @@ export function PredictionForm({
 
   // ── Prediction state ────────────────────────────────────────────────────────
   const [playersMidpoint, setPlayersMidpoint] = useState(
-    existingPrediction?.players_midpoint ?? 50000
+    existingPrediction?.players_midpoint ?? 10000
   )
   const [reviewsMidpoint, setReviewsMidpoint] = useState(
     existingPrediction?.reviews_midpoint ?? 75
@@ -304,9 +307,17 @@ export function PredictionForm({
   function toggleBooster(slug: string) {
     if (isLocked) return
     setAppliedBoosters(prev => {
-      if (prev.includes(slug)) return prev.filter(s => s !== slug)
+      if (prev.includes(slug)) {
+        // Removing — always allowed
+        return prev.filter(s => s !== slug)
+      }
       if (prev.length >= maxSlots) return prev
-      // Can't apply same booster twice
+      // Check inventory has at least 1 of this booster
+      // (account for any already applied to this prediction that haven't been saved yet)
+      const invItem = inventory.find(i => i.items.slug === slug)
+      const inInventory = invItem?.quantity ?? 0
+      const alreadyAppliedNotSaved = prev.includes(slug) ? 0 : 0 // slug not in prev here
+      if (inInventory <= alreadyAppliedNotSaved) return prev
       return [...prev, slug]
     })
   }
@@ -354,9 +365,11 @@ export function PredictionForm({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("You must be logged in")
 
-      // Compute windows to store
       const pWindow = playersWindow
       const rWindow = reviewsWindow
+
+      // ── 1. Save or create the prediction ─────────────────────────────────
+      let predictionId = existingPrediction?.id ?? null
 
       const payload = {
         user_id:             user.id,
@@ -380,13 +393,38 @@ export function PredictionForm({
           .eq("id", existingPrediction.id)
         if (e) throw e
       } else {
-        const { error: e } = await supabase
+        const { data: inserted, error: e } = await supabase
           .from("predictions")
           .insert(payload)
+          .select("id")
+          .single()
         if (e) throw e
+        predictionId = inserted?.id ?? null
       }
 
-      // Save ladder ranking
+      // ── 2. Sync booster inventory (consume new, return removed) ──────────
+      // Only call if boosters have changed from what was previously saved
+      const previousBoosters = existingPrediction?.applied_boosters ?? []
+      const boostersChanged =
+        appliedBoosters.length !== previousBoosters.length ||
+        appliedBoosters.some(s => !previousBoosters.includes(s))
+
+      if (predictionId && boostersChanged) {
+        const res = await fetch("/api/predictions/boosters", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prediction_id:     predictionId,
+            season_id:         seasonId,
+            new_boosters:      appliedBoosters,
+            previous_boosters: previousBoosters,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Failed to apply boosters")
+      }
+
+      // ── 3. Save ladder ranking ────────────────────────────────────────────
       if (ladder.length > 0) {
         await supabase
           .from("ladder_rankings")
@@ -523,50 +561,27 @@ export function PredictionForm({
               </Tooltip>
             </div>
 
-            {/* Custom slider with heatmap overlay */}
-            <div className="relative pt-1 pb-1">
-              {/* Heatmap overlay */}
-              {auguryGradientPlayers && (
-                <div
-                  className="absolute inset-x-0 top-1 h-3 rounded-full opacity-60 pointer-events-none"
-                  style={{ background: auguryGradientPlayers }}
-                />
-              )}
-              {/* Window range indicator */}
-              <div className="relative h-3 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="absolute h-full bg-primary/30 rounded-full border-l-2 border-r-2 border-primary transition-all"
-                  style={{
-                    left:  `${(playersWindow.low  / PLAYERS_MAX) * 100}%`,
-                    right: `${100 - (playersWindow.high / PLAYERS_MAX) * 100}%`,
-                  }}
-                />
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={PLAYERS_MAX}
-                step={PLAYERS_STEP}
-                value={playersMidpoint}
-                disabled={isLocked}
-                onChange={e => setPlayersMidpoint(parseInt(e.target.value))}
-                className="absolute inset-x-0 top-0 w-full opacity-0 h-5 cursor-pointer disabled:cursor-default"
-              />
-              {/* Midpoint diamond marker */}
-              <div
-                className="absolute top-0 w-4 h-4 -mt-0.5 -ml-2 bg-primary rotate-45 rounded-sm border-2 border-background transition-all pointer-events-none"
-                style={{ left: `${(playersMidpoint / PLAYERS_MAX) * 100}%` }}
-              />
-            </div>
-
+            <GemSlider
+              min={PLAYERS_MIN}
+              max={PLAYERS_MAX}
+              step={PLAYERS_STEP}
+              value={Math.max(PLAYERS_MIN, playersMidpoint)}
+              onChange={setPlayersMidpoint}
+              disabled={isLocked}
+              windowLow={Math.max(0, playersWindow.low)}
+              windowHigh={playersWindow.high}
+              auguryGradient={auguryGradientPlayers}
+              formatValue={v => v.toLocaleString() + " players"}
+              logScale
+            />
             <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">0</span>
+              <span className="text-muted-foreground">100</span>
               <div className="text-center">
-                <div className="font-mono font-bold text-foreground text-sm">
+                <div className="font-mono font-bold text-emerald-400 text-sm">
                   {playersMidpoint.toLocaleString()}
                 </div>
-                <div className="text-muted-foreground">
-                  Window: {playersWindow.low.toLocaleString()} – {playersWindow.high.toLocaleString()}
+                <div className="text-emerald-600 text-xs">
+                  {playersWindow.low.toLocaleString()} – {playersWindow.high.toLocaleString()}
                 </div>
               </div>
               <span className="text-muted-foreground">2M</span>
@@ -589,46 +604,26 @@ export function PredictionForm({
               </Tooltip>
             </div>
 
-            <div className="relative pt-1 pb-1">
-              {auguryGradientReviews && (
-                <div
-                  className="absolute inset-x-0 top-1 h-3 rounded-full opacity-60 pointer-events-none"
-                  style={{ background: auguryGradientReviews }}
-                />
-              )}
-              <div className="relative h-3 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="absolute h-full bg-primary/30 rounded-full border-l-2 border-r-2 border-primary transition-all"
-                  style={{
-                    left:  `${reviewsWindow.low}%`,
-                    right: `${100 - reviewsWindow.high}%`,
-                  }}
-                />
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={reviewsMidpoint}
-                disabled={isLocked}
-                onChange={e => setReviewsMidpoint(parseInt(e.target.value))}
-                className="absolute inset-x-0 top-0 w-full opacity-0 h-5 cursor-pointer disabled:cursor-default"
-              />
-              <div
-                className="absolute top-0 w-4 h-4 -mt-0.5 -ml-2 bg-primary rotate-45 rounded-sm border-2 border-background transition-all pointer-events-none"
-                style={{ left: `${reviewsMidpoint}%` }}
-              />
-            </div>
-
+            <GemSlider
+              min={0}
+              max={100}
+              step={1}
+              value={reviewsMidpoint}
+              onChange={setReviewsMidpoint}
+              disabled={isLocked}
+              windowLow={reviewsWindow.low}
+              windowHigh={reviewsWindow.high}
+              auguryGradient={auguryGradientReviews}
+              formatValue={v => v + "% positive"}
+            />
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">0%</span>
               <div className="text-center">
-                <div className="font-mono font-bold text-foreground text-sm">
+                <div className="font-mono font-bold text-emerald-400 text-sm">
                   {reviewsMidpoint}%
                 </div>
-                <div className="text-muted-foreground">
-                  Window: {reviewsWindow.low}% – {reviewsWindow.high}%
+                <div className="text-emerald-600 text-xs">
+                  {reviewsWindow.low}% – {reviewsWindow.high}%
                 </div>
               </div>
               <span className="text-muted-foreground">100%</span>
@@ -636,12 +631,12 @@ export function PredictionForm({
           </div>
 
           {/* ── Mana Preview ────────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border text-sm">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-sm">
             <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-primary" />
+              <ManaIcon size={16} />
               <span className="text-muted-foreground">Max possible reward</span>
             </div>
-            <span className="font-bold text-primary">+{previewMana} mana</span>
+            <span className="font-bold text-cyan-300">+{previewMana} mana</span>
           </div>
 
           {/* ── Season Ladder ────────────────────────────────────────────────── */}
@@ -790,21 +785,31 @@ export function PredictionForm({
               )}
 
               {showBoosterPanel && !isLocked && (
-                <div className="grid grid-cols-2 gap-2 p-3 rounded-lg border border-border bg-secondary/20">
-                  {inventory.filter(i => i.items && i.quantity > 0).map(inv => {
+                <div className="grid grid-cols-2 gap-2 p-3 rounded-lg border border-amber-500/20 bg-amber-950/10">
+                  {inventory.map(inv => {
+                    if (!inv.items) return null
                     const isApplied = appliedBoosters.includes(inv.items.slug)
-                    const canApply = !isApplied && appliedBoosters.length < maxSlots
+                    const outOfStock = inv.quantity <= 0 && !isApplied
+                    const slotsAvailable = appliedBoosters.length < maxSlots
+                    const canApply = !isApplied && slotsAvailable && !outOfStock
 
                     return (
                       <button
                         key={inv.item_id}
                         onClick={() => toggleBooster(inv.items.slug)}
                         disabled={!canApply && !isApplied}
+                        title={
+                          outOfStock ? "None in inventory"
+                          : !slotsAvailable && !isApplied ? "No booster slots available"
+                          : inv.items.description
+                        }
                         className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-colors ${
                           isApplied
-                            ? "border-primary bg-primary/10"
+                            ? "border-amber-500/50 bg-amber-950/20"
+                            : outOfStock
+                            ? "border-border opacity-30 cursor-not-allowed bg-background"
                             : canApply
-                            ? "border-border hover:border-primary/50 bg-background"
+                            ? "border-amber-500/20 hover:border-amber-500/50 bg-background"
                             : "border-border opacity-40 cursor-not-allowed bg-background"
                         }`}
                       >
@@ -813,12 +818,17 @@ export function PredictionForm({
                         )}
                         <div className="min-w-0">
                           <div className="text-xs font-medium text-foreground truncate">{inv.items.name}</div>
-                          <div className="text-xs text-muted-foreground">×{inv.quantity}</div>
+                          <div className={`text-xs ${outOfStock ? "text-destructive/60" : "text-amber-400/70"}`}>
+                            {outOfStock ? "Out of stock" : `×${inv.quantity} available`}
+                          </div>
                         </div>
+                        {isApplied && (
+                          <div className="ml-auto shrink-0 text-xs text-amber-400 font-medium">✓</div>
+                        )}
                       </button>
                     )
                   })}
-                  {inventory.filter(i => i.quantity > 0).length === 0 && (
+                  {inventory.length === 0 && (
                     <p className="col-span-2 text-xs text-muted-foreground text-center py-2">
                       No boosters in inventory
                     </p>
@@ -879,7 +889,7 @@ export function PredictionForm({
                     className="flex-1 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
                   >
                     <Zap className="mr-2 h-4 w-4" />
-                    Early Lock (+{earlyLockMana} mana)
+                    Early Lock (<span className="text-cyan-300">+{earlyLockMana}</span> mana)
                   </Button>
                   {countdown && (
                     <div className="text-xs text-muted-foreground text-right shrink-0">
@@ -957,7 +967,7 @@ function ScoredPredictionCard({
             <CardDescription className={
               isPerfect ? "text-success" : isPartial ? "text-warning" : "text-muted-foreground"
             }>
-              {isPerfect ? "Perfect!" : isPartial ? "Partial Hit" : "Missed"} · +{totalMana} mana
+              {isPerfect ? "Perfect!" : isPartial ? "Partial Hit" : "Missed"} · <span className="text-cyan-300 font-bold">+{totalMana} mana</span>
             </CardDescription>
           </div>
         </div>
@@ -994,19 +1004,19 @@ function ScoredPredictionCard({
           {(existingPrediction.mana_players ?? 0) > 0 && (
             <div className="flex justify-between">
               <span>Players correct</span>
-              <span className="text-success">+{existingPrediction.mana_players}</span>
+              <span className="text-cyan-300">+{existingPrediction.mana_players}</span>
             </div>
           )}
           {(existingPrediction.mana_reviews ?? 0) > 0 && (
             <div className="flex justify-between">
               <span>Reviews correct</span>
-              <span className="text-success">+{existingPrediction.mana_reviews}</span>
+              <span className="text-cyan-300">+{existingPrediction.mana_reviews}</span>
             </div>
           )}
           {(existingPrediction.mana_both_bonus ?? 0) > 0 && (
             <div className="flex justify-between">
               <span>Both correct bonus</span>
-              <span className="text-success">+{existingPrediction.mana_both_bonus}</span>
+              <span className="text-cyan-300">+{existingPrediction.mana_both_bonus}</span>
             </div>
           )}
           {(existingPrediction.mana_early_lock ?? 0) > 0 && (
@@ -1018,19 +1028,19 @@ function ScoredPredictionCard({
           {(existingPrediction.mana_boosters ?? 0) > 0 && (
             <div className="flex justify-between">
               <span>Booster bonus</span>
-              <span className="text-primary">+{existingPrediction.mana_boosters}</span>
+              <span className="text-cyan-300">+{existingPrediction.mana_boosters}</span>
             </div>
           )}
           {(existingPrediction.mana_equipment ?? 0) > 0 && (
             <div className="flex justify-between">
               <span>Equipment bonus</span>
-              <span className="text-primary">+{existingPrediction.mana_equipment}</span>
+              <span className="text-cyan-300">+{existingPrediction.mana_equipment}</span>
             </div>
           )}
           {(existingPrediction.mana_first_prediction ?? 0) > 0 && (
             <div className="flex justify-between">
               <span>First prediction bonus</span>
-              <span className="text-primary">+{existingPrediction.mana_first_prediction}</span>
+              <span className="text-cyan-300">+{existingPrediction.mana_first_prediction}</span>
             </div>
           )}
           <div className="flex justify-between border-t border-border pt-1 font-medium text-foreground">
@@ -1038,7 +1048,7 @@ function ScoredPredictionCard({
             <span className="text-primary">+{totalMana}</span>
           </div>
           {(existingPrediction.drops_awarded ?? 0) > 0 && (
-            <div className="flex justify-between text-amber-400">
+            <div className="flex justify-between text-amber-400 font-medium">
               <span>Loot drops</span>
               <span>+{existingPrediction.drops_awarded} item{(existingPrediction.drops_awarded ?? 0) !== 1 ? "s" : ""}</span>
             </div>

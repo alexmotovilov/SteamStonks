@@ -13,7 +13,7 @@ export default function BannedPage() {
         </CardHeader>
         <CardContent className="text-center space-y-4">
           <p className="text-muted-foreground">
-            Your account has been suspended and you no longer have access to SteamStonks.
+            Your account has been suspended and you no longer have access to Prognos.
           </p>
           <p className="text-sm text-muted-foreground">
             If you believe this is a mistake, please contact support.

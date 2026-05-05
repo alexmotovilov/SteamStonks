@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Calendar, Users, ThumbsUp, ExternalLink } from "lucide-react"
-import { PredictionForm } from "@/components/prediction-form"
+import { PredictionFormClient as PredictionForm } from "@/components/prediction-form-client"
 
 interface GamePageProps {
   params: Promise<{ id: string }>

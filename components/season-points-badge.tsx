@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Zap } from "lucide-react"
+import { ManaIcon } from "@/components/mana-icon"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 export function SeasonPointsBadge({ user }: { user: SupabaseUser }) {
-  const [points, setPoints] = useState<number | null>(null)
+  const [balance, setBalance] = useState<number | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -20,27 +20,26 @@ export function SeasonPointsBadge({ user }: { user: SupabaseUser }) {
 
       if (!season) return
 
-      const { data: preds } = await supabase
-        .from("predictions")
-        .select("final_points")
+      const { data: entry } = await supabase
+        .from("season_entries")
+        .select("mana_balance")
         .eq("user_id", user.id)
         .eq("season_id", season.id)
-        .not("final_points", "is", null)
+        .single()
 
-      const total = (preds ?? []).reduce((sum, p) => sum + (p.final_points ?? 0), 0)
-      setPoints(total)
+      if (entry) setBalance(entry.mana_balance ?? 0)
     }
 
     fetch()
   }, [user.id])
 
-  if (points === null) return null
+  if (balance === null) return null
 
   return (
-    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary">
-      <Zap className="h-4 w-4 text-primary" />
-      <span className="text-sm font-medium text-foreground">
-        {points.toLocaleString()} pts
+    <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan-950/40 border border-cyan-500/20">
+      <ManaIcon size={16} />
+      <span className="text-sm font-medium text-cyan-300">
+        {balance.toLocaleString()}
       </span>
     </div>
   )

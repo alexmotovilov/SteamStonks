@@ -3,11 +3,11 @@
   "crons": [
     {
       "path": "/api/cron/steam-collector",
-      "schedule": "0 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/score-calculator",
       "schedule": "0 7 * * *"
     }
   ]
-} 
+}

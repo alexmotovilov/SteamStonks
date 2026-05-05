@@ -54,7 +54,8 @@ export default function SignUpPage() {
           <div className="flex justify-center mb-2">
             <div className="flex items-center gap-2 text-primary">
               <TrendingUp className="h-8 w-8" />
-              <span className="text-2xl font-bold text-foreground">Steam Stonks</span>
+              <img src="/icons/game-logo.png" alt="Prognos" width={40} height={40} className="mx-auto mb-2" />
+              <span className="text-2xl font-bold text-foreground font-display">Prognos</span>
             </div>
           </div>
           <CardTitle className="text-xl text-foreground">Create an account</CardTitle>

@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
-import { Trophy, Target, Gamepad2, TrendingUp, Calendar, Users, ArrowRight, Zap, Coins } from "lucide-react"
+import { Trophy, Target, Gamepad2, TrendingUp, Calendar, Users, ArrowRight, Coins } from "lucide-react"
+import { ManaIcon } from "@/components/mana-icon"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -77,10 +78,10 @@ export default async function DashboardPage() {
       {/* Welcome Section */}
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-foreground">
-          Welcome back, {profile?.display_name || "Player"}
+          Welcome back to the circle, {profile?.display_name || "Player"}
         </h1>
         <p className="text-muted-foreground">
-          {"Here's what's happening with your predictions"}
+          {"We await your prophecies."}
         </p>
       </div>
 
@@ -141,13 +142,13 @@ export default async function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 
         {/* Season Points — primary stat, shown prominently */}
-        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+        <Card className="border-cyan-500/20 bg-cyan-950/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Season Points</CardTitle>
-            <Zap className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Season Mana</CardTitle>
+            <ManaIcon size={20} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">
+            <div className="text-2xl font-bold text-cyan-300">
               {totalPoints.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -193,13 +194,13 @@ export default async function DashboardPage() {
         </Card>
 
         {/* Token Balance */}
-        <Card className="border-border">
+        <Card className="border-amber-500/20 bg-amber-950/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Token Balance</CardTitle>
-            <Coins className="h-4 w-4 text-muted-foreground" />
+            <Coins className="h-4 w-4 text-amber-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">
+            <div className="text-2xl font-bold text-amber-300">
               {profile?.token_balance?.toLocaleString() || 0}
             </div>
             <p className="text-xs text-muted-foreground">

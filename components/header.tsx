@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { TrendingUp, User, LogOut, Settings, Coins, Gamepad2 } from "lucide-react"
+import { User, LogOut, Settings, Coins, Gamepad2 } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import { SeasonPointsBadge } from "@/components/season-points-badge"
 
@@ -41,43 +41,84 @@ export function Header({ user, profile }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
+      {/* Smoke effect — child of header, not the flex container, so it fills full h-16 */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: [
+            "radial-gradient(ellipse 25% 200% at 4% 50%, rgba(210,200,255,0.22) 0%, rgba(180,170,240,0.12) 45%, transparent 100%)",
+            "radial-gradient(ellipse 18% 160% at 1% 50%, rgba(240,235,255,0.16) 0%, transparent 80%)",
+          ].join(", "),
+        }}
+      />
+      {/* Rightward fade — dissolves smoke before nav links */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: "linear-gradient(to right, transparent 0%, transparent 22%, rgba(10,10,16,0.85) 38%, rgba(10,10,16,0.98) 44%)",
+        }}
+      />
+      <div className="container relative flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2 text-primary">
-            <TrendingUp className="h-6 w-6" />
-            <span className="text-lg font-bold text-foreground">Steam Stonks</span>
-          </Link>
+          <div className="flex items-center">
+            <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2.5 pr-6">
+              <img
+                src="/icons/game-logo.png"
+                alt="Prognos"
+                width={36}
+                height={36}
+                className="shrink-0"
+                style={{ filter: "drop-shadow(0 0 8px rgba(160,130,255,0.8)) drop-shadow(0 0 3px rgba(200,180,255,0.6))" }}
+              />
+              <span
+                className="font-display tracking-widest"
+                style={{
+                  fontSize: "20px",
+                  textShadow: "0 0 20px rgba(157,132,212,0.5), 0 0 40px rgba(157,132,212,0.2)",
+                  color: "#9D84D4",
+                  display: "flex",
+                  alignItems: "baseline",
+                }}
+              >
+                <span style={{ fontWeight: 700 }}>P</span>
+                <span style={{ fontWeight: 400 }}>ro</span>
+                <span style={{ fontWeight: 700 }}>g</span>
+                <span style={{ fontWeight: 400 }}>no</span>
+                <span style={{ fontWeight: 700 }}>s</span>
+              </span>
+            </Link>
+          </div>
 
           {user && (
             <nav className="hidden md:flex items-center gap-4">
               <Link
                 href="/dashboard"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
               >
                 Dashboard
               </Link>
               <Link
                 href="/seasons"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
               >
                 Seasons
               </Link>
               <Link
                 href="/games"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
               >
                 Games
               </Link>
               <Link
                 href="/leaderboard"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+               className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
               >
                 Leaderboard
               </Link>
               {profile?.is_admin && (
                 <Link
                   href="/admin"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
                 >
                   Admin
                 </Link>
