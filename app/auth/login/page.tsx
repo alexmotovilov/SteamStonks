@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { TrendingUp, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -44,15 +44,11 @@ export default function LoginPage() {
       <Card className="w-full max-w-md border-border bg-card">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-2">
-            <div className="flex items-center gap-2 text-primary">
-              <TrendingUp className="h-8 w-8" />
-              <img src="/icons/game-logo.png" alt="Prognos" width={40} height={40} className="mx-auto mb-2" />
-              <span className="text-2xl font-bold text-foreground font-display">Prognos</span>
-            </div>
+            <img src="/icons/game-name-logo.png" alt="Prognos" style={{ height: "80px", width: "auto", filter: "drop-shadow(0 0 8px rgba(157,132,212,0.5))" }} />
           </div>
-          <CardTitle className="text-xl text-foreground">Welcome back</CardTitle>
+          <CardTitle className="text-xl text-foreground">Your return has been foretold</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Sign in to continue making predictions
+            Now watch thy prophecies unfold
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>

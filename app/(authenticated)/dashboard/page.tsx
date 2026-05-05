@@ -81,7 +81,7 @@ export default async function DashboardPage() {
           Welcome back to the circle, {profile?.display_name || "Player"}
         </h1>
         <p className="text-muted-foreground">
-          {"We await your prophecies."}
+          {"We await your omens."}
         </p>
       </div>
 

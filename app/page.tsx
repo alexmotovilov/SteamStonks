@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp, Target, Trophy, Users, Gamepad2, BarChart3, ArrowRight, CheckCircle2 } from "lucide-react"
+import { Target, Trophy, Users, Gamepad2, BarChart3, ArrowRight, CheckCircle2 } from "lucide-react"
 
 export default async function LandingPage() {
   const supabase = await createClient()
@@ -17,12 +17,27 @@ export default async function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2 text-primary">
-            <TrendingUp className="h-6 w-6" />
-            <span className="text-lg font-bold text-foreground">Prognos</span>
-          </div>
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        {/* Vignette matching authenticated header */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: [
+              "radial-gradient(ellipse 28% 200% at 8% 50%, transparent 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.60) 100%)",
+              "radial-gradient(ellipse 16% 160% at 1% 50%, transparent 0%, rgba(0,0,0,0.25) 70%)",
+            ].join(", "),
+          }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: "linear-gradient(to right, transparent 0%, transparent 24%, rgba(10,10,16,0.85) 40%, rgba(10,10,16,0.98) 46%)",
+          }}
+        />
+        <div className="container relative flex h-16 items-center justify-between">
+          <Link href="/" className="flex items-center">
+            <img src="/icons/game-name-logo.png" alt="Prognos" style={{ height: "56px", width: "auto", marginLeft: "18px", filter: "drop-shadow(0 0 6px rgba(157,132,212,0.35)) drop-shadow(0 0 2px rgba(200,180,255,0.2))" }} />
+          </Link>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost">
               <Link href="/auth/login">Sign In</Link>
@@ -285,8 +300,8 @@ export default async function LandingPage() {
         <div className="container py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <TrendingUp className="h-5 w-5" />
-              <span className="text-sm">Prognos - Predict. Compete. Win.</span>
+              <img src="/icons/game-name-logo.png" alt="Prognos" style={{ height: "36px", width: "auto", opacity: 0.7 }} />
+              <span className="text-sm font-display" style={{ color: "#9D84D4" }}>Predict. Compete. Win.</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link href="/rules" className="hover:text-foreground transition-colors">Rules</Link>
