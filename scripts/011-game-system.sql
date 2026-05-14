@@ -54,7 +54,9 @@ ALTER TABLE public.season_entries
   -- First prediction bonus
   ADD COLUMN IF NOT EXISTS first_prediction_bonus_claimed boolean DEFAULT false,
   -- Starter kit given on join
-  ADD COLUMN IF NOT EXISTS starter_kit_claimed      boolean DEFAULT false;
+  ADD COLUMN IF NOT EXISTS starter_kit_claimed      boolean DEFAULT false,
+  -- Mutation timestamp (required by deduct_mana / increment_season_mana RPCs)
+  ADD COLUMN IF NOT EXISTS updated_at              timestamptz DEFAULT now();
 
 -- ============================================================
 -- 3. ITEMS — master catalogue of all boosters and equipment

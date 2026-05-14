@@ -25,9 +25,10 @@ interface HeaderProps {
     token_balance: number
     is_admin: boolean
   } | null
+  manaBalance?: number | null
 }
 
-export function Header({ user, profile }: HeaderProps) {
+export function Header({ user, profile, manaBalance = null }: HeaderProps) {
   const router = useRouter()
   async function handleSignOut() {
     const supabase = createClient()
@@ -97,6 +98,12 @@ export function Header({ user, profile }: HeaderProps) {
                 Games
               </Link>
               <Link
+                href="/vendor"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
+              >
+                Vendor
+              </Link>
+              <Link
                 href="/leaderboard"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
               >
@@ -117,8 +124,8 @@ export function Header({ user, profile }: HeaderProps) {
         <div className="flex items-center gap-4">
           {user ? (
             <>
-              {/* Season points badge — fetches client-side to avoid hydration mismatch */}
-              {user && <Suspense fallback={null}><SeasonPointsBadge user={user} /></Suspense>}
+              {/* Season points badge — value flows from server layout, updates on router.refresh() */}
+              {user && <Suspense fallback={null}><SeasonPointsBadge manaBalance={manaBalance} /></Suspense>}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

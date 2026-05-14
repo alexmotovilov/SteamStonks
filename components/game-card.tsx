@@ -116,10 +116,10 @@ export function GameCard({ game, seasonId, hasPrediction, dimmed }: GameCardProp
       </CardContent>
 
       <CardFooter className="p-4 pt-0">
-        <Button asChild className="w-full" variant={dimmed ? "ghost" : hasPrediction ? "outline" : "default"}>
+        <Button asChild className="w-full" variant={dimmed ? "ghost" : (hasPrediction || game.is_released) ? "outline" : "default"}>
           <Link href={`/games/${game.id}${seasonId ? `?season=${seasonId}` : ""}`}>
             <Target className="mr-2 h-4 w-4" />
-            {dimmed ? "View Results" : hasPrediction ? "View Prediction" : "Make Prediction"}
+            {dimmed ? "View Results" : (hasPrediction || game.is_released) ? "View Prediction" : "Make Prediction"}
           </Link>
         </Button>
       </CardFooter>

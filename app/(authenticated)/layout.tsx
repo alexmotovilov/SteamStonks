@@ -21,9 +21,24 @@ export default async function AuthenticatedLayout({
     .eq("id", user.id)
     .single()
 
+  const { data: season } = await supabase
+    .from("seasons")
+    .select("id")
+    .eq("status", "active")
+    .single()
+
+  const { data: entry } = season
+    ? await supabase
+        .from("season_entries")
+        .select("mana_balance")
+        .eq("user_id", user.id)
+        .eq("season_id", season.id)
+        .single()
+    : { data: null }
+
   return (
     <div className="min-h-screen bg-background">
-      <Header user={user} profile={profile} />
+      <Header user={user} profile={profile} manaBalance={entry?.mana_balance ?? null} />
       <main className="container py-6">
         {children}
       </main>

@@ -1,37 +1,19 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { ManaIcon } from "@/components/mana-icon"
-import type { User as SupabaseUser } from "@supabase/supabase-js"
 
-export function SeasonPointsBadge({ user }: { user: SupabaseUser }) {
-  const [balance, setBalance] = useState<number | null>(null)
+interface SeasonPointsBadgeProps {
+  manaBalance: number | null
+}
 
+export function SeasonPointsBadge({ manaBalance }: SeasonPointsBadgeProps) {
+  const [balance, setBalance] = useState<number | null>(manaBalance)
+
+  // Sync whenever the server layout re-renders (e.g. after router.refresh())
   useEffect(() => {
-    const supabase = createClient()
-
-    async function fetch() {
-      const { data: season } = await supabase
-        .from("seasons")
-        .select("id")
-        .eq("status", "active")
-        .single()
-
-      if (!season) return
-
-      const { data: entry } = await supabase
-        .from("season_entries")
-        .select("mana_balance")
-        .eq("user_id", user.id)
-        .eq("season_id", season.id)
-        .single()
-
-      if (entry) setBalance(entry.mana_balance ?? 0)
-    }
-
-    fetch()
-  }, [user.id])
+    setBalance(manaBalance)
+  }, [manaBalance])
 
   if (balance === null) return null
 
