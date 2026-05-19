@@ -91,6 +91,7 @@ interface PredictionFormProps {
   lockedLadderGameIds: string[]
   inventory: InventoryItem[]
   aoMarkCount?: number  // how many AO marks player has made this season
+  firstPredictionBonusEligible?: boolean
 }
 
 const PLAYERS_MIN = 100
@@ -98,28 +99,44 @@ const PLAYERS_MAX = 2000000
 const PLAYERS_STEP = 100
 
 const RITES = [
-  { slug: "ritual_of_augury", name: "Ritual of Augury", cost: 10, placeholder: "👁", image: "/rites/ritual-of-augury.png", description: "Reveals the crowd's prediction distribution as a heatmap on the sliders for 2 minutes.", confirmText: "Perform the Ritual of Augury?", confirmBtn: "Perform", auraColor: "cyan" },
-  { slug: "eldritch_wager", name: "Eldritch Wager", cost: 30, placeholder: "⚖", image: "/rites/eldritch-wager.png", description: "Adds +25 mana to each correct metric reward, and +25 if both are correct.", confirmText: "Invoke the Eldritch Wager?", confirmBtn: "Wager", auraColor: "purple" },
-  { slug: "sigil_of_multiplicity", name: "Sigil of Multiplicity", cost: 50, placeholder: "✦", image: "/rites/sigil-of-multiplicity.png", description: "Unlocks an additional booster slot for this prediction.", confirmText: "Invoke the Sigil of Multiplicity?", confirmBtn: "Invoke", auraColor: "purple" },
-  { slug: "temporal_translocation", name: "Temporal Translocation", cost: 100, placeholder: "⧗", image: "/rites/temporal-translocation.png", description: "Unlocks your early-locked prediction and resets the early lock bonus. Requires early lock to be active.", confirmText: "Unlock via Temporal Translocation?", confirmBtn: "Unlock", auraColor: "cyan" },
-  { slug: "auspicious_omens", name: "Auspicious Omens", cost: null as number | null, placeholder: "★", image: "/rites/auspicious-omens.png", description: "Mark this game as destined for the Top 8. If any marked game misses, all Auspicious Omens rewards are forfeited.", confirmText: "Mark this game with Auspicious Omens?", confirmBtn: "Mark It", auraColor: "purple" },
+  { slug: "ritual_of_augury",    name: "Ritual of Augury",      cost: 10,              placeholder: "👁", image: "/rites/ritual-of-augury.png",      description: "Reveals the crowd's prediction distribution as a heatmap on the sliders for 2 minutes.", confirmText: "Perform the Ritual of Augury?",        confirmBtn: "Perform", auraColor: "cyan",   reusable: true  },
+  { slug: "eldritch_wager",      name: "Eldritch Wager",        cost: 30,              placeholder: "⚖", image: "/rites/eldritch-wager.png",         description: "Adds +25 mana to each correct metric reward, and +25 if both are correct.",              confirmText: "Invoke the Eldritch Wager?",           confirmBtn: "Wager",   auraColor: "purple", reusable: false },
+  { slug: "sigil_of_multiplicity", name: "Sigil of Multiplicity", cost: 50,            placeholder: "✦", image: "/rites/sigil-of-multiplicity.png",  description: "Unlocks an additional booster slot for this prediction.",                               confirmText: "Invoke the Sigil of Multiplicity?",    confirmBtn: "Invoke",  auraColor: "purple", reusable: false },
+  { slug: "temporal_translocation", name: "Temporal Translocation", cost: 100,         placeholder: "⧗", image: "/rites/temporal-translocation.png", description: "Unlocks your early-locked prediction and resets the early lock bonus. Requires early lock to be active.", confirmText: "Unlock via Temporal Translocation?", confirmBtn: "Unlock",  auraColor: "cyan",   reusable: true  },
+  { slug: "auspicious_omens",    name: "Auspicious Omens",      cost: null as number | null, placeholder: "★", image: "/rites/auspicious-omens.png", description: "Mark this game as destined for the Top 8. If any marked game misses, all Auspicious Omens rewards are forfeited.", confirmText: "Mark this game with Auspicious Omens?", confirmBtn: "Mark It", auraColor: "purple", reusable: false },
 ] as const
 
 function RiteCircle({ rite, isPerformed, disabled, onConfirm }: { rite: typeof RITES[number] & { image?: string }; isPerformed: boolean; disabled: boolean; onConfirm: () => void }) {
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const [popoverPos, setPopoverPos] = useState({ x: 0, y: 0 })
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener("mousedown", h)
     return () => document.removeEventListener("mousedown", h)
   }, [])
-  const aura = isPerformed
-    ? rite.auraColor === "cyan"
-      ? "border-cyan-400 shadow-[0_0_0_2px_rgba(34,211,238,0.15),0_0_16px_rgba(34,211,238,0.2),inset_0_0_12px_rgba(34,211,238,0.08)]"
-      : "border-violet-400 shadow-[0_0_0_2px_rgba(167,139,250,0.15),0_0_16px_rgba(167,139,250,0.2),inset_0_0_12px_rgba(167,139,250,0.08)]"
-    : "border-purple-900/40 hover:border-purple-500/50"
+  const isReusable = (rite as any).reusable as boolean
+  const isGreyedOut = isPerformed && !isReusable
+  const borderStyle = isGreyedOut
+    ? "border-white/10"
+    : isPerformed
+      ? rite.auraColor === "cyan"
+        ? "border-cyan-400 shadow-[0_0_0_2px_rgba(34,211,238,0.15),0_0_16px_rgba(34,211,238,0.2),inset_0_0_12px_rgba(34,211,238,0.08)]"
+        : "border-violet-400 shadow-[0_0_0_2px_rgba(167,139,250,0.15),0_0_16px_rgba(167,139,250,0.2),inset_0_0_12px_rgba(167,139,250,0.08)]"
+      : "border-purple-900/40 hover:border-purple-500/50"
+
+  function handleButtonClick() {
+    if (open) { setOpen(false); return }
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      // Position to the right of the circle, vertically centered on it (circle is 62px tall)
+      setPopoverPos({ x: rect.right + 10, y: rect.top + 31 })
+    }
+    setOpen(true)
+  }
+
   return (
     <div
       className="flex flex-col items-center gap-1.5"
@@ -130,8 +147,8 @@ function RiteCircle({ rite, isPerformed, disabled, onConfirm }: { rite: typeof R
     >
       {/* Circle wrapper — badge positioned relative to this */}
       <div className="relative w-[62px] h-[62px]">
-        <button disabled={disabled || isPerformed} onClick={() => !disabled && !isPerformed && setOpen(o => !o)}
-          className={`w-full h-full rounded-full border-2 bg-[rgba(20,15,40,0.9)] flex items-center justify-center text-2xl transition-all duration-200 overflow-hidden ${aura} ${disabled || isPerformed ? "cursor-default opacity-60" : "cursor-pointer"}`}>
+        <button disabled={disabled || isGreyedOut} onClick={handleButtonClick}
+          className={`w-full h-full rounded-full border-2 bg-[rgba(20,15,40,0.9)] flex items-center justify-center text-2xl transition-all duration-200 overflow-hidden ${borderStyle} ${isGreyedOut ? "opacity-40 grayscale cursor-not-allowed" : disabled ? "cursor-default opacity-60" : "cursor-pointer"}`}>
           {(rite as any).image
             ? <img src={(rite as any).image} alt={rite.name} className="w-full h-full object-cover rounded-full" />
             : rite.placeholder
@@ -146,7 +163,7 @@ function RiteCircle({ rite, isPerformed, disabled, onConfirm }: { rite: typeof R
       </div>
       <div className="font-display text-[9px] text-muted-foreground text-center leading-tight max-w-[80px]">{rite.name}</div>
 
-      {/* Hover tooltip — appears to the right of the cursor */}
+      {/* Hover tooltip — fixed, appears to the right of the cursor */}
       {hovered && !open && (
         <div
           className="fixed z-[9999] w-44 bg-[rgba(10,10,25,0.98)] border border-purple-500/30 rounded-xl p-2.5 shadow-2xl pointer-events-none flex flex-col gap-1.5"
@@ -163,8 +180,12 @@ function RiteCircle({ rite, isPerformed, disabled, onConfirm }: { rite: typeof R
         </div>
       )}
 
+      {/* Confirmation popover — fixed, anchored to right edge of rite circle */}
       {open && (
-        <div className="absolute left-[110%] top-1/2 -translate-y-1/2 z-50 w-48 bg-[rgba(10,10,25,0.98)] border border-purple-500/30 rounded-xl p-3 shadow-2xl flex flex-col gap-2">
+        <div
+          className="fixed z-[9999] w-48 bg-[rgba(10,10,25,0.98)] border border-purple-500/30 rounded-xl p-3 shadow-2xl flex flex-col gap-2"
+          style={{ left: popoverPos.x, top: popoverPos.y, transform: "translateY(-50%)" }}
+        >
           <div className="absolute left-[-6px] top-1/2 w-3 h-3 bg-[rgba(10,10,25,0.98)] border-l border-b border-purple-500/30" style={{transform:"translateY(-50%) rotate(45deg)"}} />
           <div className="font-display text-[11px] text-emerald-300">{rite.name}</div>
           <div className="text-[10px] text-muted-foreground leading-relaxed">{rite.description}</div>
@@ -180,14 +201,15 @@ function RiteCircle({ rite, isPerformed, disabled, onConfirm }: { rite: typeof R
   )
 }
 
-function BoosterTile({ inv, isApplied, canApply, onToggle }: { inv: InventoryItem; isApplied: boolean; canApply: boolean; onToggle: () => void }) {
+function BoosterTile({ inv, isApplied, canApply, isSavedLocked, onToggle }: { inv: InventoryItem; isApplied: boolean; canApply: boolean; isSavedLocked?: boolean; onToggle: () => void }) {
   const [hovering, setHovering] = useState(false)
   const outOfStock = inv.quantity <= 0 && !isApplied
   return (
     <div className="relative" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
-      <button onClick={onToggle} disabled={(!canApply && !isApplied) || outOfStock}
+      <button onClick={onToggle} disabled={isSavedLocked || (!canApply && !isApplied) || outOfStock}
         className={`w-full flex flex-col items-center gap-1 p-1 rounded-xl border transition-all duration-200 ${
-          isApplied ? "border-amber-500 shadow-[0_0_0_1px_rgba(217,119,6,0.3),inset_0_0_8px_rgba(217,119,6,0.08)] bg-amber-950/30"
+          isSavedLocked ? "border-amber-500/60 shadow-[0_0_0_1px_rgba(217,119,6,0.2),inset_0_0_8px_rgba(217,119,6,0.06)] bg-amber-950/20 cursor-default"
+          : isApplied ? "border-amber-500 shadow-[0_0_0_1px_rgba(217,119,6,0.3),inset_0_0_8px_rgba(217,119,6,0.08)] bg-amber-950/30 cursor-pointer"
           : outOfStock ? "border-white/7 bg-black/30 opacity-30 cursor-not-allowed"
           : canApply ? "border-white/7 bg-[rgba(25,15,5,0.7)] hover:border-amber-500/40 cursor-pointer"
           : "border-white/7 bg-[rgba(25,15,5,0.7)] opacity-40 cursor-not-allowed"
@@ -205,8 +227,14 @@ function BoosterTile({ inv, isApplied, canApply, onToggle }: { inv: InventoryIte
               {outOfStock ? "×0" : `×${inv.quantity}`}
             </span>
           </div>
-          {/* Applied checkmark */}
-          {isApplied && <div className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-amber-500/90 border border-amber-400 flex items-center justify-center z-10 text-[7px] text-white font-bold">✓</div>}
+          {/* Lock badge — top-left for saved+locked boosters */}
+          {isSavedLocked && (
+            <div className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 rounded-full bg-black/90 border border-amber-500/60 flex items-center justify-center z-10">
+              <Lock className="h-2 w-2 text-amber-400" />
+            </div>
+          )}
+          {/* Applied checkmark — top-right for applied+unlocked boosters */}
+          {isApplied && !isSavedLocked && <div className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-amber-500/90 border border-amber-400 flex items-center justify-center z-10 text-[7px] text-white font-bold">✓</div>}
         </div>
         <div className="font-display text-[8px] text-muted-foreground text-center leading-tight line-clamp-2 w-full">{inv.items.name}</div>
       </button>
@@ -214,12 +242,140 @@ function BoosterTile({ inv, isApplied, canApply, onToggle }: { inv: InventoryIte
         <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 z-50 w-40 bg-[rgba(10,10,25,0.98)] border border-amber-500/25 rounded-xl p-2.5 shadow-2xl pointer-events-none">
           <div className="absolute bottom-[-6px] left-1/2 w-3 h-3 bg-[rgba(10,10,25,0.98)] border-r border-b border-amber-500/25" style={{transform:"translateX(-50%) rotate(45deg)"}} />
           <div className="font-display text-[10px] text-amber-300 mb-1">{inv.items.name}</div>
-          <div className="text-[9px] text-muted-foreground leading-relaxed">{inv.items.description}</div>
+          <div className="text-[9px] text-muted-foreground leading-relaxed">
+            {isSavedLocked ? "Applied & locked — boosters cannot be removed after saving" : inv.items.description}
+          </div>
         </div>
       )}
     </div>
   )
 }
+
+// ─── Active Effects Panel ─────────────────────────────────────────────────────
+
+interface EffectLine { text: string; color: "green" | "red" | "cyan" | "amber" | "gold" }
+interface EffectGroup { source: string | null; effects: EffectLine[] }
+
+const EQUIPMENT_NAMES: Record<string, string> = {
+  seers_spectacles:   "Seer's Spectacles",
+  arcanum_esoterica:  "Arcanum Esoterica",
+  clockwork_familiar: "Clockwork Familiar",
+}
+
+const BOOSTER_EFFECTS: Record<string, EffectLine[]> = {
+  scrying_orb_polish:       [{ text: "Players window +10%", color: "green" }],
+  crystal_focus:            [{ text: "Reviews window +2", color: "green" }],
+  evocation_distillate:     [{ text: "+25 mana total reward", color: "cyan" }],
+  thaumaturgic_concentrate: [{ text: "+50 mana total reward", color: "cyan" }],
+  blood_bargain:            [{ text: "Reviews window +3", color: "green" }, { text: "−15 mana if reviews correct", color: "red" }],
+  black_gem_accumulator:    [{ text: "Players window −5%", color: "red" }, { text: "+75 mana if players correct", color: "cyan" }],
+  infernal_patrons_pact:    [{ text: "Reviews window −1", color: "red" }, { text: "+1 loot drop total reward", color: "cyan" }],
+  tincture_of_divination:   [{ text: "Players window +10%", color: "green" }, { text: "Reviews window +5", color: "green" }],
+}
+
+const BOOSTER_NAMES: Record<string, string> = {
+  scrying_orb_polish:       "Scrying Orb Polish",
+  crystal_focus:            "Crystal Focus",
+  evocation_distillate:     "Evocation Distillate",
+  thaumaturgic_concentrate: "Thaumaturgic Concentrate",
+  blood_bargain:            "Blood Bargain",
+  black_gem_accumulator:    "Black Gem Accumulator",
+  infernal_patrons_pact:    "Infernal Patron's Pact",
+  tincture_of_divination:   "Tincture of Divination",
+}
+
+const RITE_EFFECTS: Record<string, EffectLine[]> = {
+  eldritch_wager:        [{ text: "+25 mana per correct metric", color: "cyan" }, { text: "+25 mana if both correct", color: "cyan" }],
+  sigil_of_multiplicity: [{ text: "+1 booster slot", color: "amber" }],
+  auspicious_omens:      [{ text: "★ Marked for Top 8", color: "gold" }],
+}
+
+const RITE_NAMES: Record<string, string> = {
+  eldritch_wager:        "Eldritch Wager",
+  sigil_of_multiplicity: "Sigil of Multiplicity",
+  auspicious_omens:      "Auspicious Omens",
+}
+
+const DOT_COLOR: Record<string, string> = {
+  green: "bg-emerald-400", red: "bg-red-400", cyan: "bg-cyan-400", amber: "bg-amber-400", gold: "bg-amber-600",
+}
+const TEXT_COLOR: Record<string, string> = {
+  green: "text-emerald-400", red: "text-red-400", cyan: "text-cyan-300", amber: "text-amber-400", gold: "text-amber-600",
+}
+
+interface ActiveEffectsPanelProps {
+  equipmentSlug: string | null
+  equipmentTierScore: number
+  appliedBoosters: string[]
+  performedRites: Set<string>
+  aoMarked: boolean
+  firstPredictionBonusEligible: boolean
+}
+
+function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters, performedRites, aoMarked, firstPredictionBonusEligible }: ActiveEffectsPanelProps) {
+  const sourcedGroups: EffectGroup[] = []
+
+  if (equipmentSlug) {
+    const eq = resolveEquipmentEffects(equipmentSlug, equipmentTierScore)
+    const effects: EffectLine[] = []
+    if (eq.players_window_pct > 0)  effects.push({ text: `Players window +${eq.players_window_pct}%`, color: "green" })
+    if (eq.players_window_pct < 0)  effects.push({ text: `Players window −${Math.abs(eq.players_window_pct)}%`, color: "red" })
+    if (eq.reviews_window_flat > 0) effects.push({ text: `Reviews window +${eq.reviews_window_flat}`, color: "green" })
+    if (eq.reviews_window_flat < 0) effects.push({ text: `Reviews window −${Math.abs(eq.reviews_window_flat)}`, color: "red" })
+    if (eq.mana_players_bonus > 0)  effects.push({ text: `+${eq.mana_players_bonus} mana if players correct`, color: "cyan" })
+    if (eq.mana_reviews_bonus > 0)  effects.push({ text: `+${eq.mana_reviews_bonus} mana if reviews correct`, color: "cyan" })
+    if (eq.mana_both_bonus > 0)     effects.push({ text: `+${eq.mana_both_bonus} mana if both correct`, color: "cyan" })
+    if (eq.mana_total_reward > 0)   effects.push({ text: `+${eq.mana_total_reward} mana total reward`, color: "cyan" })
+    if (eq.extra_booster_slots > 0) effects.push({ text: `+${eq.extra_booster_slots} booster slot`, color: "amber" })
+    if (effects.length > 0) sourcedGroups.push({ source: EQUIPMENT_NAMES[equipmentSlug] ?? equipmentSlug, effects })
+  }
+
+  for (const slug of appliedBoosters) {
+    const effects = BOOSTER_EFFECTS[slug]
+    if (effects) sourcedGroups.push({ source: BOOSTER_NAMES[slug] ?? slug, effects })
+  }
+
+  for (const slug of Array.from(performedRites)) {
+    if (slug === "auspicious_omens" && !aoMarked) continue
+    const effects = RITE_EFFECTS[slug]
+    if (effects) sourcedGroups.push({ source: RITE_NAMES[slug] ?? slug, effects })
+  }
+
+  return (
+    <div className="bg-[rgba(10,10,20,0.6)] border border-white/8 rounded-xl p-3 space-y-1.5">
+      <div className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase">Active Effects</div>
+
+      {firstPredictionBonusEligible && (
+        <div className="flex items-start gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full shrink-0 mt-1 bg-cyan-400" />
+          <span className="text-[9px] leading-tight text-cyan-300">+50 mana first prediction bonus</span>
+        </div>
+      )}
+
+      <div className="border-t border-white/8" />
+
+      {sourcedGroups.length === 0 ? (
+        <p className="text-[9px] italic text-muted-foreground/40">No boosters or rites active</p>
+      ) : (
+        <div className="space-y-2">
+          {sourcedGroups.map((group, gi) => (
+            <div key={gi}>
+              <div className="font-display text-[9px] text-muted-foreground/60 mb-0.5">{group.source}</div>
+              {group.effects.map((effect, ei) => (
+                <div key={ei} className="flex items-start gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1 ${DOT_COLOR[effect.color]}`} />
+                  <span className={`text-[9px] leading-tight ${TEXT_COLOR[effect.color]}`}>{effect.text}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function LadderTile({ game, rank, isLocked, isExcluded, isCurrentGame, isAoMarked, totalGames, onDragStart, onDragEnter, onDragEnd }: {
   game: LadderGame; rank: number; isLocked: boolean; isExcluded: boolean; isCurrentGame: boolean; isAoMarked: boolean; totalGames: number;
@@ -240,7 +396,11 @@ function LadderTile({ game, rank, isLocked, isExcluded, isCurrentGame, isAoMarke
       <div className={`w-full relative overflow-hidden transition-all duration-300 ${isLocked ? "grayscale" : ""}`} style={{ height: `${imgHeight}px` }}>
         {game.header_image_url ? <img src={game.header_image_url} alt={game.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-purple-950/30" />}
         {!isExcluded && <div className={`absolute top-1 left-1.5 font-display text-[9px] px-1.5 py-0.5 rounded bg-black/70 ${isCurrentGame ? "text-emerald-400" : "text-muted-foreground"}`}>{rank}</div>}
-        {isAoMarked && <div className="absolute top-1 right-1.5 text-[11px] text-violet-400 drop-shadow-[0_0_4px_rgba(167,139,250,0.7)]">★</div>}
+        {isAoMarked && (
+          <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_6px_rgba(251,191,36,0.5)]">
+            <span className="text-[10px] text-violet-400 leading-none">★</span>
+          </div>
+        )}
         {isLocked && !isExcluded && <div className="absolute bottom-1 right-1.5"><Lock className="h-2.5 w-2.5 text-muted-foreground/50" /></div>}
       </div>
       <div className="flex items-center justify-between px-1.5 py-1">
@@ -275,11 +435,15 @@ export function PredictionForm({
   gameId, gameName, seasonId, seasonStatus, existingPrediction, isReleased, releaseDate,
   snapshotPlayerCount, snapshotReviewPositive, snapshotReviewNegative,
   equipmentSlug, equipmentTierScore, ladderGames, existingLadder, lockedLadderGameIds, inventory, aoMarkCount = 0,
+  firstPredictionBonusEligible = false,
 }: PredictionFormProps) {
   const router = useRouter()
   const supabase = createClient()
   const isSeasonClosed = seasonStatus === "scoring" || seasonStatus === "completed"
-  const isEarlyLocked = !!existingPrediction?.early_locked_at && !existingPrediction?.is_locked
+  // temporalUnlocked overrides early_locked_at from the server prop so the UI
+  // updates immediately after Temporal Translocation is used, without a full reload.
+  const [temporalUnlocked, setTemporalUnlocked] = useState(false)
+  const isEarlyLocked = !temporalUnlocked && !!existingPrediction?.early_locked_at && !existingPrediction?.is_locked
   const isSlidersLocked = isSeasonClosed || !!existingPrediction?.is_locked || isEarlyLocked || isReleased
   const isFullyLocked = isSeasonClosed || !!existingPrediction?.is_locked || isReleased
 
@@ -359,7 +523,11 @@ export function PredictionForm({
   function toggleBooster(slug: string) {
     if (isSlidersLocked) return
     setAppliedBoosters(prev => {
-      if (prev.includes(slug)) return prev.filter(s => s !== slug)
+      if (prev.includes(slug)) {
+        // Boosters already saved to the DB are locked — cannot be removed
+        if ((existingPrediction?.applied_boosters ?? []).includes(slug)) return prev
+        return prev.filter(s => s !== slug)
+      }
       if (prev.length >= maxSlots) return prev
       const inv = inventory.find(i => i.items.slug === slug)
       if (!inv || inv.quantity <= 0) return prev
@@ -368,8 +536,10 @@ export function PredictionForm({
   }
 
   async function performRite(slug: string) {
-    if (performedRites.has(slug)) return
+    const isReusable = RITES.find(r => r.slug === slug)?.reusable ?? false
+    if (performedRites.has(slug) && !isReusable) return
     setError(null)
+
     if (slug === "ritual_of_augury") {
       setAuguryRunning(true)
       try {
@@ -384,8 +554,29 @@ export function PredictionForm({
       finally { setAuguryRunning(false) }
       return
     }
-    if (slug === "auspicious_omens") { setAoMarked(true) }
+
+    if (!existingPrediction?.id) {
+      setError("Save your prediction first before using rites.")
+      return
+    }
+
+    const res = await fetch("/api/rites/perform", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prediction_id: existingPrediction.id,
+        season_id: seasonId,
+        rite_slug: slug,
+        mana_cost: slug === "auspicious_omens" ? aoNextCost : undefined,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setError(data.error || "Rite failed"); return }
+
+    if (slug === "auspicious_omens") setAoMarked(true)
+    if (slug === "temporal_translocation") setTemporalUnlocked(true)
     setPerformedRites(prev => new Set([...prev, slug]))
+    router.refresh()
   }
 
   async function handleSavePrediction() {
@@ -505,11 +696,15 @@ export function PredictionForm({
               <div className="text-[10px] text-emerald-700 text-center">{reviewsWindow.low}% – {reviewsWindow.high}%</div>
             </div>
 
-            {/* Mana preview */}
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-cyan-950/25 border border-cyan-500/15">
-              <div className="flex items-center gap-2"><ManaIcon size={14} /><span className="font-display text-[10px] text-muted-foreground tracking-wide">Max reward</span></div>
-              <span className="font-display text-xs text-cyan-300">+{previewMana} mana</span>
-            </div>
+            {/* Active Effects panel */}
+            <ActiveEffectsPanel
+              equipmentSlug={equipmentSlug}
+              equipmentTierScore={equipmentTierScore}
+              appliedBoosters={appliedBoosters}
+              performedRites={performedRites}
+              aoMarked={aoMarked}
+              firstPredictionBonusEligible={firstPredictionBonusEligible ?? false}
+            />
 
             {/* Booster orbs + grid */}
             {!isSeasonClosed && (
@@ -524,8 +719,9 @@ export function PredictionForm({
                   {inventory.map(inv => {
                     if (!inv.items) return null
                     const isApplied = appliedBoosters.includes(inv.items.slug)
+                    const isSavedLocked = (existingPrediction?.applied_boosters ?? []).includes(inv.items.slug)
                     const canApply = !isApplied && appliedBoosters.length < maxSlots && inv.quantity > 0
-                    return <BoosterTile key={inv.item_id} inv={inv} isApplied={isApplied} canApply={canApply} onToggle={() => toggleBooster(inv.items.slug)} />
+                    return <BoosterTile key={inv.item_id} inv={inv} isApplied={isApplied} isSavedLocked={isSavedLocked} canApply={canApply} onToggle={() => toggleBooster(inv.items.slug)} />
                   })}
                   {inventory.length === 0 && <div className="col-span-4 text-[10px] text-muted-foreground text-center py-3">No boosters in inventory</div>}
                 </div>

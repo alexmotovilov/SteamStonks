@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/supabase/server"
-import { GameCard } from "@/components/game-card"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { type PredictionData } from "@/components/game-card"
+import { GamesTabs } from "@/components/games-tabs"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
-import { Search, Plus, Gamepad2 } from "lucide-react"
+import { Search, Plus } from "lucide-react"
 
 export default async function GamesPage() {
   const supabase = await createClient()
@@ -33,57 +33,50 @@ export default async function GamesPage() {
         status
       )
     `)
-    .order("release_date", { ascending: true })
+    .order("release_date", { ascending: false })
 
-  // Get user's predictions for the current season
+  // Get user's predictions for the current season (full data for prediction band)
   const { data: userPredictions } = await supabase
     .from("predictions")
-    .select("game_id")
+    .select(`
+      game_id,
+      players_midpoint,
+      reviews_midpoint,
+      players_window_low,
+      players_window_high,
+      reviews_window_low,
+      reviews_window_high,
+      early_locked_at,
+      is_locked,
+      result,
+      players_correct,
+      reviews_correct,
+      final_points,
+      scored_at,
+      actual_player_count,
+      actual_review_score
+    `)
     .eq("user_id", user?.id || "")
     .eq("season_id", currentSeason?.id || "")
 
-  const predictedGameIds = new Set(userPredictions?.map((p) => p.game_id) || [])
+  const predMap: Record<string, PredictionData> = Object.fromEntries(
+    (userPredictions || []).map((p) => [p.game_id, p as PredictionData])
+  )
 
   // Categorise games
-  // Current season: games assigned to the active/upcoming season
   const currentSeasonGames = games?.filter(
     (g) => g.season_id && g.seasons?.status &&
       ["active", "upcoming"].includes(g.seasons.status)
   ) || []
 
-  // Past season: games assigned to completed/scoring seasons
   const pastSeasonGames = games?.filter(
     (g) => g.season_id && g.seasons?.status &&
       ["completed", "scoring"].includes(g.seasons.status)
   ) || []
 
-  // Unassigned: games with no season
-  const unassignedGames = games?.filter((g) => !g.season_id) || []
-
-  // All tab shows everything
   const allGames = games || []
 
-  // Default to current season tab if there is one, otherwise all
   const defaultTab = currentSeason ? "current" : "all"
-
-  function EmptyState({ message, showNominate = false }: { message: string; showNominate?: boolean }) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <Gamepad2 className="h-12 w-12 text-muted-foreground mb-4" />
-          <CardTitle className="text-lg text-foreground mb-2">No Games Here</CardTitle>
-          <CardDescription className="text-center text-muted-foreground mb-4">
-            {message}
-          </CardDescription>
-          {showNominate && (
-            <Button asChild>
-              <Link href="/games/nominate">Nominate a Game</Link>
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-    )
-  }
 
   return (
     <div className="space-y-8">
@@ -130,101 +123,15 @@ export default async function GamesPage() {
         />
       </div>
 
-      {/* Games Tabs */}
-      <Tabs defaultValue={defaultTab} className="space-y-6">
-        <TabsList className="bg-secondary">
-          {currentSeason && (
-            <TabsTrigger value="current" className="data-[state=active]:bg-background">
-              {currentSeason.status === "active" ? "Active Season" : "Upcoming Season"}
-              {currentSeasonGames.length > 0 && (
-                <Badge variant="secondary" className="ml-2 scale-75">
-                  {currentSeasonGames.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          )}
-          {pastSeasonGames.length > 0 && (
-            <TabsTrigger value="past" className="data-[state=active]:bg-background">
-              Past Seasons
-              <Badge variant="outline" className="ml-2 scale-75 opacity-70">
-                {pastSeasonGames.length}
-              </Badge>
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="all" className="data-[state=active]:bg-background">
-            All ({allGames.length})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Current Season Tab */}
-        {currentSeason && (
-          <TabsContent value="current" className="space-y-4">
-            {currentSeasonGames.length > 0 ? (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {currentSeasonGames.map((game) => (
-                  <GameCard
-                    key={game.id}
-                    game={game}
-                    seasonId={currentSeason.id}
-                    hasPrediction={predictedGameIds.has(game.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                message="No games have been added to this season yet."
-                showNominate
-              />
-            )}
-          </TabsContent>
-        )}
-
-        {/* Past Seasons Tab */}
-        {pastSeasonGames.length > 0 && (
-          <TabsContent value="past" className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              These games are from completed seasons. Predictions are closed but you can view results.
-            </p>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {pastSeasonGames.map((game) => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  seasonId={game.season_id}
-                  hasPrediction={false}
-                  dimmed
-                />
-              ))}
-            </div>
-          </TabsContent>
-        )}
-
-        {/* All Tab */}
-        <TabsContent value="all" className="space-y-4">
-          {allGames.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {allGames.map((game) => {
-                const isPast = game.seasons?.status &&
-                  ["completed", "scoring"].includes(game.seasons.status)
-                return (
-                  <GameCard
-                    key={game.id}
-                    game={game}
-                    seasonId={isPast ? game.season_id : currentSeason?.id}
-                    hasPrediction={!isPast && predictedGameIds.has(game.id)}
-                    dimmed={!!isPast}
-                  />
-                )
-              })}
-            </div>
-          ) : (
-            <EmptyState
-              message="No games have been added yet. Be the first to nominate one!"
-              showNominate
-            />
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* Games Tabs — client component to avoid Radix ID hydration mismatch */}
+      <GamesTabs
+        currentSeason={currentSeason}
+        currentSeasonGames={currentSeasonGames}
+        pastSeasonGames={pastSeasonGames}
+        allGames={allGames}
+        predMap={predMap}
+        defaultTab={defaultTab}
+      />
     </div>
   )
 }

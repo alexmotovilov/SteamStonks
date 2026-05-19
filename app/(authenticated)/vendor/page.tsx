@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { VendorShop, type InventoryItem } from "@/components/vendor-shop"
+import { StipendBanner } from "@/components/stipend-banner"
+import { VendorCountdown } from "@/components/vendor-countdown"
 
 const CYCLE_A_SLUGS = ["scrying_orb_polish", "blood_bargain", "infernal_patrons_pact"]
 const CYCLE_B_SLUGS = ["crystal_focus", "black_gem_accumulator", "tincture_of_divination"]
@@ -19,7 +21,7 @@ export default async function VendorPage() {
   const { data: entry } = season
     ? await supabase
         .from("season_entries")
-        .select("mana_balance")
+        .select("mana_balance, stipend_week_number")
         .eq("user_id", user.id)
         .eq("season_id", season.id)
         .single()
@@ -63,11 +65,16 @@ export default async function VendorPage() {
     .eq("user_id", user.id)
     .gt("quantity", 0)
 
+  const stipendClaimable = (entry.stipend_week_number ?? 0) < (season.current_vendor_week ?? 1)
+
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-3xl font-display text-foreground">Arcane Repository</h1>
+        <VendorCountdown />
       </div>
+
+      <StipendBanner claimable={stipendClaimable} seasonId={season.id} />
 
       <VendorShop
         items={items ?? []}

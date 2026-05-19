@@ -153,9 +153,11 @@ export function GemSlider({
     ? (toLogPos(v, min, max) / LOG_STEPS) * SVG_W
     : toSvgX(v, min, max)
 
-  const gemX  = valToSvg(value)
   const lowX  = valToSvg(windowLow)
   const highX = valToSvg(windowHigh)
+  // Center gem in the green bar. ±10% in linear space is asymmetric in log space,
+  // so valToSvg(value) sits slightly right of (lowX+highX)/2 — this corrects it.
+  const gemX  = (lowX + highX) / 2
 
   function handleSvgClick(e: React.MouseEvent<SVGSVGElement>) {
     if (disabled || !svgRef.current) return

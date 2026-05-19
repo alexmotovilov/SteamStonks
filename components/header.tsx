@@ -2,7 +2,7 @@
 
 import { Suspense } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { User, LogOut, Settings, Coins, Gamepad2 } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import { SeasonPointsBadge } from "@/components/season-points-badge"
+import { SeasonRankBadge } from "@/components/season-rank-badge"
 
 interface HeaderProps {
   user: SupabaseUser | null
@@ -30,6 +31,8 @@ interface HeaderProps {
 
 export function Header({ user, profile, manaBalance = null }: HeaderProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/")
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -79,44 +82,24 @@ export function Header({ user, profile, manaBalance = null }: HeaderProps) {
 
           {user && (
             <nav className="hidden md:flex items-center gap-4">
-              <Link
-                href="/dashboard"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/seasons"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
-              >
-                Seasons
-              </Link>
-              <Link
-                href="/games"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
-              >
-                Games
-              </Link>
-              <Link
-                href="/vendor"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
-              >
-                Vendor
-              </Link>
-              <Link
-                href="/leaderboard"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
-              >
-                Leaderboard
-              </Link>
-              {profile?.is_admin && (
+              {[
+                { href: "/games",    label: "Games" },
+                { href: "/vendor",   label: "Vendor" },
+                { href: "/archives", label: "Archives" },
+                ...(profile?.is_admin ? [{ href: "/admin", label: "Admin" }] : []),
+              ].map(({ href, label }) => (
                 <Link
-                  href="/admin"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors font-display"
+                  key={href}
+                  href={href}
+                  className={`text-sm font-display transition-colors ${
+                    isActive(href)
+                      ? "text-amber-400 font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
-                  Admin
+                  {label}
                 </Link>
-              )}
+              ))}
             </nav>
           )}
         </div>
@@ -124,8 +107,10 @@ export function Header({ user, profile, manaBalance = null }: HeaderProps) {
         <div className="flex items-center gap-4">
           {user ? (
             <>
-              {/* Season points badge — value flows from server layout, updates on router.refresh() */}
+              {/* Spendable mana balance (cyan) */}
               {user && <Suspense fallback={null}><SeasonPointsBadge manaBalance={manaBalance} /></Suspense>}
+              {/* Season rank + earned mana (purple) */}
+              {user && <Suspense fallback={null}><SeasonRankBadge user={user} /></Suspense>}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

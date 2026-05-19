@@ -98,13 +98,14 @@ export async function GET(request: Request) {
         review_score: reviewScore,
       }
 
-      // Get unscored locked week_one predictions for this game
+      // Get unscored week_one predictions for this game.
+      // We rely on the game-level is_released + daysSinceRelease >= 7 check above
+      // rather than predictions.is_locked, which was historically never set.
       const { data: predictions } = await supabase
         .from("predictions")
         .select("*")
         .eq("game_id", game.id)
         .eq("prediction_type", "week_one")
-        .eq("is_locked", true)
         .is("scored_at", null)
 
       for (const pred of predictions || []) {

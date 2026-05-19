@@ -130,6 +130,14 @@ export async function GET(request: Request) {
             }
 
             console.log(`[Steam Collector] ${game.name} released — ladder positions locked for ${affectedLadders?.length ?? 0} players`)
+
+            // Lock all open predictions for this game so the score-calculator picks them up
+            await supabase
+              .from("predictions")
+              .update({ is_locked: true })
+              .eq("game_id", game.id)
+              .is("scored_at", null)
+              .eq("is_locked", false)
           }
         }
 

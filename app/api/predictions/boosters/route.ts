@@ -36,6 +36,15 @@ export async function POST(request: NextRequest) {
   const toReturn = prev.filter((s: string) => !next.includes(s))
   const toConsume = next.filter((s: string) => !prev.includes(s))
 
+  // Boosters already saved in the DB cannot be removed — they were consumed on save
+  const dbSavedBoosters = (prediction.applied_boosters ?? []) as string[]
+  if (toReturn.some((s: string) => dbSavedBoosters.includes(s))) {
+    return NextResponse.json(
+      { error: "Applied boosters cannot be removed after saving" },
+      { status: 400 }
+    )
+  }
+
   // Get item IDs for slugs
   const allSlugs = [...new Set([...toReturn, ...toConsume])]
   if (allSlugs.length === 0) {
