@@ -54,7 +54,8 @@ export default async function GamesPage() {
       final_points,
       scored_at,
       actual_player_count,
-      actual_review_score
+      actual_review_score,
+      ao_marked
     `)
     .eq("user_id", user?.id || "")
     .eq("season_id", currentSeason?.id || "")

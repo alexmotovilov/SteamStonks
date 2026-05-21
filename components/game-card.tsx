@@ -4,6 +4,7 @@ import Image from "next/image"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "lucide-react"
+import { CountdownTimer } from "@/components/countdown-timer"
 
 // --- Types ---
 
@@ -24,6 +25,7 @@ export interface PredictionData {
   scored_at: string | null
   actual_player_count: number | null
   actual_review_score: number | null
+  ao_marked?: boolean | null
 }
 
 interface GameCardProps {
@@ -38,6 +40,7 @@ interface GameCardProps {
     developer: string | null
     is_released: boolean
     season_id: string | null
+    release_time_override?: string | null
     seasons?: {
       id: string
       name: string
@@ -54,6 +57,7 @@ interface PredictionBandProps {
   gameId: string
   isReleased: boolean
   releaseDate: string | null
+  releaseTimeOverride?: string | null
 }
 
 // --- Helpers ---
@@ -111,9 +115,17 @@ function MetricCol({
   )
 }
 
+function AoBadge() {
+  return (
+    <div className="w-5 h-5 rounded-full bg-black/80 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_6px_rgba(251,191,36,0.5)]">
+      <span className="text-xs text-violet-400" style={{ lineHeight: 1 }}>★</span>
+    </div>
+  )
+}
+
 // --- PredictionBand ---
 
-function PredictionBand({ prediction, gameId, isReleased, releaseDate }: PredictionBandProps) {
+function PredictionBand({ prediction, gameId, isReleased, releaseDate, releaseTimeOverride }: PredictionBandProps) {
   // No prediction made — check if window is still open
   if (!prediction) {
     if (isReleased) {
@@ -127,7 +139,10 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate }: Predict
     }
     return (
       <div className="px-3 py-2 border-t border-border flex items-center justify-between gap-2">
-        <span className="text-xs italic text-muted-foreground font-body">No prediction yet</span>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs italic text-muted-foreground font-body">No prediction yet</span>
+          <CountdownTimer releaseDate={releaseDate} releaseTimeOverride={releaseTimeOverride} />
+        </div>
         <span className="text-xs font-display px-2 py-0.5 rounded border border-[#9D84D4] text-[#9D84D4]">
           Predict →
         </span>
@@ -137,8 +152,10 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate }: Predict
 
   const isScored = !!prediction.scored_at && !!prediction.result
   const result = prediction.result
-  // Effectively locked if DB flag is set, game has released, or player early-locked
-  const effectivelyLocked = prediction.is_locked || isReleased || !!prediction.early_locked_at
+  // Release lock: game is out (or DB flag set) — player can't change anything
+  const releaseLocked = prediction.is_locked || isReleased
+  // Early lock: player voluntarily locked before release — Temporal Translocation can undo it
+  const earlyLocked = !!prediction.early_locked_at && !isReleased
 
   // Prediction values (what the player submitted)
   const playersVal = prediction.players_midpoint !== null ? fmtPlayers(prediction.players_midpoint) : "—"
@@ -195,6 +212,7 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate }: Predict
               <img src="/icons/mana-icon.png" alt="" style={{ width: 11, height: 11 }} />
               <span className="text-[10px] font-display text-cyan-300">+{mana.toLocaleString()}</span>
             </div>
+
           </div>
         </div>
       </div>
@@ -218,6 +236,7 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate }: Predict
           </div>
           <div className="text-right shrink-0">
             <div className="text-xs font-display text-muted-foreground">Missed</div>
+
             {(prediction.final_points ?? 0) > 0 ? (
               <div className="flex items-center justify-end gap-0.5 mt-0.5">
                 <img src="/icons/mana-icon.png" alt="" style={{ width: 11, height: 11 }} />
@@ -235,8 +254,33 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate }: Predict
     )
   }
 
-  // State 4: Locked or released, awaiting score (covers is_locked, isReleased, early_locked_at)
-  if (effectivelyLocked) {
+  // State 4a: Release locked — game launched, awaiting score (neutral, nothing player can do)
+  if (releaseLocked) {
+    return (
+      <div className="px-3 py-2 border-t border-border" style={{ background: "rgba(255,255,255,0.02)" }}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-3">
+            <div>
+              <div className="text-xs font-display text-muted-foreground">{playersVal}</div>
+              <div className="text-[10px] font-body text-muted-foreground/50">{playersLow}–{playersHigh}</div>
+            </div>
+            <div>
+              <div className="text-xs font-display text-muted-foreground">{reviewsVal}</div>
+              <div className="text-[10px] font-body text-muted-foreground/50">{reviewsLow}–{reviewsHigh}</div>
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-xs font-display text-muted-foreground">Locked</div>
+            <div className="text-[10px] font-body text-muted-foreground/50">scoring soon</div>
+
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // State 4b: Early locked — player chose to lock, game not yet released (Temporal can undo)
+  if (earlyLocked) {
     return (
       <div
         className="px-3 py-2 border-t"
@@ -262,8 +306,10 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate }: Predict
             />
           </div>
           <div className="text-right shrink-0">
-            <div className="text-xs font-display text-amber-400">Locked</div>
-            <div className="text-[10px] font-body text-muted-foreground">scoring soon</div>
+            <div className="text-xs font-display text-amber-400">Early Locked</div>
+            <div className="text-[10px] font-body text-amber-600/70">Week 1 predictions are locked.</div>
+            <CountdownTimer releaseDate={releaseDate} releaseTimeOverride={releaseTimeOverride} />
+
           </div>
         </div>
       </div>
@@ -271,7 +317,6 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate }: Predict
   }
 
   // State 5: Saved, upcoming game
-  const days = daysUntil(releaseDate)
   return (
     <div className="px-3 py-2 border-t border-border">
       <div className="flex items-center justify-between gap-2">
@@ -295,9 +340,7 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate }: Predict
         </div>
         <div className="text-right shrink-0">
           <div className="text-xs font-display text-muted-foreground">Saved</div>
-          {days !== null && (
-            <div className="text-[10px] font-body text-muted-foreground">{days}d left</div>
-          )}
+          <CountdownTimer releaseDate={releaseDate} releaseTimeOverride={releaseTimeOverride} />
         </div>
       </div>
     </div>
@@ -337,6 +380,11 @@ export function GameCard({ game, seasonId, prediction, dimmed }: GameCardProps) 
           ) : (
             <div className="w-full h-full bg-secondary flex items-center justify-center">
               <span className="text-muted-foreground text-xs">No Image</span>
+            </div>
+          )}
+          {prediction?.ao_marked && (
+            <div className="absolute top-1.5 right-1.5 z-10">
+              <AoBadge />
             </div>
           )}
         </div>
@@ -379,6 +427,7 @@ export function GameCard({ game, seasonId, prediction, dimmed }: GameCardProps) 
             gameId={game.id}
             isReleased={game.is_released}
             releaseDate={game.release_date}
+            releaseTimeOverride={game.release_time_override}
           />
         )}
       </Card>

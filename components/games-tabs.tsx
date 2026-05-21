@@ -19,6 +19,7 @@ type GameRow = {
   developer: string | null
   is_released: boolean
   season_id: string | null
+  release_time_override?: string | null
   seasons?: {
     id: string
     name: string

@@ -109,6 +109,18 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
 
   const aoMarkCount = (aoRites ?? []).length
 
+  // Fetch all games this player has AO-marked this season (for showing stars on other tiles)
+  const { data: aoMarkedPreds } = user && seasonId
+    ? await supabase
+        .from("predictions")
+        .select("game_id")
+        .eq("user_id", user.id)
+        .eq("season_id", seasonId)
+        .eq("ao_marked", true)
+    : { data: [] }
+
+  const aoMarkedGameIds = (aoMarkedPreds ?? []).map(p => p.game_id).filter(Boolean) as string[]
+
   // Get player's existing ladder ranking
   const { data: ladderRanking } = user && seasonId
     ? await supabase
@@ -246,6 +258,7 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
           existingLadder={(ladderRanking?.ranked_games as string[]) ?? []}
           lockedLadderGameIds={(ladderRanking?.locked_game_ids as string[]) ?? []}
           aoMarkCount={aoMarkCount}
+          aoMarkedGameIds={aoMarkedGameIds}
           inventory={(inventory ?? []) as unknown as { item_id: string; quantity: number; items: { slug: string; name: string; image_url: string | null; effects: Record<string, number>; description: string } }[]}
         />
       )}

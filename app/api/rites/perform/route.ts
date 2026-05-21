@@ -80,11 +80,15 @@ export async function POST(request: NextRequest) {
     mana_cost:     cost,
   })
 
-  // Record rite on the prediction's applied_rites map
+  // Record rite on the prediction's applied_rites map; also set ao_marked for AO
   const currentRites = (prediction.applied_rites as Record<string, string>) ?? {}
+  const riteUpdate: Record<string, unknown> = {
+    applied_rites: { ...currentRites, [rite_slug]: new Date().toISOString() },
+  }
+  if (rite_slug === "auspicious_omens") riteUpdate.ao_marked = true
   await supabaseAdmin
     .from("predictions")
-    .update({ applied_rites: { ...currentRites, [rite_slug]: new Date().toISOString() } })
+    .update(riteUpdate)
     .eq("id", prediction_id)
 
   return NextResponse.json({ success: true, mana_deducted: cost })

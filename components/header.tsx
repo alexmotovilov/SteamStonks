@@ -17,6 +17,8 @@ import { User, LogOut, Settings, Coins, Gamepad2 } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import { SeasonPointsBadge } from "@/components/season-points-badge"
 import { SeasonRankBadge } from "@/components/season-rank-badge"
+import { PendingPredictionsIndicator } from "@/components/pending-predictions-indicator"
+import { MailboxIndicator } from "@/components/mailbox-indicator"
 
 interface HeaderProps {
   user: SupabaseUser | null
@@ -86,20 +88,34 @@ export function Header({ user, profile, manaBalance = null }: HeaderProps) {
                 { href: "/games",    label: "Games" },
                 { href: "/vendor",   label: "Vendor" },
                 { href: "/archives", label: "Archives" },
+                { href: "/mailbox",  label: "Mailbox" },
                 ...(profile?.is_admin ? [{ href: "/admin", label: "Admin" }] : []),
-              ].map(({ href, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`text-sm font-display transition-colors ${
-                    isActive(href)
-                      ? "text-amber-400 font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {label}
-                </Link>
-              ))}
+              ].map(({ href, label }) => {
+                const linkClass = `text-sm font-display transition-colors ${
+                  isActive(href)
+                    ? "text-amber-400 font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`
+                if (href === "/games" && user) {
+                  return (
+                    <PendingPredictionsIndicator key={href} user={user} href={href} className={linkClass}>
+                      {label}
+                    </PendingPredictionsIndicator>
+                  )
+                }
+                if (href === "/mailbox" && user) {
+                  return (
+                    <MailboxIndicator key={href} user={user} href={href} className={linkClass}>
+                      {label}
+                    </MailboxIndicator>
+                  )
+                }
+                return (
+                  <Link key={href} href={href} className={linkClass}>
+                    {label}
+                  </Link>
+                )
+              })}
             </nav>
           )}
         </div>

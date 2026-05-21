@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
     const { data: games, error: gamesError } = await supabase
       .from("games")
-      .select("id, steam_appid, name, release_date, is_released, peak_player_count, seasons!inner(status)")
+      .select("id, steam_appid, name, release_date, release_time_override, is_released, peak_player_count, seasons!inner(status)")
       .in("seasons.status", ["upcoming", "active"])
       .order("last_snapshot_at", { ascending: true, nullsFirst: true })
       .limit(50)
@@ -107,9 +107,14 @@ export async function GET(request: Request) {
           updateData.review_score_negative = reviews.total_negative
         }
 
-        // Mark game as released if its release date has passed
+        // Mark game as released if its effective release time has passed.
+        // Use release_time_override if set; otherwise treat release_date as end-of-day UTC
+        // to avoid triggering at midnight when the game may not launch until afternoon.
         if (!game.is_released && game.release_date) {
-          if (new Date(game.release_date) <= new Date()) {
+          const effectiveRelease = (game as any).release_time_override
+            ? new Date((game as any).release_time_override)
+            : (() => { const d = new Date(game.release_date!); d.setUTCHours(23, 59, 59, 0); return d })()
+          if (effectiveRelease <= new Date()) {
             updateData.is_released = true
 
             // Auto-lock this game's ladder position for all players who have it ranked

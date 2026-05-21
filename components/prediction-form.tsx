@@ -91,6 +91,7 @@ interface PredictionFormProps {
   lockedLadderGameIds: string[]
   inventory: InventoryItem[]
   aoMarkCount?: number  // how many AO marks player has made this season
+  aoMarkedGameIds?: string[]  // game IDs where this player has applied AO this season
   firstPredictionBonusEligible?: boolean
 }
 
@@ -435,6 +436,7 @@ export function PredictionForm({
   gameId, gameName, seasonId, seasonStatus, existingPrediction, isReleased, releaseDate,
   snapshotPlayerCount, snapshotReviewPositive, snapshotReviewNegative,
   equipmentSlug, equipmentTierScore, ladderGames, existingLadder, lockedLadderGameIds, inventory, aoMarkCount = 0,
+  aoMarkedGameIds = [],
   firstPredictionBonusEligible = false,
 }: PredictionFormProps) {
   const router = useRouter()
@@ -612,7 +614,7 @@ export function PredictionForm({
   }
 
   if (existingPrediction?.scored_at && existingPrediction.result) {
-    return <ScoredPredictionCard result={existingPrediction.result} gameName={gameName} existingPrediction={existingPrediction} snapshotPlayerCount={snapshotPlayerCount} snapshotReviewScore={snapshotReviewScore} />
+    return <ScoredPredictionCard result={existingPrediction.result} gameName={gameName} existingPrediction={existingPrediction} snapshotPlayerCount={snapshotPlayerCount} snapshotReviewScore={snapshotReviewScore} aoMarked={aoMarked} />
   }
 
   const orbs = Array.from({ length: maxSlots }, (_, i) => i < appliedBoosters.length)
@@ -772,7 +774,7 @@ export function PredictionForm({
                   const isExcluded = index === 8
                   const isCurrentGame = gId === gameId
                   return (
-                    <LadderTile key={gId} game={game} rank={index + 1} isLocked={isLockedPos} isExcluded={isExcluded} isCurrentGame={isCurrentGame} isAoMarked={isCurrentGame && aoMarked} totalGames={Math.min(ladder.length, 9)} onDragStart={() => handleDragStart(index)} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
+                    <LadderTile key={gId} game={game} rank={index + 1} isLocked={isLockedPos} isExcluded={isExcluded} isCurrentGame={isCurrentGame} isAoMarked={(isCurrentGame && aoMarked) || new Set(aoMarkedGameIds).has(gId)} totalGames={Math.min(ladder.length, 9)} onDragStart={() => handleDragStart(index)} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
                   )
                 })}
               </div>
@@ -784,7 +786,7 @@ export function PredictionForm({
   )
 }
 
-function ScoredPredictionCard({ result, gameName, existingPrediction, snapshotPlayerCount, snapshotReviewScore }: { result: "perfect" | "partial" | "failed"; gameName: string; existingPrediction: ExistingPrediction; snapshotPlayerCount?: number | null; snapshotReviewScore?: number | null }) {
+function ScoredPredictionCard({ result, gameName, existingPrediction, snapshotPlayerCount, snapshotReviewScore, aoMarked }: { result: "perfect" | "partial" | "failed"; gameName: string; existingPrediction: ExistingPrediction; snapshotPlayerCount?: number | null; snapshotReviewScore?: number | null; aoMarked?: boolean }) {
   const totalMana = existingPrediction.final_points ?? 0
   const isPerfect = result === "perfect", isPartial = result === "partial"
   return (
@@ -828,6 +830,14 @@ function ScoredPredictionCard({ result, gameName, existingPrediction, snapshotPl
             <span className="text-cyan-300 font-bold">+{totalMana}</span>
           </div>
           {(existingPrediction.drops_awarded ?? 0) > 0 && <div className="flex justify-between text-amber-400 font-medium"><span>Loot drops</span><span>+{existingPrediction.drops_awarded} item{(existingPrediction.drops_awarded ?? 0) !== 1 ? "s" : ""}</span></div>}
+          {aoMarked && (
+            <div className="flex items-center gap-1.5 pt-1 border-t border-border">
+              <div className="w-5 h-5 rounded-full bg-black/80 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_6px_rgba(251,191,36,0.5)]">
+                <span className="text-[10px] text-violet-400 leading-none">★</span>
+              </div>
+              <span className="font-display text-[10px] text-amber-600">Auspicious Omens marked</span>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

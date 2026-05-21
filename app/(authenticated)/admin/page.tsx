@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Shield, Gamepad2, Users, Trophy, Calendar, FileCheck } from "lucide-react"
+import { Shield, Gamepad2, Users, Trophy, Calendar, FileCheck, Mail } from "lucide-react"
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -203,6 +203,23 @@ export default async function AdminPage() {
           <CardContent>
             <Button asChild variant="outline" className="w-full">
               <Link href="/admin/users">View Users</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border hover:border-primary/50 transition-colors">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center gap-2">
+              <Mail className="h-5 w-5 text-primary" />
+              Send Mail
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Compose and send messages to players
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/admin/mail">Compose Message</Link>
             </Button>
           </CardContent>
         </Card>

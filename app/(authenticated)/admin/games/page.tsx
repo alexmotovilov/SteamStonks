@@ -18,6 +18,7 @@ interface Game {
   name: string
   header_image_url: string | null
   release_date: string | null
+  release_time_override: string | null
   is_released: boolean
   peak_24h_player_count: number | null
   review_score_positive: number | null
@@ -210,6 +211,16 @@ export default function AdminGamesPage() {
     }
   }
 
+  async function setReleaseOverride(gameId: string, value: string | null) {
+    const { error } = await supabase
+      .from("games")
+      .update({ release_time_override: value, updated_at: new Date().toISOString() })
+      .eq("id", gameId)
+    if (!error) {
+      setGames(games.map(g => g.id === gameId ? { ...g, release_time_override: value } : g))
+    }
+  }
+
   const filteredGames = games.filter(
     (g) =>
       g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -322,6 +333,7 @@ export default function AdminGamesPage() {
                   <TableHead>Season</TableHead>
                   <TableHead>24h Peak</TableHead>
                   <TableHead>Reviews</TableHead>
+                  <TableHead>Launch Override (UTC)</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -420,6 +432,18 @@ export default function AdminGamesPage() {
                         ) : (
                           "-"
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <input
+                          type="datetime-local"
+                          className="text-xs bg-transparent border border-border rounded px-1 py-0.5 text-foreground w-44"
+                          title="Exact UTC launch time — overrides release_date for countdown and is_released check"
+                          value={game.release_time_override ? game.release_time_override.slice(0, 16) : ""}
+                          onChange={e => {
+                            const val = e.target.value
+                            setReleaseOverride(game.id, val ? val + ":00.000Z" : null)
+                          }}
+                        />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
