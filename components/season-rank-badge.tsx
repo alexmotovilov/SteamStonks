@@ -34,21 +34,21 @@ export function SeasonRankBadge({ user }: SeasonRankBadgeProps) {
       // Get player's mana earned this season
       const { data: entry } = await supabase
         .from("season_entries")
-        .select("prediction_mana_earned")
+        .select("season_score")
         .eq("user_id", user.id)
         .eq("season_id", season.id)
         .single()
 
       if (!entry) return
 
-      const manaEarned = entry.prediction_mana_earned ?? 0
+      const manaEarned = entry.season_score ?? 0
 
       // Count players ranked above this player
       const { count } = await supabase
         .from("season_entries")
         .select("*", { count: "exact", head: true })
         .eq("season_id", season.id)
-        .gt("prediction_mana_earned", manaEarned)
+        .gt("season_score", manaEarned)
 
       setData({ rank: (count ?? 0) + 1, manaEarned })
     }

@@ -176,6 +176,9 @@ export async function GET(request: Request) {
             p_claim_first:    isFirst,
           })
 
+          // Send scoring result to player's mailbox
+          await generateScoringMessage(supabase, pred, scoreResult, game.name)
+
           results.weekOnePredictionsScored++
         } catch (err) {
           console.error(`[Score Calculator] Error scoring prediction ${pred.id}:`, err)
@@ -188,7 +191,7 @@ export async function GET(request: Request) {
 
     const { data: scoringSeasons } = await supabase
       .from("seasons")
-      .select("id, end_date")
+      .select("id, name, end_date")
       .eq("status", "scoring")
 
     for (const season of scoringSeasons || []) {
@@ -266,6 +269,9 @@ export async function GET(request: Request) {
             })
           }
 
+          // Send ladder result to player's mailbox
+          await generateLadderMail(supabase, ladder.user_id, season, ladderResult, aoResult, totalLadderMana)
+
           results.ladderRankingsScored++
         } catch (err) {
           console.error(`[Score Calculator] Error scoring ladder ${ladder.id}:`, err)
@@ -289,6 +295,137 @@ export async function GET(request: Request) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function generateScoringMessage(
+  db: typeof supabase,
+  pred: Record<string, any>,
+  scoreResult: Record<string, any>,
+  gameName: string
+) {
+  try {
+    // Deduplication — one message per prediction
+    const { data: existing } = await db
+      .from("mail_messages")
+      .select("id")
+      .eq("prediction_id", pred.id)
+      .single()
+
+    if (existing) return
+
+    const breakdown: { label: string; amount: number; color: string }[] = []
+    if ((scoreResult.mana_players ?? 0) > 0)
+      breakdown.push({ label: "Players correct", amount: scoreResult.mana_players, color: "cyan" })
+    if ((scoreResult.mana_reviews ?? 0) > 0)
+      breakdown.push({ label: "Reviews correct", amount: scoreResult.mana_reviews, color: "cyan" })
+    if ((scoreResult.mana_both_bonus ?? 0) > 0)
+      breakdown.push({ label: "Both correct bonus", amount: scoreResult.mana_both_bonus, color: "cyan" })
+    if ((scoreResult.mana_early_lock ?? 0) > 0)
+      breakdown.push({ label: "Early lock bonus", amount: scoreResult.mana_early_lock, color: "amber" })
+    if ((scoreResult.mana_boosters ?? 0) > 0)
+      breakdown.push({ label: "Booster bonus", amount: scoreResult.mana_boosters, color: "cyan" })
+    if ((scoreResult.mana_equipment ?? 0) > 0)
+      breakdown.push({ label: "Equipment bonus", amount: scoreResult.mana_equipment, color: "cyan" })
+    if ((scoreResult.mana_first_prediction ?? 0) > 0)
+      breakdown.push({ label: "First prediction bonus", amount: scoreResult.mana_first_prediction, color: "cyan" })
+
+    const totalMana = scoreResult.final_mana ?? 0
+    const resultLabel = scoreResult.result === "perfect" ? "Perfect Hit"
+      : scoreResult.result === "partial" ? "Partial Hit" : "Missed"
+
+    const { data: message } = await db
+      .from("mail_messages")
+      .insert({
+        message_type:   "score_week_one",
+        subject:        `${resultLabel} — ${gameName}`,
+        body:           "",
+        target:         "user",
+        target_user_id: pred.user_id,
+        prediction_id:  pred.id,
+        season_id:      pred.season_id,
+        mana_reward:    totalMana,
+        is_published:   true,
+        published_at:   new Date().toISOString(),
+        metadata: {
+          game_id:               pred.game_id,
+          game_name:             gameName,
+          result:                scoreResult.result,
+          players_midpoint:      pred.players_midpoint,
+          players_window_low:    scoreResult.players_window_low,
+          players_window_high:   scoreResult.players_window_high,
+          players_correct:       scoreResult.players_correct,
+          actual_player_count:   scoreResult.actual_player_count,
+          reviews_midpoint:      pred.reviews_midpoint,
+          reviews_window_low:    scoreResult.reviews_window_low,
+          reviews_window_high:   scoreResult.reviews_window_high,
+          reviews_correct:       scoreResult.reviews_correct,
+          actual_review_score:   scoreResult.actual_review_score,
+          mana_breakdown:        breakdown,
+          total_mana:            totalMana,
+          drops_awarded:         scoreResult.drops_awarded ?? 0,
+        },
+      })
+      .select("id")
+      .single()
+
+    if (!message) return
+
+    // Create mystery drop slot if drops were awarded
+    if ((scoreResult.drops_awarded ?? 0) > 0) {
+      await db.from("mail_mystery_drops").insert({
+        message_id: message.id,
+        user_id:    pred.user_id,
+        season_id:  pred.season_id,
+        drop_count: scoreResult.drops_awarded,
+      })
+    }
+  } catch (err) {
+    console.error("[Score Calculator] Failed to generate scoring message:", err)
+  }
+}
+
+async function generateLadderMail(
+  db: typeof supabase,
+  userId: string,
+  season: { id: string; name: string },
+  ladderResult: { binary_mana: number; sequence_mana: number; sequence_length: number; total_mana: number },
+  aoResult: { total_reward: number; all_correct: boolean | null },
+  totalLadderMana: number
+) {
+  try {
+    // Deduplication — one ladder message per user per season
+    const { data: existing } = await db
+      .from("mail_messages")
+      .select("id")
+      .eq("season_id", season.id)
+      .eq("target_user_id", userId)
+      .eq("message_type", "score_ladder")
+      .single()
+
+    if (existing) return
+
+    await db.from("mail_messages").insert({
+      message_type:   "score_ladder",
+      subject:        `${season.name} — Final Ladder Results`,
+      body:           "",
+      target:         "user",
+      target_user_id: userId,
+      season_id:      season.id,
+      mana_reward:    0,
+      is_published:   true,
+      published_at:   new Date().toISOString(),
+      metadata: {
+        binary_mana:     ladderResult.binary_mana,
+        sequence_length: ladderResult.sequence_length,
+        sequence_mana:   ladderResult.sequence_mana,
+        ao_all_correct:  aoResult.all_correct,
+        ao_mana:         aoResult.total_reward,
+        total_mana:      totalLadderMana,
+      },
+    })
+  } catch (err) {
+    console.error("[Score Calculator] Failed to generate ladder mail:", err)
+  }
+}
 
 async function awardDrops(
   userId: string,
@@ -354,17 +491,17 @@ async function updateLeaderboards() {
     .in("status", ["active", "scoring"])
 
   for (const season of seasons || []) {
-    // Sum prediction_mana_earned per user from season_entries
+    // Sum season_score per user from season_entries
     const { data: entries } = await supabase
       .from("season_entries")
-      .select("user_id, prediction_mana_earned")
+      .select("user_id, season_score")
       .eq("season_id", season.id)
 
     if (!entries || entries.length === 0) continue
 
     const scoreMap = new Map<string, number>()
     for (const entry of entries) {
-      scoreMap.set(entry.user_id, entry.prediction_mana_earned ?? 0)
+      scoreMap.set(entry.user_id, entry.season_score ?? 0)
     }
 
     const rankings = calculateRankings(scoreMap)
@@ -394,7 +531,7 @@ async function updateLeaderboards() {
           season_id:              season.id,
           user_id:                entry.userId,
           total_points:           entry.totalPoints,
-          prediction_mana_earned: entry.totalPoints,
+          season_score: entry.totalPoints,
           week_one_mana:          stats.week_one_mana,
           perfect_count:          stats.perfect,
           partial_count:          stats.partial,

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Alex\\\\SteamStonks\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(npx tsc *)",
+      "Bash(xargs grep -l \"is_released\")",
+      "Bash(xargs grep -l \"stipend\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Alex\\\\SteamStonks\" -Recurse -File -Name)",
+      "Bash(Select-Object -First 50)"
+    ]
+  }
+}

@@ -11,11 +11,10 @@ export default async function MailboxPage() {
     .from("mail_messages")
     .select(`
       id, subject, body, created_at, expires_at,
+      message_type, metadata, mana_reward, mana_claimed_at, prediction_id, season_id,
       mail_reads!left(read_at, claimed_at),
-      mail_attachments(
-        quantity,
-        items:item_id(id, name, slug, image_url)
-      )
+      mail_attachments(quantity, items:item_id(id, name, slug, image_url)),
+      mail_mystery_drops(id, drop_count, revealed_at, revealed_items)
     `)
     .eq("is_published", true)
     .or(`target.eq.all,target_user_id.eq.${user.id}`)

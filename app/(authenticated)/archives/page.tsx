@@ -21,9 +21,9 @@ export default async function ArchivesPage() {
     const [entriesRes, leaderboardRes] = await Promise.all([
       supabase
         .from("season_entries")
-        .select("user_id, prediction_mana_earned, profiles:user_id(display_name, avatar_url)")
+        .select("user_id, season_score, profiles:user_id(display_name, avatar_url)")
         .eq("season_id", activeSeason.id)
-        .order("prediction_mana_earned", { ascending: false })
+        .order("season_score", { ascending: false })
         .limit(50),
       supabase
         .from("leaderboards")

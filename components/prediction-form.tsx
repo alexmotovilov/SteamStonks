@@ -252,6 +252,44 @@ function BoosterTile({ inv, isApplied, canApply, isSavedLocked, onToggle }: { in
   )
 }
 
+// ─── Augury Countdown ─────────────────────────────────────────────────────────
+
+function AuguryCountdown({ expiry }: { expiry: number }) {
+  const [secondsLeft, setSecondsLeft] = useState(
+    Math.max(0, Math.ceil((expiry - Date.now()) / 1000))
+  )
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      const s = Math.max(0, Math.ceil((expiry - Date.now()) / 1000))
+      setSecondsLeft(s)
+      if (s <= 0) clearInterval(t)
+    }, 1000)
+    return () => clearInterval(t)
+  }, [expiry])
+
+  const pct = (secondsLeft / 120) * 100
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-950/30 border border-cyan-500/20">
+      <div className="relative w-3 h-3 shrink-0">
+        <svg viewBox="0 0 12 12" className="w-full h-full -rotate-90">
+          <circle cx="6" cy="6" r="5" fill="none" stroke="rgba(103,232,249,0.2)" strokeWidth="1.5" />
+          <circle cx="6" cy="6" r="5" fill="none" stroke="#67e8f9" strokeWidth="1.5"
+            strokeDasharray={`${2 * Math.PI * 5}`}
+            strokeDashoffset={`${2 * Math.PI * 5 * (1 - pct / 100)}`}
+            strokeLinecap="round"
+            style={{ transition: "stroke-dashoffset 1s linear" }}
+          />
+        </svg>
+      </div>
+      <span className="font-display text-[10px] text-cyan-300 tracking-wide">
+        👁 Augury active · {secondsLeft}s
+      </span>
+    </div>
+  )
+}
+
 // ─── Active Effects Panel ─────────────────────────────────────────────────────
 
 interface EffectLine { text: string; color: "green" | "red" | "cyan" | "amber" | "gold" }
@@ -328,6 +366,9 @@ function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters
     if (eq.mana_both_bonus > 0)     effects.push({ text: `+${eq.mana_both_bonus} mana if both correct`, color: "cyan" })
     if (eq.mana_total_reward > 0)   effects.push({ text: `+${eq.mana_total_reward} mana total reward`, color: "cyan" })
     if (eq.extra_booster_slots > 0) effects.push({ text: `+${eq.extra_booster_slots} booster slot`, color: "amber" })
+    if (eq.drops_players_bonus > 0) effects.push({ text: `+${eq.drops_players_bonus} drop if players correct`, color: "cyan" })
+    if (eq.drops_reviews_bonus > 0) effects.push({ text: `+${eq.drops_reviews_bonus} drop if reviews correct`, color: "cyan" })
+    if (eq.drops_total_reward > 0)  effects.push({ text: `+${eq.drops_total_reward} drops total reward`, color: "cyan" })
     if (effects.length > 0) sourcedGroups.push({ source: EQUIPMENT_NAMES[equipmentSlug] ?? equipmentSlug, effects })
   }
 
@@ -473,6 +514,7 @@ export function PredictionForm({
   const [auguryGradientReviews, setAuguryGradientReviews] = useState<string | null>(null)
   const [auguryExpiry, setAuguryExpiry] = useState<number | null>(null)
   const [auguryRunning, setAuguryRunning] = useState(false)
+  const [auguryIsSparse, setAuguryIsSparse] = useState(false)
   const [showSavePop, setShowSavePop] = useState(false)
   const [showLockPop, setShowLockPop] = useState(false)
 
@@ -543,15 +585,25 @@ export function PredictionForm({
     setError(null)
 
     if (slug === "ritual_of_augury") {
+      if (!existingPrediction?.id) {
+        setError("Save your prediction first before using the Ritual of Augury.")
+        return
+      }
       setAuguryRunning(true)
       try {
-        const res = await fetch("/api/rites/augury", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ game_id: gameId, season_id: seasonId }) })
+        const res = await fetch("/api/rites/augury", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ game_id: gameId, season_id: seasonId, prediction_id: existingPrediction.id }),
+        })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || "Ritual failed")
-        setAuguryGradientPlayers(distributionToGradient(computeAuguryDistribution(data.players_midpoints, 0, PLAYERS_MAX)))
+        // Players slider uses log scale; reviews is linear
+        setAuguryGradientPlayers(distributionToGradient(computeAuguryDistribution(data.players_midpoints, PLAYERS_MIN, PLAYERS_MAX, 50, true)))
         setAuguryGradientReviews(distributionToGradient(computeAuguryDistribution(data.reviews_midpoints, 0, 100)))
         setAuguryExpiry(Date.now() + 2 * 60 * 1000)
-        setPerformedRites(prev => new Set([...prev, slug]))
+        setAuguryIsSparse(data.sparse ?? false)
+        // NOTE: intentionally NOT added to performedRites — augury uses auguryActive instead
       } catch (err) { setError(err instanceof Error ? err.message : "Ritual of Augury failed") }
       finally { setAuguryRunning(false) }
       return
@@ -646,13 +698,20 @@ export function PredictionForm({
           {/* LEFT — Rites */}
           <div className="flex flex-col gap-3">
             <div className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase text-center">Rites</div>
-            {RITES.map(rite => (
-              <RiteCircle key={rite.slug}
-                rite={rite.slug === "auspicious_omens" ? { ...rite, cost: aoNextCost } : rite}
-                isPerformed={performedRites.has(rite.slug)}
-                disabled={isFullyLocked || (rite.slug === "temporal_translocation" && !isEarlyLocked) || (rite.slug === "ritual_of_augury" && auguryRunning)}
-                onConfirm={() => performRite(rite.slug)} />
-            ))}
+            {(() => {
+              const auguryActive = !!auguryExpiry && Date.now() < auguryExpiry
+              return RITES.map(rite => (
+                <RiteCircle key={rite.slug}
+                  rite={rite.slug === "auspicious_omens" ? { ...rite, cost: aoNextCost } : rite}
+                  isPerformed={rite.slug === "ritual_of_augury" ? auguryActive : performedRites.has(rite.slug)}
+                  disabled={
+                    isFullyLocked ||
+                    (rite.slug === "temporal_translocation" && !isEarlyLocked) ||
+                    (rite.slug === "ritual_of_augury" && (auguryRunning || auguryActive))
+                  }
+                  onConfirm={() => performRite(rite.slug)} />
+              ))
+            })()}
           </div>
 
           {/* CENTER — Sliders + Boosters + Actions */}
@@ -697,6 +756,18 @@ export function PredictionForm({
               </div>
               <div className="text-[10px] text-emerald-700 text-center">{reviewsWindow.low}% – {reviewsWindow.high}%</div>
             </div>
+
+            {/* Augury countdown + sparse notice */}
+            {auguryExpiry && Date.now() < auguryExpiry && (
+              <AuguryCountdown expiry={auguryExpiry} />
+            )}
+            {auguryGradientPlayers && (
+              <div className="text-[9px] text-muted-foreground/50 text-center italic font-body">
+                {auguryIsSparse
+                  ? "Few prophecies recorded — heatmap may not be representative"
+                  : "Showing crowd prediction distribution"}
+              </div>
+            )}
 
             {/* Active Effects panel */}
             <ActiveEffectsPanel
@@ -826,8 +897,12 @@ function ScoredPredictionCard({ result, gameName, existingPrediction, snapshotPl
           {(existingPrediction.mana_equipment ?? 0) > 0 && <div className="flex justify-between"><span>Equipment bonus</span><span className="text-cyan-300">+{existingPrediction.mana_equipment}</span></div>}
           {(existingPrediction.mana_first_prediction ?? 0) > 0 && <div className="flex justify-between"><span>First prediction bonus</span><span className="text-cyan-300">+{existingPrediction.mana_first_prediction}</span></div>}
           <div className="flex justify-between border-t border-border pt-1 font-medium text-foreground">
-            <div className="flex items-center gap-1"><ManaIcon size={12} /><span>Total mana earned</span></div>
+            <div className="flex items-center gap-1"><ManaIcon size={12} /><span>Mana</span></div>
             <span className="text-cyan-300 font-bold">+{totalMana}</span>
+          </div>
+          <div className="flex justify-between font-medium text-foreground">
+            <div className="flex items-center gap-1"><Trophy className="h-3 w-3 text-amber-500 shrink-0" /><span>Season score</span></div>
+            <span className="text-amber-400 font-bold">+{totalMana} pts</span>
           </div>
           {(existingPrediction.drops_awarded ?? 0) > 0 && <div className="flex justify-between text-amber-400 font-medium"><span>Loot drops</span><span>+{existingPrediction.drops_awarded} item{(existingPrediction.drops_awarded ?? 0) !== 1 ? "s" : ""}</span></div>}
           {aoMarked && (

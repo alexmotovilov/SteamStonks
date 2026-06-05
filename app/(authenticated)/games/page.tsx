@@ -1,12 +1,19 @@
 import { createClient } from "@/lib/supabase/server"
 import { type PredictionData } from "@/components/game-card"
 import { GamesTabs } from "@/components/games-tabs"
+import { EQUIPMENT_IMAGES } from "@/components/join-season-button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { Search, Plus } from "lucide-react"
+
+const EQUIPMENT_NAMES: Record<string, string> = {
+  seers_spectacles:   "Seer's Spectacles",
+  arcanum_esoterica:  "Arcanum Esoterica",
+  clockwork_familiar: "Clockwork Familiar",
+}
 
 export default async function GamesPage() {
   const supabase = await createClient()
@@ -64,6 +71,16 @@ export default async function GamesPage() {
     (userPredictions || []).map((p) => [p.game_id, p as PredictionData])
   )
 
+  // Fetch season entry for equipment indicator
+  const { data: seasonEntry } = user && currentSeason
+    ? await supabase
+        .from("season_entries")
+        .select("equipment_id, equipment_tier_score")
+        .eq("user_id", user.id)
+        .eq("season_id", currentSeason.id)
+        .single()
+    : { data: null }
+
   // Categorise games
   const currentSeasonGames = games?.filter(
     (g) => g.season_id && g.seasons?.status &&
@@ -110,6 +127,24 @@ export default async function GamesPage() {
             <p className="text-sm text-muted-foreground">
               Make predictions for games in this season. Predictions lock when the game releases.
             </p>
+            {seasonEntry?.equipment_id && (
+              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                {EQUIPMENT_IMAGES[seasonEntry.equipment_id] && (
+                  <img
+                    src={EQUIPMENT_IMAGES[seasonEntry.equipment_id]}
+                    alt={EQUIPMENT_NAMES[seasonEntry.equipment_id] ?? seasonEntry.equipment_id}
+                    className="w-5 h-5 rounded object-cover"
+                  />
+                )}
+                <span className="font-display text-[10px] text-muted-foreground">
+                  {EQUIPMENT_NAMES[seasonEntry.equipment_id] ?? seasonEntry.equipment_id}
+                </span>
+                <span className="text-muted-foreground/40">·</span>
+                <span className="font-body text-[10px]">
+                  Tier {(seasonEntry.equipment_tier_score ?? 0) <= 1 ? 1 : (seasonEntry.equipment_tier_score ?? 0) <= 4 ? 2 : 3}
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

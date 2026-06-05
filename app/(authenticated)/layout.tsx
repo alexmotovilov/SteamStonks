@@ -23,7 +23,7 @@ export default async function AuthenticatedLayout({
 
   const { data: season } = await supabase
     .from("seasons")
-    .select("id")
+    .select("id, name")
     .eq("status", "active")
     .single()
 
@@ -38,7 +38,14 @@ export default async function AuthenticatedLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <Header user={user} profile={profile} manaBalance={entry?.mana_balance ?? null} />
+      <Header
+        user={user}
+        profile={profile}
+        manaBalance={entry?.mana_balance ?? null}
+        hasJoinedActiveSeason={!!entry}
+        activeSeasonName={season?.name ?? null}
+        activeSeasonId={season?.id ?? null}
+      />
       <main className="container py-6">
         {children}
       </main>

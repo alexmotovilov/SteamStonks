@@ -359,7 +359,7 @@ export function resolveEquipmentEffects(
   if (!equipmentSlug) return zero
 
   // Tier thresholds: 0-2, 3-5, 6+
-  const tier = tierScore <= 2 ? 0 : tierScore <= 5 ? 1 : 2
+  const tier = tierScore <= 1 ? 0 : tierScore <= 4 ? 1 : 2
 
   switch (equipmentSlug) {
     case 'seers_spectacles': {

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import Image from "next/image"
-import { Target, Lock, CheckCircle2, XCircle, Clock, Gamepad2, Zap } from "lucide-react"
+import { Target, Lock, CheckCircle2, XCircle, Clock, Gamepad2, Zap, Trophy } from "lucide-react"
 import { ManaIcon } from "@/components/mana-icon"
 
 export default async function PredictionsPage() {
@@ -94,14 +94,14 @@ export default async function PredictionsPage() {
             <div className="text-3xl font-bold text-foreground">{predictions?.length ?? 0}</div>
           </CardContent>
         </Card>
-        <Card className="border-cyan-500/20 bg-cyan-950/20">
+        <Card className="border-amber-500/20 bg-amber-950/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground flex items-center gap-1">
-              <ManaIcon size={14} /> Mana Earned
+              <Trophy className="h-3.5 w-3.5 text-amber-500" /> Season Score
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-cyan-300">{totalMana.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-amber-400">{totalMana.toLocaleString()} pts</div>
           </CardContent>
         </Card>
         <Card className="border-border">

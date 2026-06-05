@@ -26,6 +26,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
 
+  if (rite_slug === "ritual_of_augury") {
+    return NextResponse.json({ error: "Use /api/rites/augury for this rite" }, { status: 400 })
+  }
+
   if (!(rite_slug in RITE_COSTS)) {
     return NextResponse.json({ error: "Unknown rite" }, { status: 400 })
   }

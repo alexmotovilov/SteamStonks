@@ -111,8 +111,9 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
           <p className="text-muted-foreground">{season.description}</p>
         </div>
         {canJoin && (
-          <JoinSeasonButton 
-            seasonId={season.id} 
+          <JoinSeasonButton
+            seasonId={season.id}
+            seasonName={season.name}
             entryFee={season.entry_fee_tokens}
             currentBalance={profile?.token_balance || 0}
           />

@@ -3,8 +3,108 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
-import { Trophy, Target, Gamepad2, TrendingUp, Calendar, Users, ArrowRight, Coins } from "lucide-react"
-import { ManaIcon } from "@/components/mana-icon"
+import { Trophy, Target, TrendingUp, ArrowRight, Calendar, Users } from "lucide-react"
+
+// ─── Equipment card ────────────────────────────────────────────────────────────
+
+const EQUIPMENT_IMAGES: Record<string, string> = {
+  seers_spectacles:   "/equipment/seers-spectacles.png",
+  arcanum_esoterica:  "/equipment/arcanum-esoterica.png",
+  clockwork_familiar: "/equipment/clockwork-familiar.png",
+}
+
+const EQUIPMENT_TIERS: Record<string, { t0: string; t3: string; t6: string; color: string }> = {
+  seers_spectacles: {
+    t0: "Players window +3% · Reviews window +1",
+    t3: "Players window +5% · Reviews window +2",
+    t6: "Players window +10% · Reviews window +5",
+    color: "text-emerald-400",
+  },
+  arcanum_esoterica: {
+    t0: "+15 mana for partial · +30 mana for perfect",
+    t3: "+25 mana for partial · +75 mana for perfect",
+    t6: "+25 mana for partial · +75 mana for perfect · +50 mana total reward",
+    color: "text-cyan-300",
+  },
+  clockwork_familiar: {
+    t0: "+1 drop for partial · +2 drops for perfect",
+    t3: "+1 drop for partial · +2 drops for perfect · +1 booster slot",
+    t6: "+1 booster slot · +2 drops total reward",
+    color: "text-amber-400",
+  },
+}
+
+function EquipmentCard({ slug, tierScore }: { slug: string; tierScore: number }) {
+  const eq = EQUIPMENT_TIERS[slug]
+  if (!eq) return null
+
+  const activeTier = tierScore <= 1 ? 0 : tierScore <= 4 ? 1 : 2
+  const image = EQUIPMENT_IMAGES[slug]
+  const tierLabel = ["I", "II", "III"][activeTier]
+
+  const rows = [
+    { label: "Tier I",   text: eq.t0, tier: 0 },
+    { label: "Tier II",  text: eq.t3, tier: 1 },
+    { label: "Tier III", text: eq.t6, tier: 2 },
+  ]
+
+  const predictionsToNext = tierScore <= 1
+    ? `${2 - tierScore} successful prediction${2 - tierScore !== 1 ? "s" : ""} to Tier II`
+    : tierScore <= 4
+    ? `${5 - tierScore} successful prediction${5 - tierScore !== 1 ? "s" : ""} to Tier III`
+    : "Max tier reached"
+
+  return (
+    <Card className="border-purple-500/20 bg-purple-950/10 h-full overflow-hidden">
+      {image && (
+        <div className="aspect-square w-1/2 mx-auto overflow-hidden">
+          <img src={image} alt={slug} className="w-full h-full object-cover" />
+        </div>
+      )}
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm text-foreground font-display">
+            {slug.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+          </CardTitle>
+          <span className="font-display text-xs text-purple-400 bg-purple-950/50 border border-purple-500/20 px-2 py-0.5 rounded shrink-0">
+            Tier {tierLabel}
+          </span>
+        </div>
+
+        <div className="space-y-0.5">
+          {rows.map(({ label, text, tier }) => {
+            const isActive = tier === activeTier
+            const isPast   = tier < activeTier
+            return (
+              <div
+                key={tier}
+                className={`flex items-start gap-2 px-2 py-1.5 rounded-lg text-xs ${isActive ? "bg-white/[0.06]" : ""}`}
+              >
+                <span className={`mt-0.5 text-[10px] shrink-0 ${isActive ? eq.color : "text-muted-foreground/50"}`}>
+                  {isActive ? "●" : isPast ? "✓" : "○"}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <span className={`font-display text-[9px] tracking-widest uppercase mr-2 ${
+                    isActive ? "text-foreground" : "text-muted-foreground/70"
+                  }`}>
+                    {label}
+                  </span>
+                  <span className={isActive ? eq.color : isPast ? "text-muted-foreground" : "text-muted-foreground/70"}>
+                    {text}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="text-xs text-muted-foreground font-body text-center pt-1 border-t border-border">
+          {predictionsToNext}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -67,11 +167,40 @@ export default async function DashboardPage() {
     .select("*", { count: "exact", head: true })
     .eq("season_id", activeSeason?.id || "")
 
-  // Get upcoming games count for active season
-  const { count: upcomingGames } = await supabase
-    .from("games")
-    .select("*", { count: "exact", head: true })
-    .eq("is_released", false)
+  // Get player's ladder ranking for active season
+  const { data: ladderRanking } = user && activeSeason
+    ? await supabase
+        .from("ladder_rankings")
+        .select("ranked_games, locked_game_ids")
+        .eq("user_id", user.id)
+        .eq("season_id", activeSeason.id)
+        .single()
+    : { data: null }
+
+  const ladderGameIds = ((ladderRanking?.ranked_games as string[]) ?? []).slice(0, 8)
+
+  const { data: ladderGamesRaw } = ladderGameIds.length > 0
+    ? await supabase
+        .from("games")
+        .select("id, name, header_image_url, is_released")
+        .in("id", ladderGameIds)
+    : { data: [] }
+
+  // Preserve ranked order
+  const ladderGameMap = Object.fromEntries((ladderGamesRaw ?? []).map(g => [g.id, g]))
+  const ladderGames = ladderGameIds.map(id => ladderGameMap[id]).filter(Boolean)
+
+  // AO-marked game IDs for this player/season
+  const { data: aoMarkedPreds } = user && activeSeason
+    ? await supabase
+        .from("predictions")
+        .select("game_id")
+        .eq("user_id", user.id)
+        .eq("season_id", activeSeason.id)
+        .eq("ao_marked", true)
+    : { data: [] }
+
+  const aoGameIds = new Set((aoMarkedPreds ?? []).map(p => p.game_id))
 
   return (
     <div className="space-y-8">
@@ -138,111 +267,117 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Three-column layout: equipment | stats | ladder */}
+      <div className="grid gap-5 lg:grid-cols-3 items-stretch">
 
-        {/* Season Points — primary stat, shown prominently */}
-        <Card className="border-cyan-500/20 bg-cyan-950/20">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Season Mana</CardTitle>
-            <ManaIcon size={20} />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-cyan-300">
-              {totalPoints.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {scoredCount > 0
-                ? `From ${scoredCount} scored prediction${scoredCount !== 1 ? "s" : ""}`
-                : activeSeason ? "No scored predictions yet" : "No active season"}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Left — Equipment card */}
+        <div className="h-full">
+          {activeSeason && seasonEntry?.equipment_id ? (
+            <EquipmentCard
+              slug={seasonEntry.equipment_id as string}
+              tierScore={seasonEntry.equipment_tier_score ?? 0}
+            />
+          ) : (
+            <Card className="border-border h-full">
+              <CardContent className="flex items-center justify-center py-12 text-sm text-muted-foreground font-body text-center h-full">
+                {activeSeason ? "Join the season to equip an artifact." : "No active season."}
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
-        {/* Season Rank */}
-        <Card className="border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Season Rank</CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : "--"}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {leaderboardEntry?.rank
-                ? `Out of ${totalPlayers || 0} players`
-                : "Rankings update daily"}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Center — Stats */}
+        <div className="space-y-3">
 
-        {/* Predictions Made */}
-        <Card className="border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Predictions Made</CardTitle>
-            <Target className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {predictionsCount || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              This season
-            </p>
-          </CardContent>
-        </Card>
+          {/* Season Score */}
+          <Card className="border-amber-500/20 bg-amber-950/20">
+            <CardHeader className="flex flex-row items-center justify-between p-4 pb-1">
+              <CardTitle className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase">Season Score</CardTitle>
+              <Trophy className="h-3.5 w-3.5 text-amber-500" />
+            </CardHeader>
+            <CardContent className="px-4 pb-3 pt-0">
+              <div className="text-2xl font-bold text-amber-400">{totalPoints.toLocaleString()}</div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">total mana earned</p>
+            </CardContent>
+          </Card>
 
-        {/* Token Balance */}
-        <Card className="border-amber-500/20 bg-amber-950/20">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Token Balance</CardTitle>
-            <Coins className="h-4 w-4 text-amber-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-300">
-              {profile?.token_balance?.toLocaleString() || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Available for season entry
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Leaderboard Ranking */}
+          <Link href="/archives" className="block group">
+            <Card className="border-purple-500/20 bg-purple-950/10 transition-colors group-hover:border-purple-500/40">
+              <CardHeader className="flex flex-row items-center justify-between p-4 pb-1">
+                <CardTitle className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase">Leaderboard</CardTitle>
+                <TrendingUp className="h-3.5 w-3.5 text-[#9D84D4]" />
+              </CardHeader>
+              <CardContent className="px-4 pb-3 pt-0">
+                <div className="text-2xl font-bold text-[#9D84D4]">
+                  {leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : "—"}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {leaderboardEntry?.rank ? `of ${totalPlayers || 0}` : "unranked"}
+                </p>
+                <span className="mt-2 inline-flex items-center text-[10px] font-display tracking-wide text-purple-400 border border-purple-500/40 group-hover:border-purple-500/70 group-hover:bg-purple-950/40 transition-colors px-2 py-0.5 rounded">View Rankings →</span>
+              </CardContent>
+            </Card>
+          </Link>
 
-      {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground">Browse Games</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Explore upcoming releases and make your predictions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full">
-              <Link href="/games">
-                <Gamepad2 className="mr-2 h-4 w-4" />
-                View Games
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+          {/* Predictions Made */}
+          <Link href="/games" className="block group">
+            <Card className="border-border transition-colors group-hover:border-border/80">
+              <CardHeader className="flex flex-row items-center justify-between p-4 pb-1">
+                <CardTitle className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase">Predictions</CardTitle>
+                <Target className="h-3.5 w-3.5 text-primary" />
+              </CardHeader>
+              <CardContent className="px-4 pb-3 pt-0">
+                <div className="text-2xl font-bold text-foreground">{predictionsCount || 0}</div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">this season</p>
+                <span className="mt-2 inline-flex items-center text-[10px] font-display tracking-wide text-muted-foreground border border-border group-hover:border-border/60 group-hover:bg-white/[0.04] transition-colors px-2 py-0.5 rounded">View Predictions →</span>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
 
-        <Card className="border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground">Leaderboard</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              See how you stack up against other players
-            </CardDescription>
+        {/* Right — Season Ladder (vertical 1–8) */}
+        <Card className="border-purple-500/20 bg-purple-950/[0.08]">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground tracking-widest uppercase">Season Ladder</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/leaderboard">
-                <Trophy className="mr-2 h-4 w-4" />
-                View Rankings
-              </Link>
-            </Button>
+          <CardContent className="px-3 pb-4 pt-0">
+            {ladderGames.length === 0 ? (
+              <p className="text-xs text-muted-foreground font-body text-center py-4">
+                No ladder set — visit a game's prediction card to rank it.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {ladderGames.map((game, idx) => {
+                  const isAo = aoGameIds.has(game.id)
+                  return (
+                    <Link
+                      key={game.id}
+                      href={`/games/${game.id}`}
+                      className="group flex items-center gap-2"
+                    >
+                      <span className="font-display text-[10px] text-muted-foreground/60 w-4 shrink-0 text-right leading-none">
+                        {idx + 1}
+                      </span>
+                      <div className="relative w-full aspect-[460/215] rounded overflow-hidden border border-white/8 bg-secondary">
+                        {game.header_image_url && (
+                          <img
+                            src={game.header_image_url}
+                            alt={game.name}
+                            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 ${game.is_released ? "grayscale opacity-60" : ""}`}
+                          />
+                        )}
+                        {isAo && (
+                          <div className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-black/80 border border-amber-400 flex items-center justify-center shadow-[0_0_4px_rgba(251,191,36,0.5)]">
+                            <span className="text-[7px] text-violet-400 leading-none">★</span>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

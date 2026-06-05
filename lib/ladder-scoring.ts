@@ -228,20 +228,32 @@ export function computeAuguryDistribution(
   midpoints: number[],
   rangeMin: number,
   rangeMax: number,
-  buckets: number = 50
+  buckets: number = 50,
+  logScale: boolean = false
 ): number[] {
   const counts = new Array(buckets).fill(0)
+
+  if (midpoints.length === 0) return counts
+
+  const logMin = logScale ? Math.log10(Math.max(rangeMin, 1)) : 0
+  const logMax = logScale ? Math.log10(rangeMax) : 0
   const rangeWidth = rangeMax - rangeMin
 
-  if (rangeWidth <= 0 || midpoints.length === 0) return counts
-
   for (const midpoint of midpoints) {
-    const normalized = (midpoint - rangeMin) / rangeWidth
-    const bucket = Math.min(Math.floor(normalized * buckets), buckets - 1)
+    let bucket: number
+    if (logScale) {
+      bucket = Math.min(
+        Math.floor(((Math.log10(Math.max(midpoint, 1)) - logMin) / (logMax - logMin)) * buckets),
+        buckets - 1
+      )
+    } else {
+      if (rangeWidth <= 0) continue
+      const normalized = (midpoint - rangeMin) / rangeWidth
+      bucket = Math.min(Math.floor(normalized * buckets), buckets - 1)
+    }
     if (bucket >= 0) counts[bucket]++
   }
 
-  // Normalize to 0–1
   const max = Math.max(...counts, 1)
   return counts.map(c => c / max)
 }

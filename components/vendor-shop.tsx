@@ -123,10 +123,10 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, inve
           return (
             <div
               key={item.id}
-              className={`relative rounded-2xl border bg-[rgba(15,10,5,0.85)] p-4 flex flex-col items-center gap-3 transition-all duration-200 w-[171px] ${
+              className={`relative rounded-2xl border bg-[rgba(190,200,215,0.22)] p-4 flex flex-col items-center gap-3 transition-all duration-200 w-[171px] ${
                 exhausted
                   ? "border-white/10"
-                  : "border-amber-500/20 hover:border-amber-500/40"
+                  : "border-slate-400/30 hover:border-slate-300/50"
               }`}
               onMouseEnter={() => setHoveredSlug(item.slug)}
               onMouseLeave={() => setHoveredSlug(null)}
@@ -161,7 +161,7 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, inve
               )}
 
               <div className={`w-[86px] h-[86px] rounded-xl overflow-hidden border transition-all duration-200 ${
-                exhausted ? "border-white/10 grayscale opacity-40" : "border-amber-500/20"
+                exhausted ? "border-white/10 grayscale opacity-40" : "border-slate-400/20"
               }`}>
                 {item.image_url
                   ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />

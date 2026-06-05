@@ -4,7 +4,7 @@ import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Trophy } from "lucide-react"
 
 // --- Types ---
 
@@ -18,7 +18,7 @@ interface Season {
 
 interface SeasonEntry {
   user_id: string
-  prediction_mana_earned: number | null
+  season_score: number | null
   profiles: unknown  // Supabase may return object or array depending on FK direction
 }
 
@@ -112,7 +112,7 @@ function LeaderboardTable({
         <span className="w-8 shrink-0 text-right">#</span>
         <span className="w-6 shrink-0" />
         <span className="flex-1">Player</span>
-        <span className="shrink-0">Mana Earned</span>
+        <span className="shrink-0 flex items-center gap-1"><Trophy className="h-3 w-3 text-amber-500" />Season Score</span>
         <span className="w-14 text-right shrink-0">Perfect</span>
       </div>
       <div className="divide-y divide-border/30">
@@ -121,7 +121,7 @@ function LeaderboardTable({
           const isMe = entry.user_id === userId
           const name = displayName(entry.profiles)
           const avatar = avatarUrl(entry.profiles)
-          const mana = entry.prediction_mana_earned ?? 0
+          const mana = entry.season_score ?? 0
           const perfect = perfMap[entry.user_id] ?? 0
 
           return (
@@ -157,10 +157,10 @@ function LeaderboardTable({
                 {name}{isMe && <span className="ml-1.5 text-[10px] text-purple-500/60 font-body">(you)</span>}
               </span>
 
-              {/* Mana */}
+              {/* Season Score */}
               <div className="flex items-center gap-1 shrink-0">
-                <img src="/icons/mana-icon.png" alt="" style={{ width: 11, height: 11 }} />
-                <span className="font-display text-xs text-cyan-300">{mana.toLocaleString()}</span>
+                <Trophy className="h-3 w-3 text-amber-500 shrink-0" />
+                <span className="font-display text-xs text-amber-400">{mana.toLocaleString()} pts</span>
               </div>
 
               {/* Perfect count */}
@@ -259,9 +259,9 @@ export function ArchivesClient({
       const [entriesRes, perfRes, ladderRes] = await Promise.all([
         supabase
           .from("season_entries")
-          .select("user_id, prediction_mana_earned, profiles:user_id(display_name, avatar_url)")
+          .select("user_id, season_score, profiles:user_id(display_name, avatar_url)")
           .eq("season_id", seasonId)
-          .order("prediction_mana_earned", { ascending: false })
+          .order("season_score", { ascending: false })
           .limit(50),
         supabase
           .from("leaderboards")

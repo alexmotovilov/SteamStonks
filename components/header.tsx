@@ -16,7 +16,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { User, LogOut, Settings, Coins, Gamepad2 } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import { SeasonPointsBadge } from "@/components/season-points-badge"
-import { SeasonRankBadge } from "@/components/season-rank-badge"
+
+import { EquipmentBadge } from "@/components/equipment-badge"
 import { PendingPredictionsIndicator } from "@/components/pending-predictions-indicator"
 import { MailboxIndicator } from "@/components/mailbox-indicator"
 
@@ -29,9 +30,12 @@ interface HeaderProps {
     is_admin: boolean
   } | null
   manaBalance?: number | null
+  hasJoinedActiveSeason?: boolean
+  activeSeasonName?: string | null
+  activeSeasonId?: string | null
 }
 
-export function Header({ user, profile, manaBalance = null }: HeaderProps) {
+export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeason = true, activeSeasonName = null, activeSeasonId = null }: HeaderProps) {
   const router = useRouter()
   const pathname = usePathname()
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/")
@@ -123,10 +127,19 @@ export function Header({ user, profile, manaBalance = null }: HeaderProps) {
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              {/* Join season CTA — only when player hasn't joined the active season */}
+              {user && !hasJoinedActiveSeason && activeSeasonName && activeSeasonId && (
+                <Link
+                  href={`/seasons/${activeSeasonId}`}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-display text-xs tracking-wide bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/18 transition-colors whitespace-nowrap"
+                >
+                  Join {activeSeasonName} →
+                </Link>
+              )}
+              {/* Equipment badge (purple) — current equipment + tier */}
+              {user && <Suspense fallback={null}><EquipmentBadge user={user} /></Suspense>}
               {/* Spendable mana balance (cyan) */}
               {user && <Suspense fallback={null}><SeasonPointsBadge manaBalance={manaBalance} /></Suspense>}
-              {/* Season rank + earned mana (purple) */}
-              {user && <Suspense fallback={null}><SeasonRankBadge user={user} /></Suspense>}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

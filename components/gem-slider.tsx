@@ -229,16 +229,21 @@ export function GemSlider({
         <circle cx={highX} cy={TRACK_Y + 17} r={4} fill="url(#gemGrad)" stroke="#d97706" strokeWidth={0.8} />
         <circle cx={highX} cy={TRACK_Y + 17} r={2} fill="#bbf7d0" fillOpacity={0.4} />
 
-        {/* Augury heatmap — rendered as a rect with inline style */}
+        {/* Augury heatmap — foreignObject so CSS linear-gradient renders correctly */}
         {auguryGradient && (
-          <rect
-            x={0}
-            y={TRACK_Y - 6}
-            width={SVG_W}
-            height={TRACK_H + 12}
-            fillOpacity={0.45}
-            style={{ fill: auguryGradient }}
-          />
+          <foreignObject x={0} y={TRACK_Y - 8} width={SVG_W} height={TRACK_H + 16}>
+            <div
+              // @ts-expect-error xmlns required by foreignObject spec
+              xmlns="http://www.w3.org/1999/xhtml"
+              style={{
+                width: "100%",
+                height: "100%",
+                background: auguryGradient,
+                opacity: 0.55,
+                borderRadius: "4px",
+              }}
+            />
+          </foreignObject>
         )}
 
         {/* Gem */}
