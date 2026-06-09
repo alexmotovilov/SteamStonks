@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { Trophy, Target, TrendingUp, ArrowRight, Calendar, Users } from "lucide-react"
+import { DashboardLadder } from "@/components/dashboard-ladder"
 
 // ─── Equipment card ────────────────────────────────────────────────────────────
 
@@ -55,7 +56,7 @@ function EquipmentCard({ slug, tierScore }: { slug: string; tierScore: number })
     : "Max tier reached"
 
   return (
-    <Card className="border-purple-500/20 bg-purple-950/10 h-full overflow-hidden">
+    <Card className="border-purple-500/20 bg-purple-950/10 overflow-hidden">
       {image && (
         <div className="aspect-square w-1/2 mx-auto overflow-hidden">
           <img src={image} alt={slug} className="w-full h-full object-cover" />
@@ -268,10 +269,10 @@ export default async function DashboardPage() {
       )}
 
       {/* Three-column layout: equipment | stats | ladder */}
-      <div className="grid gap-5 lg:grid-cols-3 items-stretch">
+      <div className="grid gap-5 lg:grid-cols-3 items-start">
 
         {/* Left — Equipment card */}
-        <div className="h-full">
+        <div>
           {activeSeason && seasonEntry?.equipment_id ? (
             <EquipmentCard
               slug={seasonEntry.equipment_id as string}
@@ -337,49 +338,10 @@ export default async function DashboardPage() {
         </div>
 
         {/* Right — Season Ladder (vertical 1–8) */}
-        <Card className="border-purple-500/20 bg-purple-950/[0.08]">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground tracking-widest uppercase">Season Ladder</CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 pb-4 pt-0">
-            {ladderGames.length === 0 ? (
-              <p className="text-xs text-muted-foreground font-body text-center py-4">
-                No ladder set — visit a game's prediction card to rank it.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {ladderGames.map((game, idx) => {
-                  const isAo = aoGameIds.has(game.id)
-                  return (
-                    <Link
-                      key={game.id}
-                      href={`/games/${game.id}`}
-                      className="group flex items-center gap-2"
-                    >
-                      <span className="font-display text-[10px] text-muted-foreground/60 w-4 shrink-0 text-right leading-none">
-                        {idx + 1}
-                      </span>
-                      <div className="relative w-full aspect-[460/215] rounded overflow-hidden border border-white/8 bg-secondary">
-                        {game.header_image_url && (
-                          <img
-                            src={game.header_image_url}
-                            alt={game.name}
-                            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 ${game.is_released ? "grayscale opacity-60" : ""}`}
-                          />
-                        )}
-                        {isAo && (
-                          <div className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-black/80 border border-amber-400 flex items-center justify-center shadow-[0_0_4px_rgba(251,191,36,0.5)]">
-                            <span className="text-[7px] text-violet-400 leading-none">★</span>
-                          </div>
-                        )}
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <DashboardLadder
+          games={ladderGames}
+          aoGameIds={[...aoGameIds]}
+        />
       </div>
     </div>
   )

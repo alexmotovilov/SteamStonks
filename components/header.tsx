@@ -93,6 +93,7 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
                 { href: "/vendor",   label: "Vendor" },
                 { href: "/archives", label: "Archives" },
                 { href: "/mailbox",  label: "Mailbox" },
+                { href: "/guide",    label: "Guide" },
                 ...(profile?.is_admin ? [{ href: "/admin", label: "Admin" }] : []),
               ].map(({ href, label }) => {
                 const linkClass = `text-sm font-display transition-colors ${

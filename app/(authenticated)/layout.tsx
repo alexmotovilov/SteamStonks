@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Header } from "@/components/header"
+import { WelcomeModal } from "@/components/welcome-modal"
 
 export default async function AuthenticatedLayout({
   children,
@@ -46,6 +47,7 @@ export default async function AuthenticatedLayout({
         activeSeasonName={season?.name ?? null}
         activeSeasonId={season?.id ?? null}
       />
+      <WelcomeModal />
       <main className="container py-6">
         {children}
       </main>

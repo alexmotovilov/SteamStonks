@@ -78,7 +78,7 @@ export function EquipmentBadge({ user }: { user: SupabaseUser }) {
       {image && (
         <img src={image} alt={data.slug} width={18} height={18} className="rounded object-cover shrink-0" />
       )}
-      <span className={`font-display text-[10px] leading-none ${theme.text}`}>T{tier}</span>
+      <span className={`font-display text-[10px] leading-none ${theme.text}`}>Tier {tier}</span>
 
       {/* Divider */}
       {showRank && <div className="w-px h-3 bg-white/20" />}

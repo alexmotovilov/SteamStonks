@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Lock, Loader2, Target, Trophy, CheckCircle2, XCircle,
-  AlertTriangle, Zap, GripVertical, Info
+  AlertTriangle, Zap, GripVertical
 } from "lucide-react"
 import {
   computePlayersWindow,
@@ -20,6 +20,20 @@ import {
 import { GemSlider } from "@/components/gem-slider"
 import { ManaIcon } from "@/components/mana-icon"
 import { distributionToGradient, computeAuguryDistribution } from "@/lib/ladder-scoring"
+
+function GuideLink({ section, label }: { section: string; label?: string }) {
+  return (
+    <a
+      href={`/guide#${section}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={label ?? "Learn more"}
+      className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-muted-foreground/20 text-muted-foreground/40 hover:text-muted-foreground hover:border-muted-foreground/40 transition-colors text-[9px] font-display leading-none"
+    >
+      ?
+    </a>
+  )
+}
 
 interface InventoryItem {
   item_id: string
@@ -697,7 +711,10 @@ export function PredictionForm({
 
           {/* LEFT — Rites */}
           <div className="flex flex-col gap-3">
-            <div className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase text-center">Rites</div>
+            <div className="flex items-center justify-center gap-1">
+              <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase">Rites</span>
+              <GuideLink section="rites" label="About rites" />
+            </div>
             {(() => {
               const auguryActive = !!auguryExpiry && Date.now() < auguryExpiry
               return RITES.map(rite => (
@@ -720,7 +737,7 @@ export function PredictionForm({
             {/* Players slider */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase">Highest Player Count · Week 1</label>
+                <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase flex items-center gap-1">Highest Player Count · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
                 <span className="font-mono text-xs text-emerald-400 font-bold">{playersMidpoint.toLocaleString()}</span>
               </div>
               <div className="relative">
@@ -740,7 +757,7 @@ export function PredictionForm({
             {/* Reviews slider */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase">% Positive Reviews · week 1</label>
+                <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase flex items-center gap-1">% Positive Reviews · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
                 <span className="font-mono text-xs text-emerald-400 font-bold">{reviewsMidpoint}%</span>
               </div>
               <div className="relative">
@@ -786,7 +803,7 @@ export function PredictionForm({
                   {orbs.map((filled, i) => (
                     <div key={i} className={`w-5 h-5 rounded-sm border-2 transition-all duration-300 ${filled ? "border-amber-400 bg-gradient-to-br from-yellow-300 via-amber-500 to-amber-700 shadow-[0_0_8px_rgba(251,191,36,0.4)]" : "border-amber-900/50 bg-transparent"}`} />
                   ))}
-                  <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase ml-1">Booster slots</span>
+                  <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase ml-1 flex items-center gap-1">Booster slots <GuideLink section="boosters" label="About boosters" /></span>
                 </div>
                 <div className="grid grid-cols-4 gap-1.5">
                   {inventory.map(inv => {
@@ -818,7 +835,7 @@ export function PredictionForm({
                   <div className="relative">
                     <button onClick={() => { setShowLockPop(p => !p); setShowSavePop(false) }} disabled={saving}
                       className="w-full py-2 rounded-lg font-display text-xs tracking-wide bg-amber-500/8 text-amber-400 border border-amber-500/22 hover:bg-amber-500/15 transition-colors">
-                      <Zap className="inline h-3 w-3 mr-1" />Early Lock (+{earlyLockMana} mana bonus)
+                      <Zap className="inline h-3 w-3 mr-1" />Early Lock (+{earlyLockMana} mana bonus) <GuideLink section="lifecycle" label="About early lock" />
                     </button>
                     <ActionPopover open={showLockPop} title="Apply Early Lock?" description="Your week-one sliders and prediction window will be frozen, securing your early lock mana bonus. Boosters, rites, and the season ladder remain fully editable." confirmLabel="Lock It" onConfirm={handleEarlyLock} onCancel={() => setShowLockPop(false)} colorClass="amber" />
                   </div>
@@ -835,7 +852,7 @@ export function PredictionForm({
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase">Ladder</span>
-                <Info className="h-3 w-3 text-muted-foreground/30" />
+                <GuideLink section="ladder-scoring" label="How ladder scoring works" />
               </div>
               <div className="flex flex-col gap-1.5">
                 {ladder.slice(0, 9).map((gId, index) => {
