@@ -18,7 +18,7 @@ export default async function AuthenticatedLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, avatar_url, token_balance, is_admin")
+    .select("display_name, avatar_url, token_balance, is_admin, mana_balance")
     .eq("id", user.id)
     .single()
 
@@ -31,7 +31,7 @@ export default async function AuthenticatedLayout({
   const { data: entry } = season
     ? await supabase
         .from("season_entries")
-        .select("mana_balance")
+        .select("id")
         .eq("user_id", user.id)
         .eq("season_id", season.id)
         .single()
@@ -42,7 +42,7 @@ export default async function AuthenticatedLayout({
       <Header
         user={user}
         profile={profile}
-        manaBalance={entry?.mana_balance ?? null}
+        manaBalance={profile?.mana_balance ?? null}
         hasJoinedActiveSeason={!!entry}
         activeSeasonName={season?.name ?? null}
         activeSeasonId={season?.id ?? null}

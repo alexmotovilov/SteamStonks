@@ -159,11 +159,11 @@ VALUES
   (
     'blood_bargain',
     'Blood Bargain',
-    'A forbidden compact sealed in blood. Widens the review window at the cost of a portion of your reward.',
+    'A forbidden compact sealed in blood. Widens the review window, but narrows your read on player count.',
     'booster',
     '/items/blood-bargain.png',
     10.00, true, true, 30, 1, 5,
-    '{"reviews_window_flat": 3, "mana_reviews_penalty": 25}'
+    '{"reviews_window_flat": 3, "players_window_pct": -3}'
   ),
   (
     'black_gem_accumulator',

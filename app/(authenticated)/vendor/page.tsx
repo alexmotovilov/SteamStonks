@@ -18,14 +18,21 @@ export default async function VendorPage() {
     .eq("status", "active")
     .single()
 
-  const { data: entry } = season
-    ? await supabase
-        .from("season_entries")
-        .select("mana_balance, stipend_week_number")
-        .eq("user_id", user.id)
-        .eq("season_id", season.id)
-        .single()
-    : { data: null }
+  const [{ data: entry }, { data: profile }] = await Promise.all([
+    season
+      ? supabase
+          .from("season_entries")
+          .select("stipend_week_number")
+          .eq("user_id", user.id)
+          .eq("season_id", season.id)
+          .single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("profiles")
+      .select("mana_balance")
+      .eq("id", user.id)
+      .single(),
+  ])
 
   if (!season || !entry) {
     return (
@@ -79,7 +86,7 @@ export default async function VendorPage() {
       <VendorShop
         items={items ?? []}
         purchasedCounts={purchasedByItemId}
-        manaBalance={entry.mana_balance ?? 0}
+        manaBalance={profile?.mana_balance ?? 0}
         seasonId={season.id}
         vendorWeek={season.current_vendor_week ?? 1}
         vendorCycle={cycle}

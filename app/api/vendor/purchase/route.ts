@@ -47,10 +47,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Item not in current vendor cycle" }, { status: 400 })
   }
 
-  // Verify player is in the season and has sufficient mana
+  // Verify player is in the season
   const { data: entry } = await supabase
     .from("season_entries")
-    .select("mana_balance")
+    .select("id")
     .eq("user_id", user.id)
     .eq("season_id", season_id)
     .single()
@@ -58,7 +58,15 @@ export async function POST(request: NextRequest) {
   if (!entry) {
     return NextResponse.json({ error: "Not in this season" }, { status: 403 })
   }
-  if ((entry.mana_balance ?? 0) < item.vendor_price) {
+
+  // Pre-check mana balance from profiles (cross-season wallet)
+  const { data: playerProfile } = await supabase
+    .from("profiles")
+    .select("mana_balance")
+    .eq("id", user.id)
+    .single()
+
+  if ((playerProfile?.mana_balance ?? 0) < item.vendor_price) {
     return NextResponse.json({ error: "Insufficient mana" }, { status: 400 })
   }
 

@@ -121,6 +121,17 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
 
   const aoMarkedGameIds = (aoMarkedPreds ?? []).map(p => p.game_id).filter(Boolean) as string[]
 
+  // Get all game IDs where the player has made a prediction this season
+  const { data: playerPredictions } = user && seasonId
+    ? await supabase
+        .from("predictions")
+        .select("game_id")
+        .eq("user_id", user.id)
+        .eq("season_id", seasonId)
+    : { data: [] }
+
+  const predictedGameIds = (playerPredictions ?? []).map(p => p.game_id).filter(Boolean) as string[]
+
   // Get player's existing ladder ranking
   const { data: ladderRanking } = user && seasonId
     ? await supabase
@@ -245,7 +256,7 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
           seasonId={seasonData.id}
           seasonStatus={seasonData.status}
           existingPrediction={existingPrediction ?? null}
-          isReleased={game.is_released}
+          isReleased={game.is_released || (!!game.release_date && new Date(game.release_date) <= new Date())}
           releaseDate={game.release_date}
           predictionLockDate={seasonData.prediction_lock_date}
           snapshotPlayerCount={weekOneSnapshot?.player_count}
@@ -254,11 +265,12 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
           snapshotCapturedAt={weekOneSnapshot?.captured_at}
           equipmentSlug={seasonEntry?.equipment_id ?? null}
           equipmentTierScore={seasonEntry?.equipment_tier_score ?? 0}
-          ladderGames={(seasonGames ?? []) as { id: string; name: string; header_image_url: string | null; is_released: boolean }[]}
+          ladderGames={(seasonGames ?? []) as { id: string; name: string; header_image_url: string | null; is_released: boolean; release_date: string | null }[]}
           existingLadder={(ladderRanking?.ranked_games as string[]) ?? []}
           lockedLadderGameIds={(ladderRanking?.locked_game_ids as string[]) ?? []}
           aoMarkCount={aoMarkCount}
           aoMarkedGameIds={aoMarkedGameIds}
+          predictedGameIds={predictedGameIds}
           inventory={(inventory ?? []) as unknown as { item_id: string; quantity: number; items: { slug: string; name: string; image_url: string | null; effects: Record<string, number>; description: string } }[]}
         />
       )}

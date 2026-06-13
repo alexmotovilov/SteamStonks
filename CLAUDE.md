@@ -80,14 +80,14 @@ public/
 
 **profiles**
 - `id`, `display_name`, `avatar_url`, `token_balance`, `is_admin`, `is_banned`
-- No mana columns — mana lives on `season_entries`
+- `mana_balance` = spendable cross-season wallet (shown in header badge; persists across seasons)
 
 **season_entries**
-- `user_id`, `season_id`, `equipment_id`, `prediction_mana_earned`, `mana_balance`
+- `user_id`, `season_id`, `equipment_id`, `prediction_mana_earned`
 - `equipment_tier_score`, `stipend_week_number`, `starter_kit_claimed`
 - `first_prediction_bonus_claimed`, `tokens_paid`
-- `mana_balance` = spendable wallet (shown in header badge)
 - `prediction_mana_earned` = leaderboard score (never decreases)
+- `mana_balance` column exists but is dormant (no longer written to after migration 017)
 
 **predictions**
 - `week_one` type only
@@ -179,7 +179,7 @@ public/
 | `crystal_focus` | Reviews window +2 | 20% | Week B, 20 mana |
 | `evocation_distillate` | +25 mana total reward | 25% | Drop only |
 | `thaumaturgic_concentrate` | +50 mana total reward | 5% | Drop only |
-| `blood_bargain` | Reviews window +3, -15 mana reward | 10% | Week A, 30 mana |
+| `blood_bargain` | Reviews window +3, Players window -3% | 10% | Week A, 30 mana |
 | `black_gem_accumulator` | Players window -5%, +75 mana if players correct | 11% | Week B, 20 mana |
 | `infernal_patrons_pact` | Reviews window -1, +1 drop total reward | 12% | Week A, 25 mana |
 | `tincture_of_divination` | Players +10%, Reviews +5 | Vendor only | Week B, 75 mana |
@@ -188,9 +188,9 @@ public/
 
 | Slug | Tier 0-2 | Tier 3-5 | Tier 6+ |
 |------|----------|----------|---------|
-| `seers_spectacles` | Players window +5% | Players window +10% | Players window +10%, +25 mana if players correct |
-| `arcanum_esoterica` | +15 mana both correct | +25 mana both correct | +50 mana both correct |
-| `clockwork_familiar` | +1 drop if players correct | +1 booster slot | +2 drops total reward |
+| `seers_spectacles` | Players window +3%, Reviews window +1 | Players window +5%, Reviews window +2 | Players window +10%, Reviews window +5 |
+| `arcanum_esoterica` | +15 mana per correct metric | +25 mana per correct metric, +25 if both correct | +25 mana per correct metric, +25 if both correct, +50 mana total reward |
+| `clockwork_familiar` | +1 drop if players correct · +1 drop if reviews correct | +1 drop if players correct · +1 drop if reviews correct · +1 booster slot | +1 booster slot · +2 drops total reward |
 
 Tier increments on every Perfect or Partial prediction.
 
@@ -199,7 +199,7 @@ Tier increments on every Perfect or Partial prediction.
 | Rite | Cost | Effect |
 |------|------|--------|
 | Ritual of Augury | 10 mana | Heatmap overlay on sliders for 2 min (crowd distribution) |
-| Eldritch Wager | 30 mana | +25 mana per correct metric, +25 if both |
+| Eldritch Wager | 30 mana | +25 mana per correct metric, additional +25 mana if both |
 | Sigil of Multiplicity | 50 mana | +1 booster slot for this prediction |
 | Temporal Translocation | 100 mana | Unlock early-locked prediction (resets early lock bonus) |
 | Auspicious Omens | 10 × mark# mana | Mark game for top 8 — all-or-nothing escalating reward |

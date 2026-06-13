@@ -2,14 +2,18 @@ import Link from "next/link"
 
 const NAV = [
   { label: "Overview",            href: "#overview" },
+  { label: "Mana",                href: "#mana" },
   { label: "Prediction Card",     href: "#prediction-card" },
-  { label: "↳ Sliders",          href: "#sliders",       indent: true },
-  { label: "↳ Boosters",         href: "#boosters",      indent: true },
+  { label: "↳ Sliders",          href: "#sliders",         indent: true },
+  { label: "↳ Early Lock",       href: "#early-lock",      indent: true },
+  { label: "↳ Active Effects",   href: "#active-effects",  indent: true },
+  { label: "↳ Boosters",         href: "#boosters",        indent: true },
   { label: "↳ Rites",            href: "#rites",         indent: true },
-  { label: "↳ Season Ladder",    href: "#ladder",          indent: true },
-  { label: "↳ Ladder Scoring",   href: "#ladder-scoring",  indent: true },
+  { label: "↳ Season Ladder",    href: "#ladder",            indent: true },
   { label: "Prediction Lifecycle",href: "#lifecycle" },
   { label: "Scoring",             href: "#scoring" },
+  { label: "↳ Week 1 Scoring",   href: "#week-one-scoring", indent: true },
+  { label: "↳ Ladder Scoring",   href: "#ladder-scoring",   indent: true },
   { label: "Equipment",           href: "#equipment" },
   { label: "Vendor & Inventory",  href: "#vendor" },
   { label: "Mailbox",             href: "#mailbox" },
@@ -41,6 +45,10 @@ function SubHeading({ id, children }: { id: string; children: React.ReactNode })
 
 function Body({ children }: { children: React.ReactNode }) {
   return <p className="font-body text-sm leading-relaxed text-muted-foreground">{children}</p>
+}
+
+function ManaSymbol() {
+  return <img src="/icons/mana-icon.png" alt="mana" width={12} height={12} className="inline-block align-middle" />
 }
 
 function Mono({ children }: { children: React.ReactNode }) {
@@ -87,7 +95,7 @@ function PredictionCardDiagram() {
           <CalloutBubble number={2} label="Sliders" section="sliders" />
         </div>
         <div className="absolute top-[38%] left-[49%]">
-          <CalloutBubble number={3} label="Active Effects" section="sliders" />
+          <CalloutBubble number={3} label="Active Effects" section="active-effects" />
         </div>
         <div className="absolute top-[62%] left-[49%]">
           <CalloutBubble number={4} label="Boosters" section="boosters" />
@@ -143,36 +151,70 @@ export default function GuidePage() {
         {/* Page header */}
         <div className="mb-2">
           <h1 className="font-display text-4xl text-foreground tracking-wide mb-2">Player's Guide</h1>
-          <p className="font-body text-sm text-muted-foreground">Everything you need to know to compete in Prognos.</p>
         </div>
 
         {/* ── Overview ──────────────────────────────────────────── */}
         <SectionHeading id="overview">Overview</SectionHeading>
         <Body>
-          Prognos is a prediction competition where players forecast the performance of upcoming PC
-          games on Steam. Each season, a selection of upcoming games is chosen. You set predictions,
-          earn mana when you're right, and compete on the season leaderboard.
+          Prognos is a competition of skill and foresight. Players use their industry knowledge
+          and creative insight to predict the performance of upcoming PC games on Steam while building
+          a ranking of what they believe will be the top 8 titles. Each season of Prognos offers the
+          opportunity for players to engage in a multi-month tournament to prove their predictive
+          prowess and shrewd judgement in a race to become a true PC prognosticator.
         </Body>
         <div className="mt-4 space-y-2">
           <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card/50">
             <span className="font-display text-xs text-cyan-400 shrink-0 mt-0.5">1</span>
             <div>
               <div className="font-display text-xs text-foreground">Peak player count · Week 1</div>
-              <div className="font-body text-xs text-muted-foreground mt-0.5">The highest concurrent player count recorded on Steam in the first 7 days after release.</div>
+              <div className="font-body text-xs text-muted-foreground mt-0.5">The highest active player count recorded in the first 7 days after release.</div>
             </div>
           </div>
           <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card/50">
             <span className="font-display text-xs text-cyan-400 shrink-0 mt-0.5">2</span>
             <div>
               <div className="font-display text-xs text-foreground">% Positive reviews · Week 1</div>
-              <div className="font-body text-xs text-muted-foreground mt-0.5">The positive review percentage from the most recent Steam snapshot within the 7-day window.</div>
+              <div className="font-body text-xs text-muted-foreground mt-0.5">The positive review percentage at the end of the 7-day window.</div>
             </div>
           </div>
           <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card/50">
             <span className="font-display text-xs text-cyan-400 shrink-0 mt-0.5">3</span>
             <div>
               <div className="font-display text-xs text-foreground">Season Ladder</div>
-              <div className="font-body text-xs text-muted-foreground mt-0.5">Rank all season games by predicted all-time peak player count. Scored at season end.</div>
+              <div className="font-body text-xs text-muted-foreground mt-0.5">Rank all season games to predict the top 8 by all-time peak player count. Scored at season end.</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Mana ──────────────────────────────────────────────── */}
+        <SectionHeading id="mana">Mana</SectionHeading>
+        <Body>
+          Mana (<ManaSymbol />) is the in-game currency of Prognos. It is earned by making predictions and
+          can be spent on Rites and at the vendor.
+          Your mana balance persists between seasons; unspent mana carries over in full when a
+          new season begins.
+        </Body>
+        <div className="mt-4 space-y-2">
+          <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card/50">
+            <span className="font-display text-xs text-cyan-400 shrink-0 mt-0.5">Earning</span>
+            <div className="font-body text-xs text-muted-foreground leading-relaxed">
+              Mana is awarded when predictions are scored. Base rewards range from 50 mana for a
+              partial result up to 150 mana for a perfect result. Boosters, equipment, rites, and
+              bonuses can add additional rewards.
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card/50">
+            <span className="font-display text-xs text-cyan-400 shrink-0 mt-0.5">Spending</span>
+            <div className="font-body text-xs text-muted-foreground leading-relaxed">
+              Mana is spent on Rites — active effects applied to individual predictions — and on
+              booster items purchased from the Arcane Repository vendor each week.
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card/50">
+            <span className="font-display text-xs text-cyan-400 shrink-0 mt-0.5">Carry-over</span>
+            <div className="font-body text-xs text-muted-foreground leading-relaxed">
+              Your mana balance is tied to your account, not to a season. It does not reset at
+              season end — any unspent mana rolls into the next season automatically.
             </div>
           </div>
         </div>
@@ -180,85 +222,161 @@ export default function GuidePage() {
         {/* ── Prediction Card ───────────────────────────────────── */}
         <SectionHeading id="prediction-card">The Prediction Card</SectionHeading>
         <Body>
-          Each game in the active season has a Prediction Card. Click any game tile on the Games page
-          to open it. The card is divided into three columns.
+          Each game in the active season has a Prediction Card. Clicking a game tile on the Games page
+          will open it.
         </Body>
         <PredictionCardDiagram />
 
         {/* Sliders */}
         <SubHeading id="sliders">Sliders</SubHeading>
-        <Body>
-          The two sliders in the center column are where you set your prediction values.
-        </Body>
+        <div className="mt-4 space-y-3 text-sm font-body text-muted-foreground leading-relaxed">
+          <p>
+            The two sliders at the top of the card are where you pick your week 1 predictions. Drag the green gems to set your prediction range.
+          </p>
+          <p>
+            Save/update your prediction card to confirm your selected predictions. These can be changed at any time before a game's launch or before Early Lock is enabled.
+          </p>
+        </div>
         <div className="mt-4 space-y-4">
           <div className="p-4 rounded-lg border border-emerald-500/20 bg-emerald-950/5 space-y-2">
             <div className="font-display text-sm text-foreground">Peak Player Count · Week 1</div>
             <Body>
               Drag the green gem to your predicted highest player count in the first 7 days after
-              release. The scale is <em>logarithmic</em> — small adjustments at low values are easy,
-              while the right end covers millions for major releases. The gold tick marks and green
-              bar show your prediction window — the actual value must land inside it to score.
+              release. The gold tick marks and green bar show your prediction window — the actual
+              value must land inside it to score. The default window is <Mono>±10%</Mono> of
+              your midpoint. Boosters and equipment can affect it. 
             </Body>
           </div>
           <div className="p-4 rounded-lg border border-emerald-500/20 bg-emerald-950/5 space-y-2">
             <div className="font-display text-sm text-foreground">% Positive Reviews · Week 1</div>
             <Body>
               Drag to your predicted review percentage on a linear <Mono>0–100%</Mono> scale.
-              The default window is <Mono>±3%</Mono>. Boosters and equipment can widen it.
+              The default window is <Mono>±3%</Mono>. Boosters and equipment can affect it.
             </Body>
           </div>
         </div>
-        <div className="mt-4 p-3 rounded-lg border border-border bg-muted/10">
-          <div className="font-display text-[10px] text-muted-foreground/50 tracking-widest uppercase mb-2">Workflow</div>
-          <ol className="space-y-1">
-            {[
-              "Drag the gem to your prediction",
-              "Watch the window range update below the slider",
-              "Apply boosters or equipment to widen the window if needed",
-              "Click Save Prediction to record your values",
-            ].map((s, i) => (
-              <li key={i} className="flex items-start gap-2 font-body text-xs text-muted-foreground">
-                <span className="font-display text-[10px] text-muted-foreground/40 shrink-0 mt-0.5">{i + 1}.</span>
-                {s}
-              </li>
-            ))}
-          </ol>
+        
+        {/* Early Lock */}
+        <SubHeading id="early-lock">Early Lock</SubHeading>
+        <Body>
+          Before a game launches you can voluntarily freeze your sliders to earn a mana bonus.
+          The <span className="text-amber-400">Early Lock</span> button appears directly below the
+          week 1 sliders on the prediction card — it is only available after you have saved a
+          prediction and while the game has not yet released.
+        </Body>
+        <div className="mt-4 space-y-2">
+          <div className="p-4 rounded-lg border border-amber-500/20 bg-amber-950/5 space-y-2">
+            <div className="font-display text-sm text-amber-400">How the bonus is calculated</div>
+            <Body>
+              The bonus scales linearly from <Mono>0</Mono> up to <Mono>+25 mana</Mono> based on
+              how far in advance of release you lock. Locking two or more weeks before release earns
+              the full <Mono>+25 mana</Mono>. Locking on the day of release earns nothing. Everything
+              in between is proportional — the earlier you lock, the more you earn.
+            </Body>
+          </div>
+          <div className="p-4 rounded-lg border border-border bg-card/50 space-y-2">
+            <div className="font-display text-sm text-foreground">What locks and what stays editable</div>
+            <div className="mt-2 space-y-1.5">
+              {[
+                { label: "Locked",    items: ["Peak player count slider", "% Positive reviews slider"] },
+                { label: "Editable",  items: ["Boosters", "Rites", "Season Ladder"] },
+              ].map(({ label, items }) => (
+                <div key={label} className="flex items-start gap-3">
+                  <span className={`font-display text-[10px] tracking-widest uppercase shrink-0 w-14 mt-0.5 ${label === "Locked" ? "text-red-400/70" : "text-emerald-400/70"}`}>{label}</span>
+                  <span className="font-body text-xs text-muted-foreground">{items.join(" · ")}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="p-4 rounded-lg border border-purple-500/15 bg-purple-950/10 space-y-2">
+            <div className="font-display text-sm text-foreground">Undoing an early lock</div>
+            <Body>
+              The <span className="text-foreground">Temporal Translocation</span> rite (100 mana) removes
+              an active early lock and restores full slider access. The early lock bonus is forfeited when you
+              unlock — the bonus is recalculated from zero if you choose to lock again.
+            </Body>
+          </div>
+        </div>
+        <div className="mt-3">
+          <Body>
+            <strong className="text-foreground">The early lock bonus is guaranteed after scoring regardless of your prediction result</strong> — it is added to your total reward even on a missed prediction.
+          </Body>
+        </div>
+
+        {/* Active Effects */}
+        <SubHeading id="active-effects">Active Effects</SubHeading>
+        <Body>
+          Between the sliders and the booster inventory you'll find the Active Effects list — a live
+          summary of every modifier currently applied to your prediction. It updates as you add
+          boosters, perform rites, and equip items.
+        </Body>
+        <div className="mt-4 space-y-2">
+          {[
+            { color: "bg-emerald-400", text: "text-emerald-400", label: "Green", meaning: "An advantage conferred to your prediction, a slider window is being widened (e.g. Players +10%, Reviews +2). Wider windows make it easier to land your prediction." },
+            { color: "bg-red-400",     text: "text-red-400",     label: "Red",   meaning: "Penalties to your prediction (e.g. Blood Bargain narrows the players window by 3%). These are trade-offs you've deliberately accepted from a booster." },
+            { color: "bg-cyan-400",    text: "text-cyan-300",    label: "Cyan",  meaning: "Mana bonuses and the first prediction bonus. A flat mana amount is being added to your potential reward." },
+            { color: "bg-amber-400",   text: "text-amber-400",   label: "Amber", meaning: "Loot drop bonuses and booster slot bonuses.Extra drops from equipment or boosters, and extra slots from the Sigil of Multiplicity rite or Clockwork Familiar." },
+            { color: "bg-amber-600",   text: "text-amber-600",   label: "Gold",  meaning: "Auspicious Omens mark: this game has been marked for the top 8. The gold star (★) also appears on the game's ladder tile." },
+          ].map(({ color, text, label, meaning }) => (
+            <div key={label} className="flex gap-3 p-3 rounded-lg border border-border bg-card/50">
+              <div className="flex items-center gap-1.5 shrink-0 w-16">
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${color}`} />
+                <span className={`font-display text-xs ${text}`}>{label}</span>
+              </div>
+              <p className="font-body text-xs text-muted-foreground leading-relaxed">{meaning}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3">
+          <Body>
+            Sources that can add entries: your equipped item (always shown if you have equipment), applied
+            boosters (one entry per effect per booster), and performed rites — Eldritch Wager, Sigil of
+            Multiplicity, and Auspicious Omens each contribute their own rows.
+          </Body>
+        </div>
+        <div className="mt-3">
+          <Body>
+            <strong className="text-foreground">Effects applied to total reward are guaranteed after 1 week scoring regardless of prediction results. You receive these even on a missed prediction.</strong>
+          </Body>
         </div>
 
         {/* Boosters */}
         <SubHeading id="boosters">Boosters</SubHeading>
         <Body>
           Boosters are single-use items that modify your prediction for one game.
-          They appear as tiles below the sliders.
+          Your current booster inventory appears below the active effects list.
         </Body>
         <div className="mt-4 space-y-3 text-sm font-body text-muted-foreground leading-relaxed">
           <p>
-            The <span className="text-amber-400 font-display text-xs">booster slots</span> (small squares above the grid) show how many boosters you can apply — 2 by default.
-            The Sigil of Multiplicity rite or Clockwork Familiar equipment (Tier II+) can add a third slot.
+            The <span className="text-amber-400 font-display text-xs">booster slots</span> (small squares above the inventory grid) show how many boosters you can apply (2 by default).
+            The Sigil of Multiplicity rite or Clockwork Familiar equipment (Tier II+) can add additional slots.
           </p>
           <p>
-            To apply a booster: click its tile. The amber border confirms it's active.
-            Applied boosters are <strong className="text-foreground">consumed from your inventory when you save</strong> and cannot be removed after saving.
+            Click a booster tile to add it to an empty booster slot. The booster's effect(s) will be shown in the active effects list. Save/update your prediction to apply the selected boosters.
           </p>
           <p>
-            The <Mono>×N</Mono> badge on each tile shows how many you have in stock.
-            Hover over any booster to see its effect.
+            <strong className="text-foreground">Applied boosters are consumed from your inventory and cannot be removed from the booster slot after prediction card has been saved/updated.</strong>
           </p>
-        </div>
+          </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           {[
-            { slug: "Scrying Orb Polish",       effect: "Players window +10%" },
-            { slug: "Crystal Focus",             effect: "Reviews window +2" },
-            { slug: "Evocation Distillate",      effect: "+25 mana total reward" },
-            { slug: "Thaumaturgic Concentrate",  effect: "+50 mana total reward" },
-            { slug: "Blood Bargain",             effect: "Reviews window +3, −15 mana reward" },
-            { slug: "Black Gem Accumulator",     effect: "Players window −5%, +75 mana if players correct" },
-            { slug: "Infernal Patron's Pact",    effect: "Reviews window −1, +1 drop total reward" },
-            { slug: "Tincture of Divination",    effect: "Players +10%, Reviews +5" },
-          ].map(({ slug, effect }) => (
-            <div key={slug} className="p-2.5 rounded border border-amber-500/15 bg-amber-950/10">
-              <div className="font-display text-xs text-amber-400">{slug}</div>
-              <div className="font-body text-[11px] text-muted-foreground mt-0.5">{effect}</div>
+            { slug: "Scrying Orb Polish",       image: "/items/scrying-orb-polish.png",       effect: "Players window +10%" },
+            { slug: "Crystal Focus",             image: "/items/crystal-focus.png",             effect: "Reviews window +2" },
+            { slug: "Evocation Distillate",      image: "/items/evocation-distillate.png",      effect: "+25 mana total reward" },
+            { slug: "Thaumaturgic Concentrate",  image: "/items/thaumaturgic-concentrate.png",  effect: "+50 mana total reward" },
+            { slug: "Blood Bargain",             image: "/items/blood-bargain.png",             effect: "Reviews window +3, Players window −3%" },
+            { slug: "Black Gem Accumulator",     image: "/items/black-gem-accumulator.png",     effect: "Players window −5%, +75 mana if players correct" },
+            { slug: "Infernal Patron's Pact",    image: "/items/infernal-patrons-pact.png",     effect: "Reviews window −1, +1 drop total reward" },
+            { slug: "Tincture of Divination",    image: "/items/tincture-of-divination.png",    effect: "Players +10%, Reviews +5" },
+          ].map(({ slug, image, effect }) => (
+            <div key={slug} className="flex items-center gap-3 p-2.5 rounded border border-amber-500/15 bg-amber-950/10">
+              <div className="w-10 h-10 rounded-lg overflow-hidden border border-amber-500/20 bg-purple-950/20 shrink-0">
+                <img src={image} alt={slug} className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <div className="font-display text-xs text-amber-400">{slug}</div>
+                <div className="font-body text-[11px] text-muted-foreground mt-0.5">{effect}</div>
+              </div>
             </div>
           ))}
         </div>
@@ -271,20 +389,20 @@ export default function GuidePage() {
         </Body>
         <div className="mt-4 space-y-2">
           {[
-            { name: "Ritual of Augury",      cost: "10 mana",       reusable: true,  text: "Reveals a heatmap on both sliders showing where other players have placed their predictions. Active for 2 minutes. Can be used multiple times." },
-            { name: "Eldritch Wager",        cost: "30 mana",       reusable: false, text: "Adds +25 mana to your reward for each correct metric, and +25 more if both are correct. One use per prediction." },
-            { name: "Sigil of Multiplicity", cost: "50 mana",       reusable: false, text: "Unlocks a third booster slot for this prediction. One use." },
-            { name: "Temporal Translocation",cost: "100 mana",      reusable: false, text: "Removes your early lock, letting you update your sliders again. Only available if you have an active early lock." },
-            { name: "Auspicious Omens",      cost: "variable mana", reusable: false, text: "Marks this game as your pick for the Top 8 season ladder. Marks are all-or-nothing — if any marked game misses the top 8, all Auspicious Omens rewards are forfeited. Each additional mark costs more mana." },
-          ].map(({ name, cost, reusable, text }) => (
+            { name: "Ritual of Augury",      cost: "10",       reusable: true,  image: "/rites/ritual-of-augury.png",       text: "Reveals a heatmap on both sliders showing where other players have placed their predictions. Active for 2 minutes. Can be used multiple times." },
+            { name: "Eldritch Wager",        cost: "30",       reusable: false, image: "/rites/eldritch-wager.png",         text: "Adds +25 mana to your reward for each correct metric, additional +25 mana if both are correct. One use per prediction." },
+            { name: "Sigil of Multiplicity", cost: "50",       reusable: false, image: "/rites/sigil-of-multiplicity.png",  text: "Unlocks a third booster slot for this prediction. One use per prediction." },
+            { name: "Temporal Translocation",cost: "100",      reusable: false, image: "/rites/temporal-translocation.png", text: "Removes your early lock, letting you update your sliders again. Only available if you have an active early lock." },
+            { name: "Auspicious Omens",      cost: "variable", reusable: false, image: "/rites/auspicious-omens.png",       text: <>Marks this game for an  optional all-or-nothing side bet on your season ladder.  Every marked game must finish in the Top 8 to collect the reward. The more marks you place correctly, the larger the bonus. Each additional mark costs more mana.</> },
+          ].map(({ name, cost, reusable, image, text }) => (
             <div key={name} className="flex gap-3 p-3 rounded-lg border border-purple-500/15 bg-purple-950/10">
-              <div className="w-10 h-10 rounded-full border border-purple-500/30 bg-purple-950/30 flex items-center justify-center shrink-0">
-                <span className="font-display text-[9px] text-purple-400/60">✦</span>
+              <div className="w-10 h-10 rounded-full border border-purple-500/30 bg-purple-950/30 overflow-hidden shrink-0">
+                <img src={image} alt={name} className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-display text-xs text-foreground">{name}</span>
-                  <span className="font-mono text-[10px] text-cyan-400">{cost}</span>
+                  <span className="font-mono text-[10px] text-cyan-400 inline-flex items-center gap-0.5">{cost} <ManaSymbol /></span>
                   {reusable && <span className="font-display text-[9px] text-emerald-400/60 border border-emerald-500/20 px-1.5 py-0.5 rounded">reusable</span>}
                 </div>
                 <p className="font-body text-xs text-muted-foreground mt-1 leading-relaxed">{text}</p>
@@ -296,26 +414,103 @@ export default function GuidePage() {
         {/* Ladder */}
         <SubHeading id="ladder">Season Ladder</SubHeading>
         <Body>
-          The right column shows all season games ranked by your predicted all-time peak player count —
-          highest at the top. Drag tiles to reorder at any time before the season ends.
+          The ladder shows games ranked by predicted all-time peak player count at the end of the season (highest at the top). Only the top 8 positions will be scored, games left in the 9th position (red tile) will be removed from the ladder.
         </Body>
         <div className="mt-4 space-y-2 font-body text-sm text-muted-foreground leading-relaxed">
-          <p>Released games (shown greyed out) have their positions locked and cannot be moved.</p>
-          <p>The <span className="text-amber-400">★</span> gold-ring badge on a tile means you've marked that game with Auspicious Omens.</p>
+          <p>Drag game tiles to reorder at any time before the game's launch. Released games (shown greyed out) have their position relative to other released games locked and cannot be moved.</p>
+          <p>The <span className="text-amber-400">★</span> badge on a tile means you've marked that game with Auspicious Omens.</p>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="p-3 rounded-lg border border-border bg-card/50">
-            <div className="font-display text-xs text-foreground mb-1">Binary scoring</div>
-            <div className="font-body text-xs text-muted-foreground">Each exact rank match earns <Mono>+50 mana</Mono> score.</div>
-          </div>
-          <div className="p-3 rounded-lg border border-border bg-card/50">
-            <div className="font-display text-xs text-foreground mb-1">Sequence scoring</div>
-            <div className="font-body text-xs text-muted-foreground">Consecutive correct runs earn escalating bonuses — up to <Mono>+700 mana</Mono> for 8 in a row.</div>
-          </div>
+        {/* ── Lifecycle ─────────────────────────────────────────── */}
+        <SectionHeading id="lifecycle">Prediction Lifecycle</SectionHeading>
+        <div className="mt-2">
+          <LifecycleStep n={1} title="Set">
+            Drag both sliders to your predictions. Apply any boosters or rites. Arrange your ladder ranking.
+          </LifecycleStep>
+          <LifecycleStep n={2} title="Save">
+            Click <span className="text-foreground">Save Prediction</span>. Boosters are consumed from your
+            inventory at this point and cannot be removed. You can still update slider values until the game releases.
+          </LifecycleStep>
+          <LifecycleStep n={3} title="Early Lock (optional)">
+            Click <span className="text-amber-400">Early Lock</span> to voluntarily freeze your sliders before
+            the game releases. You earn a mana bonus up to <Mono>+25 mana</Mono> — the earlier you lock, the
+            larger the bonus. Boosters, rites, and the ladder remain editable. Use Temporal Translocation to undo.
+            {" "}<strong className="text-foreground">The early lock bonus is applied to your total reward and will be awarded after scoring regardless of prediction result.</strong>
+          </LifecycleStep>
+          <LifecycleStep n={4} title="Release">
+            When the game launches, your prediction automatically locks. No further changes to sliders,
+            boosters, rites, or ladder position relative to other released games.
+          </LifecycleStep>
+          <LifecycleStep n={5} title="Scoring window">
+            The score-calculator checks all Steam snapshots from the 7 days after release and finds the
+            highest player count recorded. It also collects the positive review score at the end of the 7-day window.
+          </LifecycleStep>
+          <LifecycleStep n={6} title="Result">
+            Your prediction is scored. A message arrives in your <Link href="/mailbox" className="text-purple-400 hover:text-purple-300 transition-colors">Mailbox</Link> with
+            a full breakdown. Claim your rewards from the mailbox.
+          </LifecycleStep>
         </div>
 
-        {/* ── Ladder Scoring ────────────────────────────────────── */}
-        <SubHeading id="ladder-scoring">Ladder Scoring</SubHeading>
+        {/* ── Scoring ───────────────────────────────────────────── */}
+        <SectionHeading id="scoring">Scoring</SectionHeading>
+        <Body>
+          Prognos has two distinct scoring phases. Week 1 predictions are scored individually as
+          each game releases throughout the season. Season Ladder scoring happens once at season
+          end, when all games have released and the final standings are determined.
+        </Body>
+
+        {/* Week 1 Scoring */}
+        <SubHeading id="week-one-scoring">Week 1 Scoring</SubHeading>
+        <div className="rounded-xl border border-border overflow-hidden mt-2">
+          <div className="grid grid-cols-3 bg-muted/20 border-b border-border">
+            {["Result", "Condition", "Base mana"].map(h => (
+              <div key={h} className="p-3 font-display text-[10px] text-muted-foreground/60 tracking-widest uppercase">{h}</div>
+            ))}
+          </div>
+          {[
+            ["Perfect", "Both metrics within window", "+150 mana"],
+            ["Partial",  "One metric within window",   "+50 mana"],
+            ["Missed",  "Neither metric correct",      "+0 mana"],
+          ].map(([result, cond, mana]) => (
+            <div key={result} className="grid grid-cols-3 border-b border-border/50 last:border-0">
+              <div className={`p-3 font-display text-xs ${result === "Perfect" ? "text-emerald-400" : result === "Partial" ? "text-amber-400" : "text-muted-foreground/50"}`}>{result}</div>
+              <div className="p-3 font-body text-xs text-muted-foreground">{cond}</div>
+              <div className="p-3 font-mono text-xs text-cyan-400">{mana}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 p-4 rounded-lg border border-border bg-card/50 space-y-2">
+          <div className="font-display text-xs text-foreground mb-3">Additional mana on top of base</div>
+          {[
+            ["Early lock bonus", "Up to +25 mana — grows linearly over 2 weeks before release"],
+            ["Equipment",        "Depends on your equipment and tier"],
+            ["Boosters",         "Depends on applied boosters"],
+            ["Eldritch Wager",   "+25 mana per correct metric, additional +25 mana if both correct"],
+            ["First prediction", "+50 mana on your very first scored prediction this season"],
+          ].map(([label, desc]) => (
+            <StatRow key={label} label={label} value={desc} />
+          ))}
+        </div>
+
+        <div className="mt-4 p-4 rounded-lg border border-border bg-card/50">
+          <div className="font-display text-xs text-foreground mb-3">Loot drops</div>
+          <Body>
+            Perfect predictions award 2 drops; Partial awards 1 (equipment may add more).
+            Drops arrive as mystery items in your Mailbox — open them to reveal and claim the contents.
+          </Body>
+        </div>
+
+        <div className="mt-4 p-4 rounded-lg border border-amber-500/15 bg-amber-950/10">
+          <div className="font-display text-xs text-amber-400 mb-2">Season Score vs Mana Balance</div>
+          <Body>
+            Every mana you earn from scoring is added to both your <span className="text-foreground">Season Score</span> (leaderboard rank, never decreases)
+            and your <span className="text-foreground">Mana Balance</span> (spendable wallet — used for rites and the vendor).
+            The weekly stipend of <Mono>+15 mana</Mono> goes to your balance only.
+          </Body>
+        </div>
+
+        {/* Season Ladder Scoring */}
+        <SubHeading id="ladder-scoring">Season Ladder Scoring</SubHeading>
         <Body>
           At the end of the season, your ladder ranking is compared against the actual final peak
           player counts for all season games. Two scoring methods apply simultaneously.
@@ -326,7 +521,7 @@ export default function GuidePage() {
           <Body>
             Each game whose rank in your ladder exactly matches its actual final rank earns{" "}
             <Mono>+50 mana</Mono> and <Mono>+50 season score</Mono>. If you ranked a game at #3
-            and it finishes #3 overall, you earn +50 for that exact match.
+            and it finishes #3 overall, you earn the bonus for that exact match.
           </Body>
         </div>
 
@@ -367,8 +562,8 @@ export default function GuidePage() {
           <div className="font-display text-xs text-amber-400 mb-2">Auspicious Omens (ladder)</div>
           <Body>
             If you used Auspicious Omens to mark games during the season, those marks are evaluated
-            at season end against the final Top 8. The reward is all-or-nothing — if any marked game
-            fails to reach the Top 8, all Auspicious Omens rewards are forfeited.
+            at season end against the final Top 8. <strong className="text-foreground">If any marked game
+            fails to reach the Top 8, all Auspicious Omens rewards are forfeited.</strong>
           </Body>
           <table className="w-full text-sm border-collapse mt-3">
             <thead>
@@ -406,86 +601,6 @@ export default function GuidePage() {
           </Body>
         </div>
 
-        {/* ── Lifecycle ─────────────────────────────────────────── */}
-        <SectionHeading id="lifecycle">Prediction Lifecycle</SectionHeading>
-        <div className="mt-2">
-          <LifecycleStep n={1} title="Set">
-            Drag both sliders to your predictions. Apply any boosters or rites. Arrange your ladder ranking.
-          </LifecycleStep>
-          <LifecycleStep n={2} title="Save">
-            Click <span className="text-foreground">Save Prediction</span>. Boosters are consumed from your
-            inventory at this point and cannot be removed. You can still update slider values until the game releases.
-          </LifecycleStep>
-          <LifecycleStep n={3} title="Early Lock (optional)">
-            Click <span className="text-amber-400">Early Lock</span> to voluntarily freeze your sliders before
-            the game releases. You earn a mana bonus up to <Mono>+25 mana</Mono> — the earlier you lock, the
-            larger the bonus. Boosters, rites, and the ladder remain editable. Use Temporal Translocation to undo.
-          </LifecycleStep>
-          <LifecycleStep n={4} title="Release">
-            When the game launches, your prediction automatically locks. No further changes to sliders or
-            boosters. Rites and the ladder remain open until the season ends.
-          </LifecycleStep>
-          <LifecycleStep n={5} title="Scoring window">
-            The score-calculator checks all Steam snapshots from the 7 days after release and finds the
-            highest player count recorded. It also reads the most recent review score in that window.
-          </LifecycleStep>
-          <LifecycleStep n={6} title="Result">
-            Your prediction is scored. A message arrives in your <Link href="/mailbox" className="text-purple-400 hover:text-purple-300 transition-colors">Mailbox</Link> with
-            a full breakdown. Claim your mana from the mailbox — it deposits to your balance and season score.
-          </LifecycleStep>
-        </div>
-
-        {/* ── Scoring ───────────────────────────────────────────── */}
-        <SectionHeading id="scoring">Scoring</SectionHeading>
-        <div className="rounded-xl border border-border overflow-hidden mt-2">
-          <div className="grid grid-cols-3 bg-muted/20 border-b border-border">
-            {["Result", "Condition", "Base mana"].map(h => (
-              <div key={h} className="p-3 font-display text-[10px] text-muted-foreground/60 tracking-widest uppercase">{h}</div>
-            ))}
-          </div>
-          {[
-            ["Perfect", "Both metrics within window", "+150 mana"],
-            ["Partial",  "One metric within window",   "+50 mana"],
-            ["Missed",  "Neither metric correct",      "+0 mana"],
-          ].map(([result, cond, mana]) => (
-            <div key={result} className="grid grid-cols-3 border-b border-border/50 last:border-0">
-              <div className={`p-3 font-display text-xs ${result === "Perfect" ? "text-emerald-400" : result === "Partial" ? "text-amber-400" : "text-muted-foreground/50"}`}>{result}</div>
-              <div className="p-3 font-body text-xs text-muted-foreground">{cond}</div>
-              <div className="p-3 font-mono text-xs text-cyan-400">{mana}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 p-4 rounded-lg border border-border bg-card/50 space-y-2">
-          <div className="font-display text-xs text-foreground mb-3">Additional mana on top of base</div>
-          {[
-            ["Early lock bonus", "Up to +25 mana — grows linearly over 2 weeks before release"],
-            ["Equipment",        "Depends on your equipment and tier"],
-            ["Boosters",         "Depends on applied boosters"],
-            ["Eldritch Wager",   "+25 mana per correct metric, +25 if both"],
-            ["First prediction", "+50 mana on your very first scored prediction this season"],
-          ].map(([label, desc]) => (
-            <StatRow key={label} label={label} value={desc} />
-          ))}
-        </div>
-
-        <div className="mt-4 p-4 rounded-lg border border-border bg-card/50">
-          <div className="font-display text-xs text-foreground mb-3">Loot drops</div>
-          <Body>
-            Perfect predictions award 2 drops; Partial awards 1 (equipment may add more).
-            Drops arrive as mystery items in your Mailbox — open them to reveal and claim the contents.
-          </Body>
-        </div>
-
-        <div className="mt-4 p-4 rounded-lg border border-amber-500/15 bg-amber-950/10">
-          <div className="font-display text-xs text-amber-400 mb-2">Season Score vs Mana Balance</div>
-          <Body>
-            Every mana you earn from scoring is added to both your <span className="text-foreground">Season Score</span> (leaderboard rank, never decreases)
-            and your <span className="text-foreground">Mana Balance</span> (spendable wallet — used for rites and the vendor).
-            The weekly stipend of <Mono>+15 mana</Mono> goes to your balance only.
-          </Body>
-        </div>
-
         {/* ── Equipment ─────────────────────────────────────────── */}
         <SectionHeading id="equipment">Equipment</SectionHeading>
         <Body>
@@ -501,21 +616,21 @@ export default function GuidePage() {
           {[
             {
               name: "Seer's Spectacles",
-              t0: "Players +5% window",
-              t3: "Players +10% window",
-              t6: "Players +10%, +25 mana if players correct",
+              t0: "Players window +3% · Reviews window +1",
+              t3: "Players window +5% · Reviews window +2",
+              t6: "Players window +10% · Reviews window +5",
             },
             {
               name: "Arcanum Esoterica",
-              t0: "+15 mana if both correct",
-              t3: "+25 mana if both correct",
-              t6: "+50 mana if both correct",
+              t0: "+15 mana per correct metric",
+              t3: "+25 mana per correct metric · +25 mana if both correct",
+              t6: "+25 mana per correct metric · +25 mana if both correct · +50 mana total reward",
             },
             {
               name: "Clockwork Familiar",
-              t0: "+1 drop if players correct",
-              t3: "+1 booster slot · +1 drop if players correct",
-              t6: "+1 booster slot · +2 drops total",
+              t0: "+1 drop per correct metric",
+              t3: "+1 drop per correct metric · +1 booster slot",
+              t6: "+1 booster slot · +2 drops total reward",
             },
           ].map(({ name, t0, t3, t6 }) => (
             <div key={name} className="grid grid-cols-4 border-b border-border/50 last:border-0">

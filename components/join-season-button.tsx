@@ -23,13 +23,13 @@ const EQUIPMENT_TIERS: Record<string, { t0: string; t3: string; t6: string }> = 
     t6: "Players window +10% · Reviews window +5",
   },
   arcanum_esoterica: {
-    t0: "+15 mana for partial · +30 mana for perfect",
-    t3: "+25 mana for partial · +75 mana for perfect",
-    t6: "+25 mana for partial · +75 mana for perfect · +50 mana total reward",
+    t0: "+15 mana per correct metric",
+    t3: "+25 mana per correct metric · +25 mana if both correct",
+    t6: "+25 mana per correct metric · +25 mana if both correct · +50 mana total reward",
   },
   clockwork_familiar: {
-    t0: "+1 drop for partial · +2 drops for perfect",
-    t3: "+1 drop for partial · +2 drops for perfect · +1 booster slot",
+    t0: "+1 drop if players correct · +1 drop if reviews correct",
+    t3: "+1 drop if players correct · +1 drop if reviews correct · +1 booster slot",
     t6: "+1 booster slot · +2 drops total reward",
   },
 }
@@ -180,8 +180,7 @@ export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalanc
           user_id:                      user.id,
           tokens_paid:                  entryFee,
           equipment_id:                 selectedSlug,
-          season_score:       0,
-          mana_balance:                 0,
+          season_score:                 0,
           equipment_tier_score:         0,
           stipend_week_number:          0,
           starter_kit_claimed:          false,

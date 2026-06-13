@@ -129,11 +129,12 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate, releaseTi
   // No prediction made — check if window is still open
   if (!prediction) {
     if (isReleased) {
-      // Prediction window closed, nothing submitted
       return (
         <div className="px-3 py-2 border-t border-border flex items-center justify-between gap-2">
-          <span className="text-xs font-display text-muted-foreground">Closed</span>
-          <span className="text-[10px] font-body text-muted-foreground/60">prediction window passed</span>
+          <span className="text-xs font-display text-muted-foreground/60">No prediction made</span>
+          <span className="text-xs font-display px-2 py-0.5 rounded border border-border text-muted-foreground/50">
+            Locked
+          </span>
         </div>
       )
     }
@@ -425,7 +426,7 @@ export function GameCard({ game, seasonId, prediction, dimmed }: GameCardProps) 
           <PredictionBand
             prediction={prediction ?? null}
             gameId={game.id}
-            isReleased={game.is_released}
+            isReleased={game.is_released || (!!game.release_date && new Date(game.release_date) <= new Date())}
             releaseDate={game.release_date}
             releaseTimeOverride={game.release_time_override}
           />

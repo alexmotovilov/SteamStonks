@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Lock, Loader2, Target, Trophy, CheckCircle2, XCircle,
-  AlertTriangle, Zap, GripVertical
+  AlertTriangle, GripVertical
 } from "lucide-react"
 import {
   computePlayersWindow,
@@ -83,6 +83,7 @@ interface LadderGame {
   name: string
   header_image_url: string | null
   is_released: boolean
+  release_date: string | null
 }
 
 interface PredictionFormProps {
@@ -106,6 +107,7 @@ interface PredictionFormProps {
   inventory: InventoryItem[]
   aoMarkCount?: number  // how many AO marks player has made this season
   aoMarkedGameIds?: string[]  // game IDs where this player has applied AO this season
+  predictedGameIds?: string[]  // game IDs where this player has made a prediction this season
   firstPredictionBonusEligible?: boolean
 }
 
@@ -115,7 +117,7 @@ const PLAYERS_STEP = 100
 
 const RITES = [
   { slug: "ritual_of_augury",    name: "Ritual of Augury",      cost: 10,              placeholder: "👁", image: "/rites/ritual-of-augury.png",      description: "Reveals the crowd's prediction distribution as a heatmap on the sliders for 2 minutes.", confirmText: "Perform the Ritual of Augury?",        confirmBtn: "Perform", auraColor: "cyan",   reusable: true  },
-  { slug: "eldritch_wager",      name: "Eldritch Wager",        cost: 30,              placeholder: "⚖", image: "/rites/eldritch-wager.png",         description: "Adds +25 mana to each correct metric reward, and +25 if both are correct.",              confirmText: "Invoke the Eldritch Wager?",           confirmBtn: "Wager",   auraColor: "purple", reusable: false },
+  { slug: "eldritch_wager",      name: "Eldritch Wager",        cost: 30,              placeholder: "⚖", image: "/rites/eldritch-wager.png",         description: "Adds +25 mana to your reward for each correct metric, additional +25 mana if both are correct.",              confirmText: "Invoke the Eldritch Wager?",           confirmBtn: "Wager",   auraColor: "purple", reusable: false },
   { slug: "sigil_of_multiplicity", name: "Sigil of Multiplicity", cost: 50,            placeholder: "✦", image: "/rites/sigil-of-multiplicity.png",  description: "Unlocks an additional booster slot for this prediction.",                               confirmText: "Invoke the Sigil of Multiplicity?",    confirmBtn: "Invoke",  auraColor: "purple", reusable: false },
   { slug: "temporal_translocation", name: "Temporal Translocation", cost: 100,         placeholder: "⧗", image: "/rites/temporal-translocation.png", description: "Unlocks your early-locked prediction and resets the early lock bonus. Requires early lock to be active.", confirmText: "Unlock via Temporal Translocation?", confirmBtn: "Unlock",  auraColor: "cyan",   reusable: true  },
   { slug: "auspicious_omens",    name: "Auspicious Omens",      cost: null as number | null, placeholder: "★", image: "/rites/auspicious-omens.png", description: "Mark this game as destined for the Top 8. If any marked game misses, all Auspicious Omens rewards are forfeited.", confirmText: "Mark this game with Auspicious Omens?", confirmBtn: "Mark It", auraColor: "purple", reusable: false },
@@ -320,9 +322,9 @@ const BOOSTER_EFFECTS: Record<string, EffectLine[]> = {
   crystal_focus:            [{ text: "Reviews window +2", color: "green" }],
   evocation_distillate:     [{ text: "+25 mana total reward", color: "cyan" }],
   thaumaturgic_concentrate: [{ text: "+50 mana total reward", color: "cyan" }],
-  blood_bargain:            [{ text: "Reviews window +3", color: "green" }, { text: "−15 mana if reviews correct", color: "red" }],
+  blood_bargain:            [{ text: "Reviews window +3", color: "green" }, { text: "Players window −3%", color: "red" }],
   black_gem_accumulator:    [{ text: "Players window −5%", color: "red" }, { text: "+75 mana if players correct", color: "cyan" }],
-  infernal_patrons_pact:    [{ text: "Reviews window −1", color: "red" }, { text: "+1 loot drop total reward", color: "cyan" }],
+  infernal_patrons_pact:    [{ text: "Reviews window −1", color: "red" }, { text: "+1 loot drop total reward", color: "amber" }],
   tincture_of_divination:   [{ text: "Players window +10%", color: "green" }, { text: "Reviews window +5", color: "green" }],
 }
 
@@ -380,9 +382,9 @@ function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters
     if (eq.mana_both_bonus > 0)     effects.push({ text: `+${eq.mana_both_bonus} mana if both correct`, color: "cyan" })
     if (eq.mana_total_reward > 0)   effects.push({ text: `+${eq.mana_total_reward} mana total reward`, color: "cyan" })
     if (eq.extra_booster_slots > 0) effects.push({ text: `+${eq.extra_booster_slots} booster slot`, color: "amber" })
-    if (eq.drops_players_bonus > 0) effects.push({ text: `+${eq.drops_players_bonus} drop if players correct`, color: "cyan" })
-    if (eq.drops_reviews_bonus > 0) effects.push({ text: `+${eq.drops_reviews_bonus} drop if reviews correct`, color: "cyan" })
-    if (eq.drops_total_reward > 0)  effects.push({ text: `+${eq.drops_total_reward} drops total reward`, color: "cyan" })
+    if (eq.drops_players_bonus > 0) effects.push({ text: `+${eq.drops_players_bonus} drop if players correct`, color: "amber" })
+    if (eq.drops_reviews_bonus > 0) effects.push({ text: `+${eq.drops_reviews_bonus} drop if reviews correct`, color: "amber" })
+    if (eq.drops_total_reward > 0)  effects.push({ text: `+${eq.drops_total_reward} drops total reward`, color: "amber" })
     if (effects.length > 0) sourcedGroups.push({ source: EQUIPMENT_NAMES[equipmentSlug] ?? equipmentSlug, effects })
   }
 
@@ -433,14 +435,36 @@ function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LadderTile({ game, rank, isLocked, isExcluded, isCurrentGame, isAoMarked, totalGames, onDragStart, onDragEnter, onDragEnd }: {
-  game: LadderGame; rank: number; isLocked: boolean; isExcluded: boolean; isCurrentGame: boolean; isAoMarked: boolean; totalGames: number;
+function EmptyLadderSlot({ rank, isOverflow, onDragEnter, onDragEnd }: {
+  rank: number; isOverflow: boolean; onDragEnter: () => void; onDragEnd: () => void;
+}) {
+  return (
+    <div
+      onDragEnter={onDragEnter}
+      onDragEnd={onDragEnd}
+      onDragOver={e => e.preventDefault()}
+      className={`rounded-lg border flex items-center px-2 min-h-[48px] transition-all duration-200 ${
+        isOverflow
+          ? "border-dashed border-red-500/20 bg-red-950/10"
+          : "border-dashed border-white/8 bg-[rgba(15,12,25,0.3)]"
+      }`}
+    >
+      <span className={`font-display text-[9px] ${isOverflow ? "text-red-400/30" : "text-muted-foreground/20"}`}>
+        {isOverflow ? "—" : rank}
+      </span>
+    </div>
+  )
+}
+
+function LadderTile({ game, rank, isLocked, isExcluded, isOverflow, isCurrentGame, isAoMarked, totalGames, onDragStart, onDragEnter, onDragEnd }: {
+  game: LadderGame; rank: number; isLocked: boolean; isExcluded: boolean; isOverflow: boolean; isCurrentGame: boolean; isAoMarked: boolean; totalGames: number;
   onDragStart: () => void; onDragEnter: () => void; onDragEnd: () => void;
 }) {
   const [hovered, setHovered] = useState(false)
   const baseHeight = Math.max(28, 52 - (totalGames - 1) * 3)
   const imgHeight = hovered ? Math.max(baseHeight, 52) : baseHeight
-  const borderClass = isExcluded ? "border-dashed border-white/10 opacity-30"
+  const borderClass = isOverflow ? "border-dashed border-red-500/40"
+    : isExcluded ? "border-dashed border-white/10 opacity-30"
     : isAoMarked ? "border-violet-500/50"
     : isCurrentGame ? "border-emerald-500/40"
     : isLocked ? "border-white/8 opacity-55"
@@ -451,7 +475,8 @@ function LadderTile({ game, rank, isLocked, isExcluded, isCurrentGame, isAoMarke
       className={`rounded-lg border overflow-hidden bg-[rgba(15,12,25,0.9)] transition-all duration-200 ${borderClass} ${!isLocked && !isExcluded ? "cursor-grab active:cursor-grabbing" : ""}`}>
       <div className={`w-full relative overflow-hidden transition-all duration-300 ${isLocked ? "grayscale" : ""}`} style={{ height: `${imgHeight}px` }}>
         {game.header_image_url ? <img src={game.header_image_url} alt={game.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-purple-950/30" />}
-        {!isExcluded && <div className={`absolute top-1 left-1.5 font-display text-[9px] px-1.5 py-0.5 rounded bg-black/70 ${isCurrentGame ? "text-emerald-400" : "text-muted-foreground"}`}>{rank}</div>}
+        {isOverflow && <div className="absolute inset-0 bg-red-950/60" />}
+        {!isExcluded && <div className={`absolute top-1 left-1.5 font-display text-[9px] px-1.5 py-0.5 rounded bg-black/70 ${isCurrentGame ? "text-emerald-400" : isOverflow ? "text-red-400" : "text-muted-foreground"}`}>{isOverflow ? "—" : rank}</div>}
         {isAoMarked && (
           <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_6px_rgba(251,191,36,0.5)]">
             <span className="text-[10px] text-violet-400 leading-none">★</span>
@@ -460,7 +485,7 @@ function LadderTile({ game, rank, isLocked, isExcluded, isCurrentGame, isAoMarke
         {isLocked && !isExcluded && <div className="absolute bottom-1 right-1.5"><Lock className="h-2.5 w-2.5 text-muted-foreground/50" /></div>}
       </div>
       <div className="flex items-center justify-between px-1.5 py-1">
-        <span className={`font-display text-[8px] truncate flex-1 ${isExcluded ? "text-muted-foreground/40" : isCurrentGame ? "text-emerald-400" : isLocked ? "text-muted-foreground/50" : "text-muted-foreground"}`}>
+        <span className={`font-display text-[8px] truncate flex-1 ${isOverflow ? "text-red-400/70" : isExcluded ? "text-muted-foreground/40" : isCurrentGame ? "text-emerald-400" : isLocked ? "text-muted-foreground/50" : "text-muted-foreground"}`}>
           {isExcluded ? "Excluded" : game.name}
         </span>
         {!isLocked && !isExcluded && <GripVertical className="h-3 w-3 text-muted-foreground/30 shrink-0" />}
@@ -492,8 +517,10 @@ export function PredictionForm({
   snapshotPlayerCount, snapshotReviewPositive, snapshotReviewNegative,
   equipmentSlug, equipmentTierScore, ladderGames, existingLadder, lockedLadderGameIds, inventory, aoMarkCount = 0,
   aoMarkedGameIds = [],
+  predictedGameIds = [],
   firstPredictionBonusEligible = false,
 }: PredictionFormProps) {
+  const predictedSet = new Set(predictedGameIds)
   const router = useRouter()
   const supabase = createClient()
   const isSeasonClosed = seasonStatus === "scoring" || seasonStatus === "completed"
@@ -504,10 +531,15 @@ export function PredictionForm({
   const isSlidersLocked = isSeasonClosed || !!existingPrediction?.is_locked || isEarlyLocked || isReleased
   const isFullyLocked = isSeasonClosed || !!existingPrediction?.is_locked || isReleased
 
-  const initialiseLadder = () => {
-    const existing = existingLadder.length > 0 ? [...existingLadder] : []
-    for (const id of ladderGames.map(g => g.id)) { if (!existing.includes(id)) existing.push(id) }
-    return existing.slice(0, 9)
+  const initialiseLadder = (): (string | null)[] => {
+    if (isFullyLocked) return [...existingLadder]
+    // Fixed 9-slot design: positions 0–7 = ranked (null = empty), position 8 = red slot.
+    // Current game always starts in the red slot on every pre-launch visit.
+    const others = existingLadder.filter(id => id !== gameId)
+    const slots: (string | null)[] = Array(9).fill(null)
+    for (let i = 0; i < Math.min(others.length, 8); i++) slots[i] = others[i]
+    slots[8] = gameId
+    return slots
   }
 
   const [playersMidpoint, setPlayersMidpoint] = useState(existingPrediction?.players_midpoint ?? 10000)
@@ -517,7 +549,7 @@ export function PredictionForm({
   const [aoMarked, setAoMarked] = useState(existingPrediction?.ao_marked ?? false)
   // AO cost = 10 × (existing marks + 1), or +10 more if already marked this game
   const aoNextCost = (aoMarkCount + (aoMarked ? 0 : 1)) * 10
-  const [ladder, setLadder] = useState<string[]>(initialiseLadder)
+  const [ladder, setLadder] = useState<(string | null)[]>(initialiseLadder)
   const dragItem = useRef<number | null>(null)
   const dragOverItem = useRef<number | null>(null)
   const [saving, setSaving] = useState(false)
@@ -543,7 +575,7 @@ export function PredictionForm({
   const previewMana = (() => {
     let t = earlyLockMana + boosters.mana_total_reward + equipment.mana_total_reward
     t += 50 + boosters.mana_players_bonus - boosters.mana_players_penalty + equipment.mana_players_bonus
-    t += 50 + boosters.mana_reviews_bonus - boosters.mana_reviews_penalty + equipment.mana_reviews_bonus
+    t += 50 + boosters.mana_reviews_bonus + equipment.mana_reviews_bonus
     t += 50 + equipment.mana_both_bonus
     return t
   })()
@@ -572,14 +604,16 @@ export function PredictionForm({
   function handleDragEnd() {
     if (dragItem.current === null || dragOverItem.current === null || dragItem.current === dragOverItem.current) return
     const id = ladder[dragItem.current]
+    if (id === null) return
     const g = ladderGames.find(g => g.id === id)
-    if (lockedLadderGameIds.includes(id) || g?.is_released) return
+    const gReleased = g ? (g.is_released || (!!g.release_date && new Date(g.release_date) <= new Date())) : false
+    if (lockedLadderGameIds.includes(id) || gReleased) return
     const next = [...ladder]; const [d] = next.splice(dragItem.current, 1); next.splice(dragOverItem.current, 0, d)
     setLadder(next); dragItem.current = null; dragOverItem.current = null
   }
 
   function toggleBooster(slug: string) {
-    if (isSlidersLocked) return
+    if (isFullyLocked) return
     setAppliedBoosters(prev => {
       if (prev.includes(slug)) {
         // Boosters already saved to the DB are locked — cannot be removed
@@ -650,6 +684,7 @@ export function PredictionForm({
   async function handleSavePrediction() {
     setSaving(true); setShowSavePop(false); setError(null); setSuccess(null)
     try {
+      if (isReleased || isFullyLocked) throw new Error("Predictions are locked after a game's release date.")
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("You must be logged in")
       const payload = { user_id: user.id, game_id: gameId, season_id: seasonId, prediction_type: "week_one", players_midpoint: playersMidpoint, reviews_midpoint: reviewsMidpoint, players_window_low: playersWindow.low, players_window_high: playersWindow.high, reviews_window_low: reviewsWindow.low, reviews_window_high: reviewsWindow.high, applied_boosters: appliedBoosters, updated_at: new Date().toISOString() }
@@ -662,7 +697,8 @@ export function PredictionForm({
         const res = await fetch("/api/predictions/boosters", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prediction_id: predictionId, season_id: seasonId, new_boosters: appliedBoosters, previous_boosters: prev }) })
         const data = await res.json(); if (!res.ok) throw new Error(data.error || "Failed to apply boosters")
       }
-      if (ladder.length > 0) await supabase.from("ladder_rankings").upsert({ user_id: user.id, season_id: seasonId, ranked_games: ladder.slice(0, 8), updated_at: new Date().toISOString() }, { onConflict: "user_id,season_id" })
+      const rankedGames = ladder.slice(0, 8).filter((id): id is string => id !== null)
+      if (rankedGames.length > 0) await supabase.from("ladder_rankings").upsert({ user_id: user.id, season_id: seasonId, ranked_games: rankedGames, updated_at: new Date().toISOString() }, { onConflict: "user_id,season_id" })
       setSuccess("Prediction saved!"); router.refresh()
     } catch (err) { setError(err instanceof Error ? err.message : "Failed to save") }
     finally { setSaving(false) }
@@ -698,7 +734,7 @@ export function PredictionForm({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            {isEarlyLocked && <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-xs"><Zap className="h-3 w-3 mr-1" />Early Locked</Badge>}
+            {isEarlyLocked && <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-xs"><Lock className="h-3 w-3 mr-1" />Early Locked</Badge>}
             {existingPrediction?.is_locked && <Badge variant="secondary" className="text-xs"><Lock className="h-3 w-3 mr-1" />Locked</Badge>}
           </div>
         </div>
@@ -745,7 +781,7 @@ export function PredictionForm({
                 {isEarlyLocked && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-500/40 backdrop-blur-sm">
-                      <Zap className="h-3 w-3 text-amber-400" />
+                      <Lock className="h-3 w-3 text-amber-400" />
                       <span className="font-display text-[10px] text-amber-400 tracking-wide">Early Locked · +{earlyLockMana} mana</span>
                     </div>
                   </div>
@@ -765,7 +801,7 @@ export function PredictionForm({
                 {isEarlyLocked && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-500/40 backdrop-blur-sm">
-                      <Zap className="h-3 w-3 text-amber-400" />
+                      <Lock className="h-3 w-3 text-amber-400" />
                       <span className="font-display text-[10px] text-amber-400 tracking-wide">Early Locked</span>
                     </div>
                   </div>
@@ -773,6 +809,17 @@ export function PredictionForm({
               </div>
               <div className="text-[10px] text-emerald-700 text-center">{reviewsWindow.low}% – {reviewsWindow.high}%</div>
             </div>
+
+            {/* Early lock — lives here because it only affects the sliders above */}
+            {!isSeasonClosed && existingPrediction && !isEarlyLocked && !isReleased && !isFullyLocked && (
+              <div className="relative">
+                <button onClick={() => { setShowLockPop(p => !p); setShowSavePop(false) }} disabled={saving}
+                  className="w-full py-2 rounded-lg font-display text-xs tracking-wide bg-amber-500/8 text-amber-400 border border-amber-500/22 hover:bg-amber-500/15 transition-colors">
+                  <Lock className="inline h-3 w-3 mr-1" />Early Lock (+{earlyLockMana} mana bonus) <GuideLink section="lifecycle" label="About early lock" />
+                </button>
+                <ActionPopover open={showLockPop} title="Apply Early Lock?" description="Your week-one sliders and prediction window will be frozen, securing your early lock mana bonus. Boosters, rites, and the season ladder remain fully editable." confirmLabel="Lock It" onConfirm={handleEarlyLock} onCancel={() => setShowLockPop(false)} colorClass="amber" />
+              </div>
+            )}
 
             {/* Augury countdown + sparse notice */}
             {auguryExpiry && Date.now() < auguryExpiry && (
@@ -831,17 +878,7 @@ export function PredictionForm({
                     <ActionPopover open={showSavePop} title={existingPrediction ? "Update your prediction?" : "Save your prediction?"} description="Your midpoints, window adjustments, and applied boosters will be recorded." confirmLabel="Confirm" onConfirm={handleSavePrediction} onCancel={() => setShowSavePop(false)} colorClass="emerald" />
                   </div>
                 )}
-                {existingPrediction && !isEarlyLocked && !isReleased && !isFullyLocked && (
-                  <div className="relative">
-                    <button onClick={() => { setShowLockPop(p => !p); setShowSavePop(false) }} disabled={saving}
-                      className="w-full py-2 rounded-lg font-display text-xs tracking-wide bg-amber-500/8 text-amber-400 border border-amber-500/22 hover:bg-amber-500/15 transition-colors">
-                      <Zap className="inline h-3 w-3 mr-1" />Early Lock (+{earlyLockMana} mana bonus) <GuideLink section="lifecycle" label="About early lock" />
-                    </button>
-                    <ActionPopover open={showLockPop} title="Apply Early Lock?" description="Your week-one sliders and prediction window will be frozen, securing your early lock mana bonus. Boosters, rites, and the season ladder remain fully editable." confirmLabel="Lock It" onConfirm={handleEarlyLock} onCancel={() => setShowLockPop(false)} colorClass="amber" />
-                  </div>
-                )}
-                {countdown && !isEarlyLocked && <div className="font-display text-[9px] text-muted-foreground/40 text-center tracking-widest">{countdown}</div>}
-                {isEarlyLocked && countdown && <div className="font-display text-[9px] text-muted-foreground/40 text-center tracking-widest">{countdown}</div>}
+                {countdown && <div className="font-display text-[9px] text-muted-foreground/40 text-center tracking-widest">{countdown}</div>}
                 {isReleased && existingPrediction && <div className="font-display text-[9px] text-muted-foreground/40 text-center tracking-widest"><Lock className="inline h-2.5 w-2.5 mr-1" />Locked on release · awaiting scoring</div>}
               </div>
             )}
@@ -856,13 +893,20 @@ export function PredictionForm({
               </div>
               <div className="flex flex-col gap-1.5">
                 {ladder.slice(0, 9).map((gId, index) => {
+                  const isOverflow = index === 8
+                  if (gId === null) {
+                    return (
+                      <EmptyLadderSlot key={`empty-${index}`} rank={index + 1} isOverflow={isOverflow} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
+                    )
+                  }
                   const game = ladderGames.find(g => g.id === gId)
                   if (!game) return null
-                  const isLockedPos = lockedLadderGameIds.includes(gId) || game.is_released
-                  const isExcluded = index === 8
+                  const gameReleased = game.is_released || (!!game.release_date && new Date(game.release_date) <= new Date())
+                  const isLockedPos = lockedLadderGameIds.includes(gId) || gameReleased
+                  const isExcluded = gameReleased && !predictedSet.has(gId)
                   const isCurrentGame = gId === gameId
                   return (
-                    <LadderTile key={gId} game={game} rank={index + 1} isLocked={isLockedPos} isExcluded={isExcluded} isCurrentGame={isCurrentGame} isAoMarked={(isCurrentGame && aoMarked) || new Set(aoMarkedGameIds).has(gId)} totalGames={Math.min(ladder.length, 9)} onDragStart={() => handleDragStart(index)} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
+                    <LadderTile key={gId} game={game} rank={index + 1} isLocked={isLockedPos} isExcluded={isExcluded} isOverflow={isOverflow} isCurrentGame={isCurrentGame} isAoMarked={(isCurrentGame && aoMarked) || new Set(aoMarkedGameIds).has(gId)} totalGames={isFullyLocked ? ladder.filter(id => id !== null).length : 9} onDragStart={() => handleDragStart(index)} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
                   )
                 })}
               </div>

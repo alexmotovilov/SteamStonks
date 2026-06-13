@@ -313,7 +313,7 @@ export function resolveBoosterEffects(boosterSlugs: string[]): BoosterEffects {
         break
       case 'blood_bargain':
         effects.reviews_window_flat_delta += 3
-        effects.mana_reviews_penalty += 25
+        effects.players_window_pct_delta -= 3
         break
       case 'black_gem_accumulator':
         effects.players_window_pct_delta -= 5
