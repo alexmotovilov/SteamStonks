@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Cinzel, IM_Fell_English } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { ParallaxBackground } from '@/components/parallax-background'
 import './globals.css'
 
 // Display font — headings, item names, card titles, nav
@@ -40,21 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${cinzel.variable} ${imFellEnglish.variable}`}>
       <body className="font-body antialiased">
-        <div
-          style={{
-            position: "fixed", inset: 0, zIndex: -1,
-            backgroundImage: "url('/background.png')",
-            backgroundSize: "cover",
-            backgroundPosition: "center top",
-            backgroundRepeat: "no-repeat",
-          }}
-        />
-        <div
-          style={{
-            position: "fixed", inset: 0, zIndex: -1,
-            backgroundColor: "rgba(0, 0, 0, 0.75)",
-          }}
-        />
+        <ParallaxBackground />
         {children}
         <Analytics />
       </body>

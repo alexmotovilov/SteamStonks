@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Target, Trophy, Users, Gamepad2, BarChart3, ArrowRight, CheckCircle2 } from "lucide-react"
+import { ArrowRight, CheckCircle2 } from "lucide-react"
 
 export default async function LandingPage() {
   const supabase = await createClient()
@@ -42,7 +42,7 @@ export default async function LandingPage() {
             <Button asChild variant="ghost">
               <Link href="/auth/login">Sign In</Link>
             </Button>
-            <Button asChild>
+            <Button asChild style={{ backgroundColor: "#67e8f9", borderColor: "#67e8f9" }}>
               <Link href="/auth/sign-up">Get Started</Link>
             </Button>
           </div>
@@ -56,50 +56,26 @@ export default async function LandingPage() {
             Season 1 Coming Soon
           </Badge>
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl max-w-4xl text-balance">
-            Predict the Next Big
-            <span className="text-primary"> Gaming Hit</span>
+            Can You Predict Whether the Next Big Game Will {" "}
+ <span className="text-cyan-300">Prosper</span> <span className="text-foreground">or</span> <span className="text-red-600">Perish</span><span className="text-foreground">?</span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl text-pretty">
-            Compete against other players by predicting the success of upcoming PC game releases. 
-            Score points based on accuracy and win real prizes including gaming PCs and Steam gift cards.
+            Steel yourself for a challenge like no other. In Prognos, your knowledge of PC gaming and industry intuition will be tested in a fierce battle for divining dominance. Can you unravel the future of games yet to come and prove yourself worthy of the gaming gear and glory that awaits the victors? Weave your prophecies and prepare for Prognos.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button asChild size="lg" className="text-lg px-8">
+            <Button asChild size="lg" className="text-lg px-8" style={{ backgroundColor: "#67e8f9", borderColor: "#67e8f9" }}>
               <Link href="/auth/sign-up">
                 Start Predicting
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="text-lg px-8">
-              <Link href="#how-it-works">
-                Learn More
-              </Link>
+              <a href="#how-it-works">Learn More</a>
             </Button>
           </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="border-y border-border bg-card/50">
-        <div className="container py-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-foreground">500+</div>
-              <div className="text-sm text-muted-foreground">Active Players</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-foreground">50+</div>
-              <div className="text-sm text-muted-foreground">Games Per Season</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary">$2,000+</div>
-              <div className="text-sm text-muted-foreground">Prize Pool</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-foreground">10</div>
-              <div className="text-sm text-muted-foreground">Winners Per Season</div>
-            </div>
-          </div>
+          <p className="text-xs text-muted-foreground/60 max-w-md">
+            Participants are limited to the contiguous United States (excluding HI and AK). Must be 18 years or older to play. See terms and conditions for full contest rules.
+          </p>
         </div>
       </section>
 
@@ -108,52 +84,47 @@ export default async function LandingPage() {
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold text-foreground mb-4">How It Works</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Simple gameplay, big rewards. Here&apos;s how you compete for prizes.
+            All successful seers shall follow these three steps on their path to seizing supremacy.
           </p>
         </div>
         
         <div className="grid md:grid-cols-3 gap-8">
-          <Card className="border-border bg-card relative">
-            <div className="absolute -top-4 left-6">
-              <Badge className="bg-primary text-primary-foreground text-lg px-4 py-1">1</Badge>
-            </div>
-            <CardHeader className="pt-8">
-              <Gamepad2 className="h-10 w-10 text-primary mb-4" />
-              <CardTitle className="text-foreground">Pick Your Games</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Browse upcoming Steam releases and select games you want to predict. 
-                Community can nominate games for each season.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          {[
+            { label: "Prepare", img: "/homepage/prepare.png", color: "#9D84D4", desc: "Knowledge is the cornerstone of a master prognosticator. Watch trailers, gameplay footage, and early impressions. Follow industry trends, learn developer history, and join gaming communities. Finally, craft the informed opinions needed to guide your hand. Only through a complete understanding, can you hope to see the strands of a game's fate." },
+            { label: "Predict", img: "/homepage/predict.png", color: "#67e8f9", desc: "For each game featured in the season, you will set your predictions for it's first week peak player count and positive review percentage ahead of it's release on Steam. Employ boosters and rites to push your edge further. Build your own Top 8 ranking for games with the highest season-long peak player count, giving you the chance to rocket through the leaderboard in the final moments." },
+            { label: "Prevail", img: "/homepage/prevail.png", color: "#f59e0b", desc: "Earn mana on your predictions and rise to the top of the season leaderboard. The best players win real prizes including PC gear and Steam giftcards. For the ultimate competitors, 1-in-500 players will be rewarded with a new gaming rig. If your fortunes flounder, do not despair: your mana balance and inventory carry over, allowing you to start the next season on a strong foot." },
+          ].map(({ label, img, color, desc }) => (
+            <div key={label} className="group relative rounded-xl overflow-hidden border border-border h-80">
+              {/* Background image */}
+              <img src={img} alt={label} className="absolute inset-0 w-full h-full object-cover" />
 
-          <Card className="border-border bg-card relative">
-            <div className="absolute -top-4 left-6">
-              <Badge className="bg-primary text-primary-foreground text-lg px-4 py-1">2</Badge>
-            </div>
-            <CardHeader className="pt-8">
-              <Target className="h-10 w-10 text-primary mb-4" />
-              <CardTitle className="text-foreground">Make Predictions</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Predict player counts and review scores for 1 week after release 
-                and at season end. Narrower ranges earn more points.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+              {/* Permanent bottom-left vignette */}
+              <div
+                className="absolute inset-0"
+                style={{ background: "radial-gradient(ellipse at bottom left, rgba(0,0,0,0.82) 0%, transparent 72%)" }}
+              />
 
-          <Card className="border-border bg-card relative">
-            <div className="absolute -top-4 left-6">
-              <Badge className="bg-primary text-primary-foreground text-lg px-4 py-1">3</Badge>
+              {/* Hover vignette — fades in on hover */}
+              <div
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                style={{ background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.75) 35%, rgba(0,0,0,0.98) 100%)" }}
+              />
+
+              {/* Default: large single word */}
+              <div
+                className="absolute inset-x-0 bottom-0 z-10 p-5 group-hover:opacity-0 transition-opacity duration-200"
+                style={{ textShadow: "0 2px 8px rgba(0,0,0,0.8)" }}
+              >
+                <div className="font-display text-4xl font-bold" style={{ color: "white", textShadow: "0 2px 8px rgba(0,0,0,0.9), 0 4px 16px rgba(0,0,0,0.6)" }}>{label}</div>
+              </div>
+
+              {/* Hover: description + label */}
+              <div className="absolute inset-x-0 bottom-0 z-10 p-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="font-body text-sm text-stone-200 leading-snug mb-3 text-justify">{desc}</div>
+                <div className="font-display text-2xl font-bold" style={{ color, textShadow: "0 2px 8px rgba(0,0,0,0.9), 0 4px 16px rgba(0,0,0,0.6)" }}>{label}</div>
+              </div>
             </div>
-            <CardHeader className="pt-8">
-              <Trophy className="h-10 w-10 text-primary mb-4" />
-              <CardTitle className="text-foreground">Win Prizes</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Top 10 players each season win physical prizes. 
-                Grand prize could be a gaming PC worth $1,000+!
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          ))}
         </div>
       </section>
 
@@ -162,119 +133,57 @@ export default async function LandingPage() {
         <div className="container py-24">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl font-bold text-foreground mb-4">Strategic Scoring</h2>
+              <h2 className="text-3xl font-bold text-foreground mb-4">Mana-Powered Scoring</h2>
               <p className="text-muted-foreground mb-8">
-                Our scoring system rewards bold predictions and early conviction. 
-                Multiple factors contribute to your point multiplier.
+                All mana earned contributes to your season score. Receive it for predictive accuracy and cunning use of active effects. Spend it to weave arcane magicks and purchase powerful tools that enhance your predictions further. Clever use of resources will make you a more formidable contestant as every decision shapes your standing.
               </p>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "#9D84D4" }} />
                   <div>
-                    <div className="font-medium text-foreground">Early Lock-In Bonus</div>
+                    <div className="font-medium text-foreground">Prediction Successes</div>
                     <div className="text-sm text-muted-foreground">
-                      Lock predictions early for up to 2x multiplier
+                      Each game has two metrics: Week 1 peak player count and positive review score. Nail both for a perfect — or just one for a partial. Either way, you're building mana.
                     </div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "#9D84D4" }} />
                   <div>
-                    <div className="font-medium text-foreground">Narrow Range Bonus</div>
+                    <div className="font-medium text-foreground">The Season Ladder</div>
                     <div className="text-sm text-muted-foreground">
-                      Tighter prediction ranges earn higher multipliers
+                      Every season culminates in a Ladder reckoning — rank your top 8 games by predicted all-time peak players. Exact matches and long sequences earn massive mana payouts. A single well-called ladder can flip the entire standings.
                     </div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "#9D84D4" }} />
                   <div>
-                    <div className="font-medium text-foreground">Contrarian Bonus</div>
+                    <div className="font-medium text-foreground">Equipment</div>
                     <div className="text-sm text-muted-foreground">
-                      Correct predictions far from the crowd average score extra
+                      Choose a piece of arcane equipment at season start — each offers a distinct playstyle. As your equipment gains power through successful predictions, its benefits grow stronger, rewarding consistent play over the course of the season.
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "#9D84D4" }} />
+                  <div>
+                    <div className="font-medium text-foreground">Boosters & Rites</div>
+                    <div className="text-sm text-muted-foreground">
+                      Spend mana on consumable boosters and powerful rites to modify individual predictions — widen your windows, multiply your rewards, or divine where other players are calling it. True skill shows in how you deploy them.
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-foreground">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  Example Scoring
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center py-2 border-b border-border">
-                  <span className="text-muted-foreground">Base accuracy points</span>
-                  <span className="font-mono text-foreground">+150</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-border">
-                  <span className="text-muted-foreground">Early lock-in (1.5x)</span>
-                  <span className="font-mono text-foreground">+75</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-border">
-                  <span className="text-muted-foreground">Narrow range (1.3x)</span>
-                  <span className="font-mono text-foreground">+45</span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="font-medium text-foreground">Total Points</span>
-                  <span className="font-mono text-lg font-bold text-primary">270</span>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="rounded-xl overflow-hidden border border-border shadow-2xl">
+              <img
+                src="/guide/prediction-card-guide.png"
+                alt="Prognos prediction card"
+                className="w-full h-auto block"
+              />
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* Prize Pool Section */}
-      <section className="container py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-foreground mb-4">Real Prizes, Real Competition</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Every season, the top 10 players win physical prizes funded by season entry tokens.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <Card className="border-primary bg-gradient-to-b from-primary/10 to-transparent">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 p-3 rounded-full bg-primary/20">
-                <Trophy className="h-8 w-8 text-primary" />
-              </div>
-              <Badge className="mb-2 w-fit mx-auto">1st Place</Badge>
-              <CardTitle className="text-2xl text-foreground">Gaming PC</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                High-end prebuilt worth $800-1000
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 p-3 rounded-full bg-secondary">
-                <Trophy className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <Badge variant="secondary" className="mb-2 w-fit mx-auto">2nd Place</Badge>
-              <CardTitle className="text-xl text-foreground">Gaming Peripherals</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Monitor or high-end gear worth $300-400
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 p-3 rounded-full bg-secondary">
-                <Trophy className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <Badge variant="secondary" className="mb-2 w-fit mx-auto">3rd - 10th</Badge>
-              <CardTitle className="text-xl text-foreground">Steam Gift Cards</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                $25 - $200 based on placement
-              </CardDescription>
-            </CardHeader>
-          </Card>
         </div>
       </section>
 
@@ -286,7 +195,7 @@ export default async function LandingPage() {
             Join thousands of players competing to predict the next gaming hits. 
             Season 1 registration opens soon.
           </p>
-          <Button asChild size="lg" className="text-lg px-8">
+          <Button asChild size="lg" className="text-lg px-8" style={{ backgroundColor: "#67e8f9", borderColor: "#67e8f9" }}>
             <Link href="/auth/sign-up">
               Create Your Account
               <ArrowRight className="ml-2 h-5 w-5" />
@@ -301,7 +210,7 @@ export default async function LandingPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <img src="/icons/game-name-logo.png" alt="Prognos" style={{ height: "36px", width: "auto", opacity: 0.7 }} />
-              <span className="text-sm font-display" style={{ color: "#9D84D4" }}>Predict. Compete. Win.</span>
+              <span className="text-sm font-display" style={{ color: "#9D84D4" }}>Prepare. Predict. Prevail.</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link href="/rules" className="hover:text-foreground transition-colors">Rules</Link>

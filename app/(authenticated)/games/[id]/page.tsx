@@ -78,14 +78,31 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
         .single()
     : { data: null }
 
-  // Get player's inventory (boosters only)
-  const { data: inventory } = user
+  // Get all booster item definitions so every booster is always visible (qty 0 = out of stock)
+  const { data: allBoosters } = await supabase
+    .from("items")
+    .select("id, slug, name, image_url, effects, description")
+    .eq("item_type", "booster")
+
+  const { data: ownedInventory } = user
     ? await supabase
         .from("inventory")
-        .select("item_id, quantity, items(slug, name, image_url, effects, description)")
+        .select("item_id, quantity")
         .eq("user_id", user.id)
-        .gt("quantity", 0)
     : { data: [] }
+
+  const ownedMap = new Map((ownedInventory ?? []).map(i => [i.item_id, i.quantity]))
+  const inventory = (allBoosters ?? []).map(item => ({
+    item_id: item.id,
+    quantity: ownedMap.get(item.id) ?? 0,
+    items: {
+      slug: item.slug,
+      name: item.name,
+      image_url: item.image_url,
+      effects: item.effects,
+      description: item.description,
+    },
+  }))
 
   // Get ALL games in this season for the ladder (released + unreleased)
   // The current game needs to appear even if not yet released so player can position it

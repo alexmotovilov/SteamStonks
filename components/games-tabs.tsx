@@ -3,7 +3,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { GameCard, type PredictionData } from "@/components/game-card"
 import Link from "next/link"
 import { Gamepad2 } from "lucide-react"
@@ -27,19 +26,12 @@ type GameRow = {
   } | null
 }
 
-type SeasonRow = {
-  id: string
-  name: string
-  status: string
-}
-
 interface GamesTabsProps {
-  currentSeason: SeasonRow | null
-  currentSeasonGames: GameRow[]
-  pastSeasonGames: GameRow[]
+  activeGames: GameRow[]
+  pastGames: GameRow[]
   allGames: GameRow[]
   predMap: Record<string, PredictionData>
-  defaultTab: string
+  currentSeasonId: string | null
 }
 
 function EmptyState({ message, showNominate = false }: { message: string; showNominate?: boolean }) {
@@ -61,83 +53,59 @@ function EmptyState({ message, showNominate = false }: { message: string; showNo
   )
 }
 
-export function GamesTabs({
-  currentSeason,
-  currentSeasonGames,
-  pastSeasonGames,
-  allGames,
-  predMap,
-  defaultTab,
-}: GamesTabsProps) {
+export function GamesTabs({ activeGames, pastGames, allGames, predMap, currentSeasonId }: GamesTabsProps) {
   return (
-    <Tabs defaultValue={defaultTab} className="space-y-6">
+    <Tabs defaultValue="active" className="space-y-6">
       <TabsList className="bg-secondary">
-        {currentSeason && (
-          <TabsTrigger value="current" className="data-[state=active]:bg-background">
-            {currentSeason.status === "active" ? "Active Season" : "Upcoming Season"}
-            {currentSeasonGames.length > 0 && (
-              <Badge variant="secondary" className="ml-2 scale-75">
-                {currentSeasonGames.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-        )}
-        {pastSeasonGames.length > 0 && (
-          <TabsTrigger value="past" className="data-[state=active]:bg-background">
-            Past Seasons
-            <Badge variant="outline" className="ml-2 scale-75 opacity-70">
-              {pastSeasonGames.length}
-            </Badge>
-          </TabsTrigger>
-        )}
+        <TabsTrigger value="active" className="data-[state=active]:bg-background">
+          Active
+        </TabsTrigger>
+        <TabsTrigger value="past" className="data-[state=active]:bg-background">
+          Past
+        </TabsTrigger>
         <TabsTrigger value="all" className="data-[state=active]:bg-background">
-          All ({allGames.length})
+          All
         </TabsTrigger>
       </TabsList>
 
-      {/* Current Season Tab */}
-      {currentSeason && (
-        <TabsContent value="current" className="space-y-4">
-          {currentSeasonGames.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {currentSeasonGames.map((game) => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  seasonId={currentSeason.id}
-                  prediction={predMap[game.id] ?? null}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              message="No games have been added to this season yet."
-              showNominate
-            />
-          )}
-        </TabsContent>
-      )}
-
-      {/* Past Seasons Tab */}
-      {pastSeasonGames.length > 0 && (
-        <TabsContent value="past" className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            These games are from completed seasons. Predictions are closed but you can view results.
-          </p>
+      {/* Active — unreleased games in active season, closest release first */}
+      <TabsContent value="active" className="space-y-4">
+        {activeGames.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {pastSeasonGames.map((game) => (
+            {activeGames.map((game) => (
               <GameCard
                 key={game.id}
                 game={game}
-                seasonId={game.season_id ?? undefined}
+                seasonId={currentSeasonId ?? undefined}
+                prediction={predMap[game.id] ?? null}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState message="No upcoming games in the active season." showNominate />
+        )}
+      </TabsContent>
+
+      {/* Past — released games in active season, most recently released first */}
+      <TabsContent value="past" className="space-y-4">
+        {pastGames.length > 0 ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {pastGames.map((game) => (
+              <GameCard
+                key={game.id}
+                game={game}
+                seasonId={currentSeasonId ?? undefined}
+                prediction={predMap[game.id] ?? null}
                 dimmed
               />
             ))}
           </div>
-        </TabsContent>
-      )}
+        ) : (
+          <EmptyState message="No released games in the active season yet." />
+        )}
+      </TabsContent>
 
-      {/* All Tab */}
+      {/* All — every game across all seasons */}
       <TabsContent value="all" className="space-y-4">
         {allGames.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -148,7 +116,7 @@ export function GamesTabs({
                 <GameCard
                   key={game.id}
                   game={game}
-                  seasonId={isPast ? game.season_id ?? undefined : currentSeason?.id}
+                  seasonId={isPast ? game.season_id ?? undefined : currentSeasonId ?? undefined}
                   prediction={!isPast ? predMap[game.id] ?? null : null}
                   dimmed={!!isPast}
                 />
@@ -156,10 +124,7 @@ export function GamesTabs({
             })}
           </div>
         ) : (
-          <EmptyState
-            message="No games have been added yet. Be the first to nominate one!"
-            showNominate
-          />
+          <EmptyState message="No games have been added yet. Be the first to nominate one!" showNominate />
         )}
       </TabsContent>
     </Tabs>

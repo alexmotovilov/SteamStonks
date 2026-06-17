@@ -204,7 +204,7 @@ export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalanc
       }
 
       setPhase("idle")
-      router.refresh()
+      router.push("/games")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join season")
     } finally {

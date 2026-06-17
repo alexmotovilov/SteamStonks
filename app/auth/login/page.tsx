@@ -4,11 +4,6 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
@@ -24,10 +19,7 @@ export default function LoginPage() {
     setError(null)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError(error.message)
@@ -40,69 +32,67 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md border-border bg-card">
-        <CardHeader className="text-center space-y-2">
-          <div className="flex justify-center mb-2">
-            <img src="/icons/game-name-logo.png" alt="Prognos" style={{ height: "80px", width: "auto", filter: "drop-shadow(0 0 8px rgba(157,132,212,0.5))" }} />
-          </div>
-          <CardTitle className="text-xl text-foreground">Your return has been foretold</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Now watch thy prophecies unfold
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="player@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="bg-input border-border text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-foreground">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-input border-border text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
-            <p className="text-sm text-muted-foreground text-center">
-              {"Don't have an account? "}
-              <Link href="/auth/sign-up" className="text-primary hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </CardFooter>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
+
+      {/* Gargoyle with form overlaid on slate */}
+      <div className="relative w-full max-w-[360px] select-none">
+        <img
+          src="/gargoyle.png"
+          alt=""
+          className="w-full pointer-events-none"
+          draggable={false}
+        />
+
+        {/* Form positioned over the stone slate */}
+        <form
+          onSubmit={handleLogin}
+          className="absolute flex flex-col justify-center gap-1.5"
+          style={{ top: "31%", left: "19%", width: "62%", bottom: "17%" }}
+        >
+          {error && (
+            <p className="text-[10px] text-red-400 text-center leading-tight">{error}</p>
+          )}
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            className="w-full bg-black/25 border border-stone-500/40 rounded text-xs text-stone-100 placeholder:text-stone-500 outline-none px-2 py-1 focus:border-stone-300/50 focus:bg-black/35 transition-colors"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            className="w-full bg-black/25 border border-stone-500/40 rounded text-xs text-stone-100 placeholder:text-stone-500 outline-none px-2 py-1 focus:border-stone-300/50 focus:bg-black/35 transition-colors"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-0.5 bg-stone-900/70 hover:bg-stone-800/80 border border-stone-500/50 rounded font-display text-[11px] tracking-wide text-stone-200 py-1 transition-colors disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Signing in…
+              </span>
+            ) : "Sign In"}
+          </button>
         </form>
-      </Card>
+      </div>
+
+      {/* Sign-up link */}
+      <p className="text-xs text-muted-foreground text-center -mt-1">
+        {"Don't have an account? "}
+        <Link href="/auth/sign-up" className="text-primary hover:underline">
+          Sign up
+        </Link>
+      </p>
+
     </div>
   )
 }

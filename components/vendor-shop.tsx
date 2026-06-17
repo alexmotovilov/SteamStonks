@@ -42,13 +42,14 @@ interface VendorShopProps {
 function BoosterDisplayTile({ inv }: { inv: InventoryItem }) {
   const [hovering, setHovering] = useState(false)
   if (!inv.items) return null
+  const outOfStock = inv.quantity <= 0
   return (
     <div
       className="relative"
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
-      <div className="w-[88px] h-[112px] flex flex-col items-center gap-1 p-1.5 rounded-xl border border-white/7 bg-[rgba(25,15,5,0.7)]">
+      <div className={`w-[88px] h-[112px] flex flex-col items-center gap-1 p-1.5 rounded-xl border border-white/7 bg-[rgba(25,15,5,0.7)] ${outOfStock ? "opacity-40" : ""}`}>
         <div className="relative w-[70px] h-[70px] mx-auto mb-1.5">
           <div className="w-full h-full rounded-lg overflow-hidden border border-white/6 bg-purple-950/20 flex items-center justify-center">
             {inv.items.image_url
@@ -56,8 +57,8 @@ function BoosterDisplayTile({ inv }: { inv: InventoryItem }) {
               : <span className="text-2xl opacity-50">⚗</span>
             }
           </div>
-          <div className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-black/90 border border-amber-500/60 flex items-center justify-center z-10">
-            <span className="font-display text-[7px] leading-none text-amber-300">×{inv.quantity}</span>
+          <div className={`absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-black/90 border flex items-center justify-center z-10 ${outOfStock ? "border-red-500/60" : "border-amber-500/60"}`}>
+            <span className={`font-display text-[7px] leading-none ${outOfStock ? "text-red-400" : "text-amber-300"}`}>×{inv.quantity}</span>
           </div>
         </div>
         <div className="font-display text-[8px] text-muted-foreground text-center leading-tight line-clamp-2 w-full">
@@ -111,7 +112,15 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, inve
   return (
     <div className="relative space-y-10">
       {/* Vendor item grid */}
-      <div className="flex flex-wrap justify-center gap-3">
+      <div className="relative">
+        <img
+          src="/other-gargoyle.png"
+          alt=""
+          className="absolute bottom-0 max-h-80 w-auto object-contain pointer-events-none select-none"
+          style={{ right: "calc(50% + 290px)" }}
+          draggable={false}
+        />
+        <div className="flex flex-wrap justify-center gap-3">
         {items.map(item => {
           const bought = localPurchased[item.id] ?? 0
           const exhausted = bought >= item.vendor_weekly_limit
@@ -215,6 +224,7 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, inve
             </div>
           )
         })}
+        </div>
       </div>
 
       {/* Cursor-following tooltip for vendor items */}

@@ -76,6 +76,7 @@ interface ExistingPrediction {
   mana_first_prediction: number | null
   drops_awarded: number | null
   ao_marked?: boolean
+  ladder_red_slot_game_id?: string | null
 }
 
 interface LadderGame {
@@ -309,7 +310,7 @@ function AuguryCountdown({ expiry }: { expiry: number }) {
 // ─── Active Effects Panel ─────────────────────────────────────────────────────
 
 interface EffectLine { text: string; color: "green" | "red" | "cyan" | "amber" | "gold" }
-interface EffectGroup { source: string | null; effects: EffectLine[] }
+interface EffectGroup { source: string | null; effects: EffectLine[]; sourceColor?: string }
 
 const EQUIPMENT_NAMES: Record<string, string> = {
   seers_spectacles:   "Seer's Spectacles",
@@ -385,18 +386,22 @@ function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters
     if (eq.drops_players_bonus > 0) effects.push({ text: `+${eq.drops_players_bonus} drop if players correct`, color: "amber" })
     if (eq.drops_reviews_bonus > 0) effects.push({ text: `+${eq.drops_reviews_bonus} drop if reviews correct`, color: "amber" })
     if (eq.drops_total_reward > 0)  effects.push({ text: `+${eq.drops_total_reward} drops total reward`, color: "amber" })
-    if (effects.length > 0) sourcedGroups.push({ source: EQUIPMENT_NAMES[equipmentSlug] ?? equipmentSlug, effects })
+    if (effects.length > 0) {
+      const activeTier = equipmentTierScore <= 1 ? 0 : equipmentTierScore <= 4 ? 1 : 2
+      const tierColor = ["#b87333", "#a8a9ad", "#ffd700"][activeTier]
+      sourcedGroups.push({ source: EQUIPMENT_NAMES[equipmentSlug] ?? equipmentSlug, effects, sourceColor: tierColor })
+    }
   }
 
   for (const slug of appliedBoosters) {
     const effects = BOOSTER_EFFECTS[slug]
-    if (effects) sourcedGroups.push({ source: BOOSTER_NAMES[slug] ?? slug, effects })
+    if (effects) sourcedGroups.push({ source: BOOSTER_NAMES[slug] ?? slug, effects, sourceColor: "#f59e0b" })
   }
 
   for (const slug of Array.from(performedRites)) {
     if (slug === "auspicious_omens" && !aoMarked) continue
     const effects = RITE_EFFECTS[slug]
-    if (effects) sourcedGroups.push({ source: RITE_NAMES[slug] ?? slug, effects })
+    if (effects) sourcedGroups.push({ source: RITE_NAMES[slug] ?? slug, effects, sourceColor: "#9D84D4" })
   }
 
   return (
@@ -418,7 +423,10 @@ function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters
         <div className="space-y-2">
           {sourcedGroups.map((group, gi) => (
             <div key={gi}>
-              <div className="font-display text-[9px] text-muted-foreground/60 mb-0.5">{group.source}</div>
+              <div
+                className={`font-display text-[9px] mb-0.5 ${group.sourceColor ? "" : "text-muted-foreground/60"}`}
+                style={group.sourceColor ? { color: group.sourceColor } : undefined}
+              >{group.source}</div>
               {group.effects.map((effect, ei) => (
                 <div key={ei} className="flex items-start gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1 ${DOT_COLOR[effect.color]}`} />
@@ -533,17 +541,26 @@ export function PredictionForm({
 
   const initialiseLadder = (): (string | null)[] => {
     if (isFullyLocked) return [...existingLadder]
-    // Fixed 9-slot design: positions 0–7 = ranked (null = empty), position 8 = red slot.
-    // Current game always starts in the red slot on every pre-launch visit.
-    const others = existingLadder.filter(id => id !== gameId)
     const slots: (string | null)[] = Array(9).fill(null)
-    for (let i = 0; i < Math.min(others.length, 8); i++) slots[i] = others[i]
-    slots[8] = gameId
+    if (existingLadder.includes(gameId)) {
+      // Already ranked — restore saved position; red slot from per-card saved state
+      for (let i = 0; i < Math.min(existingLadder.length, 8); i++) slots[i] = existingLadder[i]
+      slots[8] = existingPrediction?.ladder_red_slot_game_id ?? null
+    } else {
+      // Not yet ranked — others in 0–7, current game in red slot
+      const others = existingLadder.filter(id => id !== gameId)
+      for (let i = 0; i < Math.min(others.length, 8); i++) slots[i] = others[i]
+      slots[8] = gameId
+    }
     return slots
   }
 
   const [playersMidpoint, setPlayersMidpoint] = useState(existingPrediction?.players_midpoint ?? 10000)
   const [reviewsMidpoint, setReviewsMidpoint] = useState(existingPrediction?.reviews_midpoint ?? 75)
+  const [playersEditing, setPlayersEditing] = useState(false)
+  const [playersDraft,   setPlayersDraft]   = useState("")
+  const [reviewsEditing, setReviewsEditing] = useState(false)
+  const [reviewsDraft,   setReviewsDraft]   = useState("")
   const [appliedBoosters, setAppliedBoosters] = useState<string[]>(existingPrediction?.applied_boosters ?? [])
   const [performedRites, setPerformedRites] = useState<Set<string>>(new Set(Object.keys(existingPrediction?.applied_rites ?? {})))
   const [aoMarked, setAoMarked] = useState(existingPrediction?.ao_marked ?? false)
@@ -687,7 +704,7 @@ export function PredictionForm({
       if (isReleased || isFullyLocked) throw new Error("Predictions are locked after a game's release date.")
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("You must be logged in")
-      const payload = { user_id: user.id, game_id: gameId, season_id: seasonId, prediction_type: "week_one", players_midpoint: playersMidpoint, reviews_midpoint: reviewsMidpoint, players_window_low: playersWindow.low, players_window_high: playersWindow.high, reviews_window_low: reviewsWindow.low, reviews_window_high: reviewsWindow.high, applied_boosters: appliedBoosters, updated_at: new Date().toISOString() }
+      const payload = { user_id: user.id, game_id: gameId, season_id: seasonId, prediction_type: "week_one", players_midpoint: playersMidpoint, reviews_midpoint: reviewsMidpoint, players_window_low: playersWindow.low, players_window_high: playersWindow.high, reviews_window_low: reviewsWindow.low, reviews_window_high: reviewsWindow.high, applied_boosters: appliedBoosters, updated_at: new Date().toISOString(), ladder_red_slot_game_id: (ladder[8] !== null && ladder[8] !== gameId) ? ladder[8] : null }
       let predictionId = existingPrediction?.id ?? null
       if (existingPrediction) { const { error: e } = await supabase.from("predictions").update(payload).eq("id", existingPrediction.id); if (e) throw e }
       else { const { data: ins, error: e } = await supabase.from("predictions").insert(payload).select("id").single(); if (e) throw e; predictionId = ins?.id ?? null }
@@ -770,44 +787,89 @@ export function PredictionForm({
           {/* CENTER — Sliders + Boosters + Actions */}
           <div className="flex flex-col gap-4">
 
-            {/* Players slider */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase flex items-center gap-1">Highest Player Count · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
-                <span className="font-mono text-xs text-emerald-400 font-bold">{playersMidpoint.toLocaleString()}</span>
-              </div>
-              <div className="relative">
+            {/* Week 1 sliders — wrapped together so the early lock overlay spans both */}
+            <div className="relative flex flex-col gap-4">
+              <div className={`space-y-1.5 transition-opacity duration-200 ${isEarlyLocked ? "opacity-30" : ""}`}>
+                <div className="flex items-center justify-between">
+                  <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase flex items-center gap-1">Highest Player Count · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    readOnly={isSlidersLocked}
+                    value={playersEditing ? playersDraft : playersMidpoint.toLocaleString()}
+                    onFocus={() => { setPlayersEditing(true); setPlayersDraft(String(playersMidpoint)) }}
+                    onChange={e => setPlayersDraft(e.target.value.replace(/[^0-9]/g, ""))}
+                    onBlur={() => {
+                      const raw = parseInt(playersDraft, 10)
+                      const clamped = isNaN(raw) ? playersMidpoint : Math.min(PLAYERS_MAX, Math.max(PLAYERS_MIN, Math.round(raw / PLAYERS_STEP) * PLAYERS_STEP))
+                      setPlayersMidpoint(clamped)
+                      setPlayersEditing(false)
+                    }}
+                    onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }}
+                    className={`font-mono text-xs text-emerald-400 font-bold bg-transparent rounded px-1.5 py-0.5 text-right w-24 outline-none transition-colors border ${isSlidersLocked ? "cursor-default border-emerald-500/10" : "cursor-text border-emerald-500/25 hover:border-emerald-500/50 focus:border-emerald-500/70 focus:bg-emerald-950/20"}`}
+                  />
+                </div>
                 <GemSlider min={PLAYERS_MIN} max={PLAYERS_MAX} step={PLAYERS_STEP} value={Math.max(PLAYERS_MIN, playersMidpoint)} onChange={setPlayersMidpoint} disabled={isSlidersLocked} windowLow={Math.max(0, playersWindow.low)} windowHigh={playersWindow.high} auguryGradient={auguryGradientPlayers} formatValue={v => v.toLocaleString() + " players"} logScale />
-                {isEarlyLocked && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-500/40 backdrop-blur-sm">
-                      <Lock className="h-3 w-3 text-amber-400" />
-                      <span className="font-display text-[10px] text-amber-400 tracking-wide">Early Locked · +{earlyLockMana} mana</span>
-                    </div>
-                  </div>
-                )}
+                <div className="text-[10px] text-emerald-700 text-center">{playersWindow.low.toLocaleString()} – {playersWindow.high.toLocaleString()}</div>
               </div>
-              <div className="text-[10px] text-emerald-700 text-center">{playersWindow.low.toLocaleString()} – {playersWindow.high.toLocaleString()}</div>
-            </div>
 
-            {/* Reviews slider */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase flex items-center gap-1">% Positive Reviews · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
-                <span className="font-mono text-xs text-emerald-400 font-bold">{reviewsMidpoint}%</span>
-              </div>
-              <div className="relative">
+              <div className={`space-y-1.5 transition-opacity duration-200 ${isEarlyLocked ? "opacity-30" : ""}`}>
+                <div className="flex items-center justify-between">
+                  <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase flex items-center gap-1">% Positive Reviews · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
+                  <div className="flex items-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      readOnly={isSlidersLocked}
+                      value={reviewsEditing ? reviewsDraft : String(reviewsMidpoint)}
+                      onFocus={() => { setReviewsEditing(true); setReviewsDraft(String(reviewsMidpoint)) }}
+                      onChange={e => setReviewsDraft(e.target.value.replace(/[^0-9]/g, ""))}
+                      onBlur={() => {
+                        const raw = parseInt(reviewsDraft, 10)
+                        const clamped = isNaN(raw) ? reviewsMidpoint : Math.min(100, Math.max(0, raw))
+                        setReviewsMidpoint(clamped)
+                        setReviewsEditing(false)
+                      }}
+                      onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }}
+                      className={`font-mono text-xs text-emerald-400 font-bold bg-transparent rounded px-1.5 py-0.5 text-right w-8 outline-none transition-colors border ${isSlidersLocked ? "cursor-default border-emerald-500/10" : "cursor-text border-emerald-500/25 hover:border-emerald-500/50 focus:border-emerald-500/70 focus:bg-emerald-950/20"}`}
+                    />
+                    <span className="font-mono text-xs text-emerald-400 font-bold">%</span>
+                  </div>
+                </div>
                 <GemSlider min={0} max={100} step={1} value={reviewsMidpoint} onChange={setReviewsMidpoint} disabled={isSlidersLocked} windowLow={reviewsWindow.low} windowHigh={reviewsWindow.high} auguryGradient={auguryGradientReviews} formatValue={v => v + "% positive"} />
-                {isEarlyLocked && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-500/40 backdrop-blur-sm">
-                      <Lock className="h-3 w-3 text-amber-400" />
-                      <span className="font-display text-[10px] text-amber-400 tracking-wide">Early Locked</span>
+                <div className="text-[10px] text-emerald-700 text-center">{reviewsWindow.low}% – {reviewsWindow.high}%</div>
+              </div>
+
+              {/* Single padlock overlay for the whole week 1 panel */}
+              {isEarlyLocked && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="relative">
+                    <svg width="80" height="96" viewBox="0 0 80 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      {/* Shackle */}
+                      <path
+                        d="M22 46 L22 26 Q22 8 40 8 Q58 8 58 26 L58 46"
+                        stroke="#f59e0b"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                        opacity="0.85"
+                      />
+                      {/* Body */}
+                      <rect x="6" y="40" width="68" height="50" rx="9"
+                        fill="rgba(120,53,15,0.92)"
+                        stroke="#f59e0b"
+                        strokeWidth="1.5"
+                      />
+                    </svg>
+                    {/* Mana value centred inside the padlock body */}
+                    <div className="absolute left-0 right-0 flex items-center justify-center gap-1.5" style={{ top: "57px" }}>
+                      <span className="font-display text-sm text-amber-300 font-bold tracking-wide">+{earlyLockMana}</span>
+                      <img src="/icons/mana-icon.png" alt="mana" width={14} height={14} className="shrink-0" />
                     </div>
                   </div>
-                )}
-              </div>
-              <div className="text-[10px] text-emerald-700 text-center">{reviewsWindow.low}% – {reviewsWindow.high}%</div>
+                </div>
+              )}
             </div>
 
             {/* Early lock — lives here because it only affects the sliders above */}
@@ -815,7 +877,7 @@ export function PredictionForm({
               <div className="relative">
                 <button onClick={() => { setShowLockPop(p => !p); setShowSavePop(false) }} disabled={saving}
                   className="w-full py-2 rounded-lg font-display text-xs tracking-wide bg-amber-500/8 text-amber-400 border border-amber-500/22 hover:bg-amber-500/15 transition-colors">
-                  <Lock className="inline h-3 w-3 mr-1" />Early Lock (+{earlyLockMana} mana bonus) <GuideLink section="lifecycle" label="About early lock" />
+                  <Lock className="inline h-3 w-3 mr-1" />Early Lock (+{earlyLockMana} mana bonus) <GuideLink section="early-lock" label="About early lock" />
                 </button>
                 <ActionPopover open={showLockPop} title="Apply Early Lock?" description="Your week-one sliders and prediction window will be frozen, securing your early lock mana bonus. Boosters, rites, and the season ladder remain fully editable." confirmLabel="Lock It" onConfirm={handleEarlyLock} onCancel={() => setShowLockPop(false)} colorClass="amber" />
               </div>

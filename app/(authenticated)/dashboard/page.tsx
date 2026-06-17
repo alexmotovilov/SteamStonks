@@ -42,6 +42,11 @@ function EquipmentCard({ slug, tierScore }: { slug: string; tierScore: number })
   const activeTier = tierScore <= 1 ? 0 : tierScore <= 4 ? 1 : 2
   const image = EQUIPMENT_IMAGES[slug]
   const tierLabel = ["I", "II", "III"][activeTier]
+  const tierBorder = [
+    { border: "4px solid #b87333", boxShadow: "0 0 8px rgba(184,115,51,0.35)" },   // bronze
+    { border: "4px solid #a8a9ad", boxShadow: "0 0 8px rgba(168,169,173,0.35)" },  // silver
+    { border: "4px solid #ffd700", boxShadow: "0 0 10px rgba(255,215,0,0.40)" },   // gold
+  ][activeTier]
 
   const rows = [
     { label: "Tier I",   text: eq.t0, tier: 0 },
@@ -58,7 +63,10 @@ function EquipmentCard({ slug, tierScore }: { slug: string; tierScore: number })
   return (
     <Card className="border-purple-500/20 bg-purple-950/10 overflow-hidden">
       {image && (
-        <div className="aspect-square w-1/2 mx-auto overflow-hidden">
+        <div
+          className="aspect-square w-1/2 mx-auto overflow-hidden rounded-lg mt-4"
+          style={tierBorder}
+        >
           <img src={image} alt={slug} className="w-full h-full object-cover" />
         </div>
       )}
@@ -268,26 +276,10 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {/* Three-column layout: equipment | stats | ladder */}
-      <div className="grid gap-5 lg:grid-cols-3 items-start">
+      {/* Three-column layout: stats | equipment | ladder */}
+      <div className="grid gap-5 lg:grid-cols-[0.85fr_1fr_1fr] items-start">
 
-        {/* Left — Equipment card */}
-        <div>
-          {activeSeason && seasonEntry?.equipment_id ? (
-            <EquipmentCard
-              slug={seasonEntry.equipment_id as string}
-              tierScore={seasonEntry.equipment_tier_score ?? 0}
-            />
-          ) : (
-            <Card className="border-border h-full">
-              <CardContent className="flex items-center justify-center py-12 text-sm text-muted-foreground font-body text-center h-full">
-                {activeSeason ? "Join the season to equip an artifact." : "No active season."}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Center — Stats */}
+        {/* Left — Stats */}
         <div className="space-y-3">
 
           {/* Season Score */}
@@ -335,6 +327,22 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
           </Link>
+        </div>
+
+        {/* Center — Equipment card */}
+        <div>
+          {activeSeason && seasonEntry?.equipment_id ? (
+            <EquipmentCard
+              slug={seasonEntry.equipment_id as string}
+              tierScore={seasonEntry.equipment_tier_score ?? 0}
+            />
+          ) : (
+            <Card className="border-border h-full">
+              <CardContent className="flex items-center justify-center py-12 text-sm text-muted-foreground font-body text-center h-full">
+                {activeSeason ? "Join the season to equip an artifact." : "No active season."}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right — Season Ladder (vertical 1–8) */}

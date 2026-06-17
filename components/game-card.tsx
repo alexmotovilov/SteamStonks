@@ -139,14 +139,16 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate, releaseTi
       )
     }
     return (
-      <div className="px-3 py-2 border-t border-border flex items-center justify-between gap-2">
-        <div className="flex flex-col gap-0.5">
+      <div className="px-3 pt-2 pb-0.5 border-t border-border flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-xs italic text-muted-foreground font-body">No prediction yet</span>
+          <span className="text-xs font-display px-2 py-0.5 rounded border border-[#9D84D4] text-[#9D84D4]">
+            Predict →
+          </span>
+        </div>
+        <div className="text-center">
           <CountdownTimer releaseDate={releaseDate} releaseTimeOverride={releaseTimeOverride} />
         </div>
-        <span className="text-xs font-display px-2 py-0.5 rounded border border-[#9D84D4] text-[#9D84D4]">
-          Predict →
-        </span>
       </div>
     )
   }
@@ -284,7 +286,7 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate, releaseTi
   if (earlyLocked) {
     return (
       <div
-        className="px-3 py-2 border-t"
+        className="px-3 pt-2 pb-0.5 border-t flex flex-col gap-1"
         style={{ background: "rgba(251,191,36,0.03)", borderTopColor: "rgba(251,191,36,0.25)" }}
       >
         <div className="flex items-center justify-between gap-2">
@@ -309,9 +311,10 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate, releaseTi
           <div className="text-right shrink-0">
             <div className="text-xs font-display text-amber-400">Early Locked</div>
             <div className="text-[10px] font-body text-amber-600/70">Week 1 predictions are locked.</div>
-            <CountdownTimer releaseDate={releaseDate} releaseTimeOverride={releaseTimeOverride} />
-
           </div>
+        </div>
+        <div className="text-center">
+          <CountdownTimer releaseDate={releaseDate} releaseTimeOverride={releaseTimeOverride} />
         </div>
       </div>
     )
@@ -319,7 +322,7 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate, releaseTi
 
   // State 5: Saved, upcoming game
   return (
-    <div className="px-3 py-2 border-t border-border">
+    <div className="px-3 pt-2 pb-0.5 border-t border-border flex flex-col gap-1">
       <div className="flex items-center justify-between gap-2">
         <div className="flex gap-3">
           <MetricCol
@@ -341,8 +344,10 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate, releaseTi
         </div>
         <div className="text-right shrink-0">
           <div className="text-xs font-display text-muted-foreground">Saved</div>
-          <CountdownTimer releaseDate={releaseDate} releaseTimeOverride={releaseTimeOverride} />
         </div>
+      </div>
+      <div className="text-center">
+        <CountdownTimer releaseDate={releaseDate} releaseTimeOverride={releaseTimeOverride} />
       </div>
     </div>
   )

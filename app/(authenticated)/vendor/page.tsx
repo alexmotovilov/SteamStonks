@@ -66,11 +66,30 @@ export default async function VendorPage() {
     purchasedByItemId[p.item_id] = (purchasedByItemId[p.item_id] ?? 0) + (p.quantity ?? 0)
   }
 
-  const { data: inventory } = await supabase
+  // Get all booster item definitions so every booster is always visible (qty 0 = out of stock)
+  const { data: allBoosters } = await supabase
+    .from("items")
+    .select("id, slug, name, image_url, effects, description, item_type")
+    .eq("item_type", "booster")
+
+  const { data: ownedInventory } = await supabase
     .from("inventory")
-    .select("item_id, quantity, items(slug, name, image_url, effects, description, item_type)")
+    .select("item_id, quantity")
     .eq("user_id", user.id)
-    .gt("quantity", 0)
+
+  const ownedMap = new Map((ownedInventory ?? []).map(i => [i.item_id, i.quantity]))
+  const inventory = (allBoosters ?? []).map(item => ({
+    item_id: item.id,
+    quantity: ownedMap.get(item.id) ?? 0,
+    items: {
+      slug: item.slug,
+      name: item.name,
+      image_url: item.image_url,
+      effects: item.effects,
+      description: item.description,
+      item_type: item.item_type,
+    },
+  }))
 
   const stipendClaimable = (entry.stipend_week_number ?? 0) < (season.current_vendor_week ?? 1)
 
