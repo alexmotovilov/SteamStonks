@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ManaIcon } from "@/components/mana-icon"
 
 interface SeasonPointsBadgeProps {
   manaBalance: number | null
@@ -10,7 +9,6 @@ interface SeasonPointsBadgeProps {
 export function SeasonPointsBadge({ manaBalance }: SeasonPointsBadgeProps) {
   const [balance, setBalance] = useState<number | null>(manaBalance)
 
-  // Sync whenever the server layout re-renders (e.g. after router.refresh())
   useEffect(() => {
     setBalance(manaBalance)
   }, [manaBalance])
@@ -18,9 +16,21 @@ export function SeasonPointsBadge({ manaBalance }: SeasonPointsBadgeProps) {
   if (balance === null) return null
 
   return (
-    <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan-950/40 border border-cyan-500/20">
-      <ManaIcon size={16} />
-      <span className="text-sm font-medium text-cyan-300">
+    <div className="hidden sm:flex items-center relative" style={{ width: 76, height: 76 }}>
+      <img
+        src="/icons/mana-flask-mini.png"
+        alt="Mana"
+        style={{ width: 80, height: 80, objectFit: "contain", WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)", maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)" }}
+      />
+      <span
+        className="absolute inset-0 flex items-center justify-center gap-0.5 text-xs font-bold text-cyan-200"
+        style={{ paddingTop: "30px", transform: "translateX(-5px)", textShadow: "0 0 8px rgba(0,0,0,1), 0 1px 4px rgba(0,0,0,1), 0 0 2px rgba(0,0,0,1)" }}
+      >
+        <img
+          src="/icons/mana-icon.png"
+          alt=""
+          style={{ width: 11, height: 11, objectFit: "contain", filter: "drop-shadow(0 0 1px rgba(0,0,0,0.5)) drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}
+        />
         {balance.toLocaleString()}
       </span>
     </div>

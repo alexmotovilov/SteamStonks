@@ -4,6 +4,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /* Steam Stonks - Dark Gaming Theme */
+html {
+  zoom: 1.5;
+}
+
 :root {
   --background: oklch(0.13 0.01 260 / 0);
   --foreground: oklch(0.95 0 0);

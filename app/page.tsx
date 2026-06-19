@@ -18,7 +18,15 @@ export default async function LandingPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        {/* Vignette matching authenticated header */}
+        {/* Left-side vignette */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: "linear-gradient(to right, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) .5%, transparent 1%)",
+            zIndex: 1,
+          }}
+        />
+        {/* Darkening vignette around logo area */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -28,15 +36,43 @@ export default async function LandingPage() {
             ].join(", "),
           }}
         />
+        {/* Rightward fade */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background: "linear-gradient(to right, transparent 0%, transparent 24%, rgba(10,10,16,0.85) 40%, rgba(10,10,16,0.98) 46%)",
           }}
         />
+        {/* Parchment behind logo */}
+        <img
+          src="/parchment.png"
+          alt=""
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
+            height: "63px",
+            width: "95px",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        />
         <div className="container relative flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <img src="/icons/game-name-logo.png" alt="Prognos" style={{ height: "56px", width: "auto", marginLeft: "18px", filter: "drop-shadow(0 0 6px rgba(157,132,212,0.35)) drop-shadow(0 0 2px rgba(200,180,255,0.2))" }} />
+          <Link href="/" className="flex items-center pr-4 h-16">
+            <img
+              src="/icons/game-name-logo.png"
+              alt="Prognos"
+              style={{
+                height: "56px",
+                width: "auto",
+                marginLeft: "6px",
+                position: "relative",
+                zIndex: 1,
+                filter: "drop-shadow(0 0 6px rgba(157,132,212,0.35)) drop-shadow(0 0 1px rgba(200,180,255,0.2)) drop-shadow(-4px 3px 3px rgba(0,0,0,1))",
+              }}
+            />
           </Link>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost">
@@ -60,7 +96,7 @@ export default async function LandingPage() {
  <span className="text-cyan-300">Prosper</span> <span className="text-foreground">or</span> <span className="text-red-600">Perish</span><span className="text-foreground">?</span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl text-pretty">
-            Steel yourself for a challenge like no other. In Prognos, your knowledge of PC gaming and industry intuition will be tested in a fierce battle for divining dominance. Can you unravel the future of games yet to come and prove yourself worthy of the gaming gear and glory that awaits the victors? Weave your prophecies and prepare for Prognos.
+            Steel yourself for a challenge like no other. In Prognos, your knowledge of PC gaming and industry intuition will be tested in a fierce battle for divining dominance. Can you unravel the future of games yet to come and prove yourself worthy of the gaming gear and glory that awaits the victors? Weave your prophecies and prepare...for Prognos.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Button asChild size="lg" className="text-lg px-8" style={{ backgroundColor: "#67e8f9", borderColor: "#67e8f9" }}>
@@ -84,14 +120,14 @@ export default async function LandingPage() {
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold text-foreground mb-4">How It Works</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            All successful seers shall follow these three steps on their path to seizing supremacy.
+            All successful seers shall follow these three steps on their path to seizing supremacy:
           </p>
         </div>
         
         <div className="grid md:grid-cols-3 gap-8">
           {[
-            { label: "Prepare", img: "/homepage/prepare.png", color: "#9D84D4", desc: "Knowledge is the cornerstone of a master prognosticator. Watch trailers, gameplay footage, and early impressions. Follow industry trends, learn developer history, and join gaming communities. Finally, craft the informed opinions needed to guide your hand. Only through a complete understanding, can you hope to see the strands of a game's fate." },
-            { label: "Predict", img: "/homepage/predict.png", color: "#67e8f9", desc: "For each game featured in the season, you will set your predictions for it's first week peak player count and positive review percentage ahead of it's release on Steam. Employ boosters and rites to push your edge further. Build your own Top 8 ranking for games with the highest season-long peak player count, giving you the chance to rocket through the leaderboard in the final moments." },
+            { label: "Prepare", img: "/homepage/prepare.png", color: "#9D84D4", desc: "Knowledge is the cornerstone of a master prognosticator. Watch trailers, gameplay footage, and early impressions. Follow industry trends, learn developer history, and join gaming communities. Finally, craft the informed opinions needed to guide your hand. Only through a complete understanding can you hope to see the strands of a game's fate." },
+            { label: "Predict", img: "/homepage/predict.png", color: "#4ade80", desc: "For each game featured in the season, you will predict its first-week peak player count and positive review percentage ahead of its Steam release. Employ boosters and rites to push your edge further. Build your own Top 8 ranking for games with the highest season-long peak player count, giving you the chance to rocket through the leaderboard in the final moments." },
             { label: "Prevail", img: "/homepage/prevail.png", color: "#f59e0b", desc: "Earn mana on your predictions and rise to the top of the season leaderboard. The best players win real prizes including PC gear and Steam giftcards. For the ultimate competitors, 1-in-500 players will be rewarded with a new gaming rig. If your fortunes flounder, do not despair: your mana balance and inventory carry over, allowing you to start the next season on a strong foot." },
           ].map(({ label, img, color, desc }) => (
             <div key={label} className="group relative rounded-xl overflow-hidden border border-border h-80">
@@ -134,16 +170,16 @@ export default async function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl font-bold text-foreground mb-4">Mana-Powered Scoring</h2>
-              <p className="text-muted-foreground mb-8">
+              <p className="text-muted-foreground mb-8 text-justify">
                 All mana earned contributes to your season score. Receive it for predictive accuracy and cunning use of active effects. Spend it to weave arcane magicks and purchase powerful tools that enhance your predictions further. Clever use of resources will make you a more formidable contestant as every decision shapes your standing.
               </p>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "#9D84D4" }} />
                   <div>
-                    <div className="font-medium text-foreground">Prediction Successes</div>
+                    <div className="font-medium text-foreground">Week 1 Predictions</div>
                     <div className="text-sm text-muted-foreground">
-                      Each game has two metrics: Week 1 peak player count and positive review score. Nail both for a perfect — or just one for a partial. Either way, you're building mana.
+                      Each game has two metrics: Week 1 peak player count and positive review score. Lock in . Either way, you're building mana.
                     </div>
                   </div>
                 </div>

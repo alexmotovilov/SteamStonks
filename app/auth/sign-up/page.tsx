@@ -49,14 +49,43 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md border-border bg-card">
+      <div className="relative w-full max-w-md">
+        {/* Gargoyle + speech bubble — absolutely positioned to the left of the card */}
+        <div className="absolute right-full bottom-0 hidden md:flex flex-col items-center pr-6" style={{ width: "320px" }}>
+          {/* Speech bubble */}
+          <div
+            className="relative rounded-xl border px-4 py-3 text-sm font-body text-white w-full text-center mb-2"
+            style={{ backdropFilter: "blur(4px)", borderColor: "#C4A882", backgroundColor: "rgba(196,168,130,0.25)" }}
+          >
+            Prognos staff will{" "}
+            <span className="text-red-400 font-semibold">NEVER</span> ask you for your password. Do not share it with anybody.
+            {/* Tail pointing down */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-full"
+              style={{
+                width: 0,
+                height: 0,
+                borderLeft: "8px solid transparent",
+                borderRight: "8px solid transparent",
+                borderTop: "10px solid #C4A882",
+              }}
+            />
+          </div>
+          <img
+            src="/other-gargoyle.png"
+            alt=""
+            style={{ width: "100%", height: "auto" }}
+          />
+        </div>
+
+      <Card className="w-full border-border bg-card">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-2">
             <img src="/icons/game-name-logo.png" alt="Prognos" style={{ height: "80px", width: "auto", filter: "drop-shadow(0 0 8px rgba(157,132,212,0.5))" }} />
           </div>
           <CardTitle className="text-xl text-foreground">Create an account</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Join the competition and start predicting
+            Greetings, oracular aspirant. Welcome to Prognos.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSignUp}>
@@ -71,7 +100,7 @@ export default function SignUpPage() {
               <Input
                 id="displayName"
                 type="text"
-                placeholder="GamerTag123"
+                placeholder="Public Username Here"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
@@ -83,7 +112,7 @@ export default function SignUpPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="player@example.com"
+                placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -124,6 +153,7 @@ export default function SignUpPage() {
           </CardFooter>
         </form>
       </Card>
+      </div>
     </div>
   )
 }
