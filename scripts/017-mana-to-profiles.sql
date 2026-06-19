@@ -17,8 +17,9 @@ WHERE se.user_id = p.id
 
 
 -- ── 2. increment_season_mana ─────────────────────────────────────
--- Adds mana to both prediction_mana_earned (leaderboard) on season_entries
--- AND mana_balance (spendable wallet) on profiles.
+-- Adds mana to prediction_mana_earned (leaderboard) on season_entries ONLY.
+-- Does NOT touch profiles.mana_balance — spending mana is credited separately
+-- when the player claims their scoring mail via add_mana_balance.
 
 CREATE OR REPLACE FUNCTION public.increment_season_mana(
   p_user_id        uuid,
@@ -33,7 +34,6 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  -- Leaderboard score + equipment tier stay on season_entries
   UPDATE public.season_entries
   SET
     prediction_mana_earned         = prediction_mana_earned + p_mana,
@@ -41,11 +41,6 @@ BEGIN
     first_prediction_bonus_claimed = CASE WHEN p_claim_first THEN true ELSE first_prediction_bonus_claimed END,
     updated_at                     = now()
   WHERE user_id = p_user_id AND season_id = p_season_id;
-
-  -- Spendable wallet is now on profiles (cross-season)
-  UPDATE public.profiles
-  SET mana_balance = mana_balance + p_mana
-  WHERE id = p_user_id;
 END;
 $$;
 

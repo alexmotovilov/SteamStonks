@@ -40,9 +40,33 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${cinzel.variable} ${imFellEnglish.variable}`}>
-      <body className="font-body antialiased">
+      <body className="font-body antialiased pb-10">
         <ParallaxBackground />
         {children}
+        <div style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          width: "100%",
+          height: "48px",
+          background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.97))",
+          zIndex: 49,
+          pointerEvents: "none",
+        }} />
+        <img
+          src="/header-chain.png"
+          alt=""
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            bottom: -37,
+            left: 0,
+            width: "100%",
+            height: "auto",
+            zIndex: 50,
+            pointerEvents: "none",
+          }}
+        />
         <Analytics />
       </body>
     </html>

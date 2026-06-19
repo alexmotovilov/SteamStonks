@@ -5,7 +5,8 @@
 
 /* Steam Stonks - Dark Gaming Theme */
 html {
-  zoom: 1.5;
+  scrollbar-gutter: stable;
+  background-color: oklch(0.13 0.01 260);
 }
 
 :root {
@@ -104,6 +105,8 @@ html {
   }
   body {
     @apply bg-background text-foreground;
+    overflow-y: scroll !important;
+    padding-right: 0 !important;
   }
 }
 

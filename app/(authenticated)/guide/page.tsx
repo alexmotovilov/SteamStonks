@@ -202,21 +202,20 @@ export default function GuidePage() {
               <span className="font-body text-xs text-cyan-400 inline-flex items-center gap-0.5">50 <ManaSymbol /></span>{" "}
               for a partial result up to{" "}
               <span className="font-body text-xs text-cyan-400 inline-flex items-center gap-0.5">150 <ManaSymbol /></span>{" "}
-              for a perfect result. Boosters, equipment, rites, and bonuses can add additional rewards.
+              for a perfect result. Effects from boosters, equipment, and rites can add additional rewards.
             </div>
           </div>
           <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card/50">
             <span className="font-display text-xs text-cyan-400 shrink-0 mt-0.5">Spending</span>
             <div className="font-body text-xs text-muted-foreground leading-relaxed">
-              Mana is spent on Rites — active effects applied to individual predictions — and on
-              booster items purchased from the Arcane Repository vendor each week.
+              Mana is spent on rites and on boosters purchased from the Arcane Repository vendor each week.
             </div>
           </div>
           <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card/50">
             <span className="font-display text-xs text-cyan-400 shrink-0 mt-0.5">Carry-over</span>
             <div className="font-body text-xs text-muted-foreground leading-relaxed">
               Your mana balance is tied to your account, not to a season. It does not reset at
-              season end — any unspent mana rolls into the next season automatically.
+              season end, any unspent mana rolls into the next season automatically.
             </div>
           </div>
         </div>
@@ -244,7 +243,7 @@ export default function GuidePage() {
             <div className="font-display text-sm text-foreground">Peak Player Count · Week 1</div>
             <Body>
               Drag the green gem to your predicted highest player count in the first 7 days after
-              release. The gold tick marks and green bar show your prediction window — the actual
+              release. The gold tick marks and green bar show your prediction window, the actual
               value must land inside it to score. The default window is <Mono>±10%</Mono> of
               your midpoint. Boosters and equipment can affect it. 
             </Body>
@@ -263,8 +262,8 @@ export default function GuidePage() {
         <Body>
           Before a game launches you can voluntarily freeze your sliders to earn a mana bonus.
           The <span className="text-amber-400">Early Lock</span> button appears directly below the
-          week 1 sliders on the prediction card — it is only available after you have saved a
-          prediction and while the game has not yet released.
+          week 1 sliders on the prediction card and it is only available after you have saved a
+          prediction before the game's release.
         </Body>
         <div className="mt-4 space-y-2">
           <div className="p-4 rounded-lg border border-amber-500/20 bg-amber-950/5 space-y-2">
@@ -272,8 +271,7 @@ export default function GuidePage() {
             <Body>
               The bonus scales linearly from <span className="font-body text-xs text-cyan-400 inline-flex items-center gap-0.5">+0 <ManaSymbol /></span> to <span className="font-body text-xs text-cyan-400 inline-flex items-center gap-0.5">+25 <ManaSymbol /></span> based on
               how far in advance of release you lock. Locking two or more weeks before release earns
-              the full <span className="font-body text-xs text-cyan-400 inline-flex items-center gap-0.5">+25 <ManaSymbol /></span>. Locking on the day of release earns nothing. Everything
-              in between is proportional — the earlier you lock, the more you earn.
+              the full <span className="font-body text-xs text-cyan-400 inline-flex items-center gap-0.5">+25 <ManaSymbol /></span>. Locking on the day of release earns nothing. Everything in between is proportional to the time remaining before release: the earlier you lock, the more you earn.
             </Body>
           </div>
           <div className="p-4 rounded-lg border border-border bg-card/50 space-y-2">
@@ -295,20 +293,20 @@ export default function GuidePage() {
             <Body>
               The <span className="text-foreground">Temporal Translocation</span> rite (100 <ManaSymbol />) removes
               an active early lock and restores full slider access. The early lock bonus is forfeited when you
-              unlock — the bonus is recalculated from zero if you choose to lock again.
+              unlock and the bonus is recalculated from zero if you choose to lock again.
             </Body>
           </div>
         </div>
         <div className="mt-3">
           <Body>
-            <strong className="text-foreground">The early lock bonus is guaranteed after scoring regardless of your prediction result</strong> — it is added to your total reward even on a missed prediction.
+            <strong className="text-foreground">The early lock bonus is guaranteed after scoring regardless of your prediction result.</strong> It is added to your total reward even on a missed prediction.
           </Body>
         </div>
 
         {/* Active Effects */}
         <SubHeading id="active-effects">Active Effects</SubHeading>
         <Body>
-          Between the sliders and the booster inventory you'll find the Active Effects list — a live
+          Between the sliders and the booster inventory you'll find the Active Effects list. This is a live
           summary of every modifier currently applied to your prediction. It updates as you add
           boosters, perform rites, and equip items.
         </Body>
@@ -331,14 +329,7 @@ export default function GuidePage() {
         </div>
         <div className="mt-3">
           <Body>
-            Sources that can add entries: your equipped item (always shown if you have equipment), applied
-            boosters (one entry per effect per booster), and performed rites — Eldritch Wager, Sigil of
-            Multiplicity, and Auspicious Omens each contribute their own rows.
-          </Body>
-        </div>
-        <div className="mt-3">
-          <Body>
-            <strong className="text-foreground">Bonuses to total reward are guaranteed after 1 week scoring regardless of prediction results. You receive these even on a missed prediction.</strong>
+            <strong className="text-foreground">Bonuses to total reward are guaranteed after week 1 scoring regardless of prediction results. You receive these even on a missed prediction.</strong>
           </Body>
         </div>
 
@@ -381,6 +372,13 @@ export default function GuidePage() {
               </div>
             </div>
           ))}
+        </div>
+        <div className="mt-3 flex items-start gap-3 p-3 rounded-lg border border-amber-500/15 bg-amber-950/10">
+          <span className="font-display text-xs text-amber-400 shrink-0 mt-0.5">Carry-over</span>
+          <div className="font-body text-xs text-muted-foreground leading-relaxed">
+            Boosters are tied to your account, not to a season. Any unused boosters in your
+            inventory carry over automatically when a new season begins.
+          </div>
         </div>
 
         {/* Rites */}
@@ -434,8 +432,7 @@ export default function GuidePage() {
           </LifecycleStep>
           <LifecycleStep n={3} title="Early Lock (optional)">
             Click <span className="text-amber-400">Early Lock</span> to voluntarily freeze your sliders before
-            the game releases. You earn a mana bonus up to <span className="font-body text-xs text-cyan-400 inline-flex items-center gap-0.5">+25 <ManaSymbol /></span> — the earlier you lock, the
-            larger the bonus. Boosters, rites, and the ladder remain editable. Use Temporal Translocation to undo.
+            the game releases. You earn a mana bonus up to <span className="font-body text-xs text-cyan-400 inline-flex items-center gap-0.5">+25 <ManaSymbol /></span>. Boosters, rites, and the ladder remain editable. Use Temporal Translocation to undo.
             {" "}<strong className="text-foreground">The early lock bonus is applied to your total reward and will be awarded after scoring regardless of prediction result.</strong>
           </LifecycleStep>
           <LifecycleStep n={4} title="Release">
@@ -484,11 +481,11 @@ export default function GuidePage() {
         <div className="mt-4 p-4 rounded-lg border border-border bg-card/50 space-y-2">
           <div className="font-display text-xs text-foreground mb-3">Additional mana on top of base</div>
           {([
-            ["Early lock bonus", <>Up to <span className="font-body text-cyan-400 inline-flex items-center gap-0.5">+25 <ManaSymbol /></span> — grows linearly over 2 weeks before release</>],
+            ["Early lock bonus", <>Up to <span className="font-body text-cyan-400 inline-flex items-center gap-0.5">+25 <ManaSymbol /></span>, decreases linearly over 2 weeks before release</>],
             ["Equipment",        "Depends on your equipment and tier"],
             ["Boosters",         "Depends on applied boosters"],
             ["Eldritch Wager",   <><span className="font-body text-cyan-400 inline-flex items-center gap-0.5">+25 <ManaSymbol /></span> per correct metric, additional <span className="font-body text-cyan-400 inline-flex items-center gap-0.5">+25 <ManaSymbol /></span> if both correct</>],
-            ["First prediction", <><span className="font-body text-cyan-400 inline-flex items-center gap-0.5">+50 <ManaSymbol /></span> on your very first scored prediction this season</>],
+            ["First prediction", <><span className="font-body text-cyan-400 inline-flex items-center gap-0.5">+50 <ManaSymbol /></span> on your very first scored prediction this season, added to total reward</>],
           ] as [string, React.ReactNode][]).map(([label, desc]) => (
             <div key={label} className="flex items-baseline gap-3 py-2 border-b border-border/50 last:border-0">
               <span className="font-display text-xs text-foreground w-20 shrink-0">{label}</span>
@@ -509,7 +506,7 @@ export default function GuidePage() {
           <div className="font-display text-xs text-amber-400 mb-2">Season Score vs Mana Balance</div>
           <Body>
             Every mana you earn from scoring is added to both your <span className="text-foreground">Season Score</span> (leaderboard rank, never decreases)
-            and your <span className="text-foreground">Mana Balance</span> (spendable wallet — used for rites and the vendor).
+            and your <span className="text-foreground">Mana Balance</span> (used for rites and the vendor).
             The weekly stipend of <span className="font-body text-xs text-cyan-400 inline-flex items-center gap-0.5">+15 <ManaSymbol /></span> goes to your balance only.
           </Body>
         </div>
@@ -534,7 +531,7 @@ export default function GuidePage() {
           <div className="font-display text-xs text-foreground mb-2">Sequence scoring (LCS)</div>
           <Body>
             Beyond exact matches, the longest consecutive run of correctly ordered games in your
-            ladder earns an escalating bonus — even if those games aren't in the exact right
+            ladder earns an escalating bonus. Applies even if those games aren't in the exact right
             positions overall, as long as they appear in the correct order relative to each other.
           </Body>
           <table className="w-full text-sm border-collapse mt-3">

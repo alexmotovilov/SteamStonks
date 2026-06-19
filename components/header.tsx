@@ -158,7 +158,7 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
           maskImage: "linear-gradient(to bottom, black 90%, transparent 100%)",
         }}
       />
-      <div className="container relative flex h-16 items-center">
+      <div className="container relative flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center">
             <Link href={user ? "/dashboard" : "/"} className="flex items-center pr-4 h-16">
@@ -216,92 +216,91 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
             </nav>
           )}
         </div>
-      </div>
 
-      {/* Right badges — absolutely anchored to header right edge so position is zoom-invariant */}
-      <div style={{ position: "absolute", right: "164px", top: "50%", transform: "translateY(-50%)", zIndex: 10, display: "flex", alignItems: "center", gap: "16px" }}>
-        {user ? (
-          <>
-            {/* Join season CTA — only when player hasn't joined the active season */}
-            {user && !hasJoinedActiveSeason && activeSeasonName && activeSeasonId && (
-              <Link
-                href={`/seasons/${activeSeasonId}`}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-display text-xs tracking-wide bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/18 transition-colors whitespace-nowrap"
-              >
-                Join {activeSeasonName} →
-              </Link>
-            )}
-            {/* Equipment badge (purple) — current equipment + tier */}
-            {user && <Suspense fallback={null}><EquipmentBadge user={user} /></Suspense>}
-            {/* Season score + rank on goblin scroll */}
-            {user && <Suspense fallback={null}><SeasonScoreBadge user={user} activeSeasonId={activeSeasonId} /></Suspense>}
-            {/* Spendable mana balance (cyan) */}
-            {user && <Suspense fallback={null}><SeasonPointsBadge manaBalance={manaBalance} /></Suspense>}
+        <div className="flex items-center gap-4">
+          {user ? (
+            <>
+              {/* Join season CTA — only when player hasn't joined the active season */}
+              {user && !hasJoinedActiveSeason && activeSeasonName && activeSeasonId && (
+                <Link
+                  href={`/seasons/${activeSeasonId}`}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-display text-xs tracking-wide bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/18 transition-colors whitespace-nowrap"
+                >
+                  Join {activeSeasonName} →
+                </Link>
+              )}
+              {/* Equipment badge (purple) — current equipment + tier */}
+              {user && <Suspense fallback={null}><EquipmentBadge user={user} /></Suspense>}
+              {/* Season score + rank on goblin scroll */}
+              {user && <Suspense fallback={null}><SeasonScoreBadge user={user} activeSeasonId={activeSeasonId} /></Suspense>}
+              {/* Spendable mana balance (cyan) */}
+              {user && <Suspense fallback={null}><SeasonPointsBadge manaBalance={manaBalance} /></Suspense>}
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full" suppressHydrationWarning>
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.display_name || "User"} />
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="flex items-center justify-start gap-2 p-2">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {profile?.display_name || "Player"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {user.email}
-                    </p>
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full" suppressHydrationWarning>
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.display_name || "User"} />
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="flex items-center justify-start gap-2 p-2">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {profile?.display_name || "Player"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <DropdownMenuSeparator />
-                <div className="flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground">
-                  <Coins className="h-4 w-4" />
-                  <span>{profile?.token_balance?.toLocaleString() || 0} tokens</span>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile" className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/predictions" className="cursor-pointer">
-                    <Gamepad2 className="mr-2 h-4 w-4" />
-                    My Predictions
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Button asChild variant="ghost">
-              <Link href="/auth/login">Sign In</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/auth/sign-up">Get Started</Link>
-            </Button>
-          </div>
-        )}
+                  <DropdownMenuSeparator />
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground">
+                    <Coins className="h-4 w-4" />
+                    <span>{profile?.token_balance?.toLocaleString() || 0} tokens</span>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/predictions" className="cursor-pointer">
+                      <Gamepad2 className="mr-2 h-4 w-4" />
+                      My Predictions
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="cursor-pointer">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button asChild variant="ghost">
+                <Link href="/auth/login">Sign In</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/auth/sign-up">Get Started</Link>
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   )

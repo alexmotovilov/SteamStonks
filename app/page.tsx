@@ -88,27 +88,27 @@ export default async function LandingPage() {
       {/* Hero Section */}
       <section className="container py-24 sm:py-32">
         <div className="flex flex-col items-center text-center gap-8">
-          <Badge variant="secondary" className="text-sm">
-            Season 1 Coming Soon
-          </Badge>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl max-w-4xl text-balance">
-            Can You Predict Whether the Next Big Game Will {" "}
- <span className="text-cyan-300">Prosper</span> <span className="text-foreground">or</span> <span className="text-red-600">Perish</span><span className="text-foreground">?</span>
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl text-pretty">
-            Steel yourself for a challenge like no other. In Prognos, your knowledge of PC gaming and industry intuition will be tested in a fierce battle for divining dominance. Can you unravel the future of games yet to come and prove yourself worthy of the gaming gear and glory that awaits the victors? Weave your prophecies and prepare...for Prognos.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button asChild size="lg" className="text-lg px-8" style={{ backgroundColor: "#67e8f9", borderColor: "#67e8f9" }}>
-              <Link href="/auth/sign-up">
-                Start Predicting
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="text-lg px-8">
-              <a href="#how-it-works">Learn More</a>
-            </Button>
-          </div>
+            <Badge variant="secondary" className="text-sm">
+              Season 1 Coming Soon
+            </Badge>
+            <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl max-w-4xl text-balance">
+              Can You Predict Whether the Next Big Game Will {" "}
+              <span className="text-cyan-300">Prosper</span> <span className="text-foreground">or</span> <span className="text-red-600">Perish</span><span className="text-foreground">?</span>
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl text-pretty">
+              Steel yourself for a challenge like no other. In Prognos, your knowledge of PC gaming and industry intuition will be tested in a fierce battle for divining dominance. Can you unravel the future of games yet to come and prove yourself worthy of the gaming gear and glory that awaits the victors? Weave your prophecies and prepare...for Prognos.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button asChild size="lg" className="text-lg px-8" style={{ backgroundColor: "#67e8f9", borderColor: "#67e8f9" }}>
+                <Link href="/auth/sign-up">
+                  Start Predicting
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="text-lg px-8">
+                <a href="#how-it-works">Learn More</a>
+              </Button>
+            </div>
           <p className="text-xs text-muted-foreground/60 max-w-md">
             Participants are limited to the contiguous United States (excluding HI and AK). Must be 18 years or older to play. See terms and conditions for full contest rules.
           </p>

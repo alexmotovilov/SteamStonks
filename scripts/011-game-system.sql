@@ -126,7 +126,7 @@ VALUES
     'A viscous green fluid that, when applied to a scrying orb, sharpens the visions within. Widens the peak player count prediction window.',
     'booster',
     '/items/scrying-orb-polish.png',
-    26.00, true, true, 15, 2, 5,
+    26.00, true, true, 15, 2, 999,
     '{"players_window_pct": 10}'
   ),
   (
@@ -135,7 +135,7 @@ VALUES
     'A precision-ground crystal lens that clarifies review score readings. Widens the positive review prediction window.',
     'booster',
     '/items/crystal-focus.png',
-    20.00, true, true, 20, 2, 5,
+    20.00, true, true, 20, 2, 999,
     '{"reviews_window_flat": 2}'
   ),
   (
@@ -144,7 +144,7 @@ VALUES
     'A volatile teal essence that amplifies the energy of any successful working. Adds bonus mana to total reward regardless of accuracy.',
     'booster',
     '/items/evocation-distillate.png',
-    25.00, true, false, null, null, 5,
+    25.00, true, false, null, null, 999,
     '{"mana_total_reward": 25}'
   ),
   (
@@ -153,7 +153,7 @@ VALUES
     'An extraordinarily rare distillation of concentrated magical potential. Adds substantial bonus mana to total reward regardless of accuracy.',
     'booster',
     '/items/thaumaturgic-concentrate.png',
-    5.00, true, false, null, null, 5,
+    5.00, true, false, null, null, 999,
     '{"mana_total_reward": 50}'
   ),
   (
@@ -162,7 +162,7 @@ VALUES
     'A forbidden compact sealed in blood. Widens the review window, but narrows your read on player count.',
     'booster',
     '/items/blood-bargain.png',
-    10.00, true, true, 30, 1, 5,
+    10.00, true, true, 30, 1, 999,
     '{"reviews_window_flat": 3, "players_window_pct": -3}'
   ),
   (
@@ -171,7 +171,7 @@ VALUES
     'A soul-laden gem of terrible power. Narrows the player count window in exchange for a greatly amplified reward.',
     'booster',
     '/items/black-gem-accumulator.png',
-    11.00, true, true, 20, 1, 5,
+    11.00, true, true, 20, 1, 999,
     '{"players_window_pct": -5, "mana_players_bonus": 75}'
   ),
   (
@@ -180,7 +180,7 @@ VALUES
     'A smouldering scroll bound in chains. Narrows the review window but guarantees an additional loot drop.',
     'booster',
     '/items/infernal-patrons-pact.png',
-    12.00, true, true, 25, 1, 5,
+    12.00, true, true, 25, 1, 999,
     '{"reviews_window_flat": -1, "drops_total_reward": 1}'
   ),
   (
@@ -189,7 +189,7 @@ VALUES
     'A rare alchemical preparation available only from the trader. Simultaneously widens both prediction windows.',
     'booster',
     '/items/tincture-of-divination.png',
-    null, false, true, 75, 1, 5,
+    null, false, true, 75, 1, 999,
     '{"players_window_pct": 10, "reviews_window_flat": 5}'
   ),
 
