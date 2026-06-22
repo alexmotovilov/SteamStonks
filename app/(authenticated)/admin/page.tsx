@@ -33,7 +33,7 @@ export default async function AdminPage() {
     .single()
 
   return (
-    <div className="space-y-8">
+    <div className="container mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="p-2 rounded-lg bg-primary/10">

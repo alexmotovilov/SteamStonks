@@ -48,9 +48,33 @@ export default async function AuthenticatedLayout({
         activeSeasonId={season?.id ?? null}
       />
       <WelcomeModal />
-      <main className="container py-6">
+      <main className="py-6">
         {children}
       </main>
+      <div style={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        width: "100%",
+        height: "48px",
+        background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.97))",
+        zIndex: 49,
+        pointerEvents: "none",
+      }} />
+      <img
+        src="/header-chain.png"
+        alt=""
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          bottom: -37,
+          left: 0,
+          width: "100%",
+          height: "auto",
+          zIndex: 50,
+          pointerEvents: "none",
+        }}
+      />
     </div>
   )
 }

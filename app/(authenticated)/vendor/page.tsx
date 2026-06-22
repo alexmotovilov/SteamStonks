@@ -94,7 +94,7 @@ export default async function VendorPage() {
   const stipendClaimable = (entry.stipend_week_number ?? 0) < (season.current_vendor_week ?? 1)
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto space-y-6">
       <div className="text-center">
         <h1 className="text-3xl font-display text-foreground">Arcane Repository</h1>
         <VendorCountdown />

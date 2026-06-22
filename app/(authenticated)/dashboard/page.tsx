@@ -212,7 +212,7 @@ export default async function DashboardPage() {
   const aoGameIds = new Set((aoMarkedPreds ?? []).map(p => p.game_id))
 
   return (
-    <div className="space-y-8">
+    <div className="container mx-auto space-y-8">
       {/* Welcome Section */}
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-foreground">

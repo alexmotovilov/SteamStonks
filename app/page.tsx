@@ -17,48 +17,7 @@ export default async function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        {/* Left-side vignette */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: "linear-gradient(to right, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) .5%, transparent 1%)",
-            zIndex: 1,
-          }}
-        />
-        {/* Darkening vignette around logo area */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: [
-              "radial-gradient(ellipse 28% 200% at 8% 50%, transparent 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.60) 100%)",
-              "radial-gradient(ellipse 16% 160% at 1% 50%, transparent 0%, rgba(0,0,0,0.25) 70%)",
-            ].join(", "),
-          }}
-        />
-        {/* Rightward fade */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: "linear-gradient(to right, transparent 0%, transparent 24%, rgba(10,10,16,0.85) 40%, rgba(10,10,16,0.98) 46%)",
-          }}
-        />
-        {/* Parchment behind logo */}
-        <img
-          src="/parchment.png"
-          alt=""
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            left: 0,
-            top: "50%",
-            transform: "translateY(-50%)",
-            height: "63px",
-            width: "95px",
-            pointerEvents: "none",
-            zIndex: 0,
-          }}
-        />
+      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/5 backdrop-blur-sm supports-[backdrop-filter]:bg-background/5">
         <div className="container relative flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center pr-4 h-16">
             <img

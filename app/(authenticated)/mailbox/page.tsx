@@ -12,7 +12,7 @@ export default async function MailboxPage() {
     .select(`
       id, subject, body, created_at, expires_at,
       message_type, metadata, mana_reward, mana_claimed_at, prediction_id, season_id,
-      mail_reads!left(read_at, claimed_at),
+      mail_reads!left(read_at, claimed_at, deleted_at),
       mail_attachments(quantity, items:item_id(id, name, slug, image_url)),
       mail_mystery_drops(id, drop_count, revealed_at, revealed_items)
     `)
@@ -21,14 +21,20 @@ export default async function MailboxPage() {
     .order("created_at", { ascending: false })
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-display text-foreground">Mailbox</h1>
-        <p className="text-sm text-muted-foreground font-body mt-1">
-          Messages from the Prognos team
-        </p>
+    <>
+    <style>{`::-webkit-scrollbar { display: none; }`}</style>
+    <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "calc(12vh - 85px)" }}>
+      <div style={{
+        width: "50vw",
+        paddingRight: "4vw",
+        paddingBottom: "3rem",
+      }}>
+        <MailboxClient messages={(messages ?? []).filter((m: any) => {
+          const reads = Array.isArray(m.mail_reads) ? m.mail_reads[0] : m.mail_reads
+          return !reads?.deleted_at
+        }) as any} />
       </div>
-      <MailboxClient messages={(messages ?? []) as any} />
     </div>
+    </>
   )
 }

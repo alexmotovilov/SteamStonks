@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         id, name, release_date, is_released,
         peak_24h_player_count, peak_player_count,
         review_score_positive, review_score_negative,
-        seasons!inner(status)
+        seasons!inner(status, name)
       `)
       .eq("is_released", true)
       .in("seasons.status", ["active", "scoring"])
@@ -177,7 +177,8 @@ export async function GET(request: Request) {
           })
 
           // Send scoring result to player's mailbox
-          await generateScoringMessage(supabase, pred, scoreResult, game.name)
+          const seasonName = (game.seasons as any)?.name ?? ""
+          await generateScoringMessage(supabase, pred, scoreResult, game.name, seasonName)
 
           results.weekOnePredictionsScored++
         } catch (err) {
@@ -300,7 +301,8 @@ async function generateScoringMessage(
   db: typeof supabase,
   pred: Record<string, any>,
   scoreResult: Record<string, any>,
-  gameName: string
+  gameName: string,
+  seasonName: string
 ) {
   try {
     // Deduplication — one message per prediction
@@ -348,6 +350,7 @@ async function generateScoringMessage(
         metadata: {
           game_id:               pred.game_id,
           game_name:             gameName,
+          season_name:           seasonName,
           result:                scoreResult.result,
           players_midpoint:      pred.players_midpoint,
           players_window_low:    scoreResult.players_window_low,

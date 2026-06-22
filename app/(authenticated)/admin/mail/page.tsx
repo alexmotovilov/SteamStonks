@@ -35,7 +35,7 @@ export default async function AdminMailPage() {
   ])
 
   return (
-    <div className="space-y-8">
+    <div className="container mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Mail</h1>
         <p className="text-muted-foreground">Compose and send messages to players</p>

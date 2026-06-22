@@ -56,26 +56,6 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
       className="sticky top-0 z-50 w-full"
       style={{ background: "transparent" }}
     >
-      {/* Left panel — arch shape with soft edges (blur bleeds into center + bottom) */}
-      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-        <div style={{ position: "absolute", inset: 0, filter: "blur(10px)" }}>
-          <div style={{
-            position: "absolute", inset: 0,
-            background: "rgba(1,2,1,0.97)",
-            clipPath: "polygon(0% 0%, 48% 0%, 43% 25%, 38% 50%, 35% 75%, 33% 100%, 0% 100%)",
-          }} />
-        </div>
-      </div>
-      {/* Right panel — arch shape with soft edges (blur bleeds into center + bottom) */}
-      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-        <div style={{ position: "absolute", inset: 0, filter: "blur(10px)" }}>
-          <div style={{
-            position: "absolute", inset: 0,
-            background: "rgba(6,7,7,0.97)",
-            clipPath: "polygon(52% 0%, 100% 0%, 100% 100%, 67% 100%, 65% 75%, 62% 50%, 57% 25%)",
-          }} />
-        </div>
-      </div>
       {/* Left-side vignette */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -95,8 +75,10 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
           overflow: "hidden",
           pointerEvents: "none",
           zIndex: 0,
-          WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)",
-          maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to right, black 80%, transparent 90%), linear-gradient(to bottom, black 80%, transparent 96%)",
+          WebkitMaskComposite: "destination-in",
+          maskImage: "linear-gradient(to right, black 80%, transparent 90%), linear-gradient(to bottom, black 80%, transparent 96%)",
+          maskComposite: "intersect",
         }}
       >
         <img
@@ -124,8 +106,10 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
           zIndex: 0,
           display: "flex",
           justifyContent: "flex-end",
-          WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)",
-          maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to left, black 75%, transparent 80%), linear-gradient(to bottom, black 80%, transparent 96%)",
+          WebkitMaskComposite: "destination-in",
+          maskImage: "linear-gradient(to left, black 75%, transparent 80%), linear-gradient(to bottom, black 80%, transparent 96%)",
+          maskComposite: "intersect",
         }}
       >
         <img
@@ -154,8 +138,8 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
           width: "95px",
           pointerEvents: "none",
           zIndex: 0,
-          WebkitMaskImage: "linear-gradient(to bottom, black 90%, transparent 100%)",
-          maskImage: "linear-gradient(to bottom, black 90%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, black 80%, transparent 90%)",
+          maskImage: "linear-gradient(to bottom, black 80%, transparent 90%)",
         }}
       />
       <div className="container relative flex h-16 items-center justify-between">
@@ -166,10 +150,10 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
                 src="/icons/game-name-logo.png"
                 alt="Prognos"
                 style={{
-                  height: "56px",
+                  height: "54px",
                   width: "auto",
                   marginLeft: "6px",
-                  marginTop: "-6px",
+                  marginTop: "-12px",
                   position: "relative",
                   zIndex: 1,
                   filter: "drop-shadow(0 0 6px rgba(157,132,212,0.35)) drop-shadow(0 0 1px rgba(200,180,255,0.2)) drop-shadow(-4px 3px 3px rgba(0,0,0,1))",
@@ -179,7 +163,7 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
           </div>
 
           {user && (
-            <nav className="hidden md:flex items-center gap-4" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8), 0 2px 12px rgba(0,0,0,0.9)" }}>
+            <nav className="hidden md:flex items-center gap-4" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8), 0 2px 12px rgba(0,0,0,0.9)", position: "relative", left: 7 }}>
               {[
                 { href: "/games",    label: "Games" },
                 { href: "/vendor",   label: "Vendor" },

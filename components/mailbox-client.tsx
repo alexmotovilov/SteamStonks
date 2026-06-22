@@ -1,7 +1,10 @@
 "use client"
 
+const LETTER_TEXT_SHADOW = "0 0 2px #000, 0 0 2px #000, 0 0 2px #000, 0 0 4px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9)"
+
 import { useState, useEffect } from "react"
-import { ChevronDown, CheckCircle2, Loader2, Trophy } from "lucide-react"
+import { createPortal } from "react-dom"
+import { CheckCircle2, Loader2, Trophy, Trash2 } from "lucide-react"
 import Link from "next/link"
 
 // ─── Types ────────────────────────────────────────────────────
@@ -35,6 +38,7 @@ interface ManaBreakdownLine {
 interface ScoringMetadata {
   game_id: string
   game_name: string
+  season_name?: string
   result: "perfect" | "partial" | "failed"
   players_midpoint: number | null
   players_window_low: number | null
@@ -79,11 +83,11 @@ interface MailMessage {
 
 // ─── Helpers ──────────────────────────────────────────────────
 
-function getReadRow(reads: unknown): { read_at: string | null; claimed_at: string | null } | null {
+function getReadRow(reads: unknown): { read_at: string | null; claimed_at: string | null; deleted_at: string | null } | null {
   if (!reads) return null
   const row = Array.isArray(reads) ? reads[0] : reads
   if (!row || typeof row !== "object") return null
-  return row as { read_at: string | null; claimed_at: string | null }
+  return row as { read_at: string | null; claimed_at: string | null; deleted_at: string | null }
 }
 
 function getMysteryDrop(drops: unknown): MysteryDrop | null {
@@ -109,7 +113,8 @@ function ClaimManaButton({ messageId, manaAmount, onClaimed }: {
   const [claiming, setClaiming] = useState(false)
   const [error, setError] = useState("")
 
-  async function handleClaim() {
+  async function handleClaim(e: React.MouseEvent) {
+    e.stopPropagation()
     setClaiming(true)
     setError("")
     const res = await fetch("/api/mail/claim-mana", {
@@ -237,7 +242,8 @@ function MysteryDropSection({ drop, messageId }: { drop: MysteryDrop; messageId:
   const [showModal, setShowModal] = useState(false)
   const [error, setError] = useState("")
 
-  async function handleOpen() {
+  async function handleOpen(e: React.MouseEvent) {
+    e.stopPropagation()
     setOpening(true)
     setError("")
     const res = await fetch("/api/mail/claim-drops", {
@@ -255,7 +261,6 @@ function MysteryDropSection({ drop, messageId }: { drop: MysteryDrop; messageId:
     setOpening(false)
   }
 
-  // Already revealed — show items plainly
   if (revealedItems && !showModal) {
     return (
       <div className="space-y-1.5">
@@ -308,26 +313,86 @@ function MysteryDropSection({ drop, messageId }: { drop: MysteryDrop; messageId:
   )
 }
 
+// ─── ExpandedPanel ────────────────────────────────────────────
+// Rendered via portal into document.body — appears on left 50% of screen
+
+function ExpandedPanel({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  return createPortal(
+    <div
+      style={{
+        position: "fixed", left: 0, top: 0,
+        width: "50vw", height: "100vh",
+        zIndex: 50,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="relative"
+        style={{ width: "85%" }}
+      >
+        <img src="/letter-background.png" alt="" className="w-full h-auto block" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 // ─── ScoringMessageCard ───────────────────────────────────────
 
-function ScoringMessageCard({ msg, isRead, onRead }: {
+function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelete }: {
   msg: MailMessage
   isRead: boolean
+  isExpanded: boolean
+  onToggle: () => void
   onRead: () => void
+  onDelete: (id: string) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
   const [manaClaimed, setManaClaimed] = useState(!!msg.mana_claimed_at)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showDeleteBlocked, setShowDeleteBlocked] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
   const meta = msg.metadata as ScoringMetadata | LadderMetadata | null
   const mysteryDrop = getMysteryDrop(msg.mail_mystery_drops)
-  const date = new Date(msg.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  const date = new Date(msg.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })
   const isScoreWeekOne = msg.message_type === "score_week_one"
   const scoreMeta = isScoreWeekOne ? meta as ScoringMetadata : null
   const isPerfect = scoreMeta?.result === "perfect"
   const isPartial = scoreMeta?.result === "partial"
+  const isLadder = msg.message_type === "score_ladder"
+  const ladderMeta = isLadder ? meta as LadderMetadata : null
+  const subjectColor = isLadder ? "text-purple-300" : isPerfect ? "text-emerald-400" : isPartial ? "text-amber-300" : isRead ? "text-foreground/60" : "text-foreground"
+  const hasUnclaimed = ((msg.mana_reward ?? 0) > 0 && !manaClaimed) || (!!mysteryDrop && !mysteryDrop.revealed_at)
 
-  async function toggle() {
-    const opening = !expanded
-    setExpanded(opening)
+  function handleDeleteClick(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (hasUnclaimed) {
+      setShowDeleteBlocked(true)
+      setTimeout(() => setShowDeleteBlocked(false), 3000)
+    } else {
+      setShowDeleteConfirm(true)
+    }
+  }
+
+  async function handleDeleteConfirm(e: React.MouseEvent) {
+    e.stopPropagation()
+    setDeleting(true)
+    await fetch("/api/mail/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message_id: msg.id }),
+    })
+    setDeleting(false)
+    onDelete(msg.id)
+  }
+
+  function toggle() {
+    const opening = !isExpanded
+    onToggle()
     if (opening && !isRead) {
       onRead()
       fetch("/api/mail/read", {
@@ -339,167 +404,232 @@ function ScoringMessageCard({ msg, isRead, onRead }: {
   }
 
   return (
-    <div className={`border rounded-xl overflow-hidden transition-colors ${
-      isPerfect ? "border-emerald-500/30" :
-      isPartial ? "border-amber-500/30" :
-      isRead ? "border-border" : "border-purple-500/40 bg-purple-950/[0.06]"
-    }`}>
-      {/* Header */}
-      <button
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.02] transition-colors"
+    <div>
+      {/* Roll — always visible; locked at expanded scale when open */}
+      <div
+        className={`relative cursor-pointer transition-transform duration-150 ${isExpanded ? "scale-[1.06]" : "hover:scale-[1.06]"}`}
         onClick={toggle}
+        style={{ width: "100%" }}
       >
-        <div className={`w-2 h-2 rounded-full shrink-0 ${isRead ? "bg-transparent" : "bg-purple-500"}`} />
-        <div className="flex-1 min-w-0">
-          <div className={`font-display text-sm truncate ${isRead ? "text-muted-foreground" : "text-foreground"}`}>
-            {msg.subject}
+        <img
+          src="/letter-roll.png"
+          alt=""
+          className="w-full h-auto block"
+          style={isRead
+            ? { filter: "grayscale(0.55) brightness(0.75) drop-shadow(0 6px 18px rgba(0,0,0,0.95))" }
+            : { filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.95))" }
+          }
+        />
+        <div className="absolute inset-0 flex items-center">
+          <div className="container mx-auto flex items-center gap-3 px-6" style={{ transform: "translateY(-15px)" }}>
+            <div className="flex-1 min-w-0" style={{ paddingLeft: 25 }}>
+              <div className={`font-display truncate inline-block max-w-full px-1 py-0.5 ${subjectColor}`} style={{ textShadow: LETTER_TEXT_SHADOW, fontSize: 13, position: "relative", top: 10 }}>
+                {msg.subject}
+              </div>
+            </div>
+            <div className="flex items-center shrink-0" style={{ marginRight: "28px", gap: "6px" }}>
+              {showDeleteBlocked ? (
+                <span className="font-body text-xs text-red-400" style={{ textShadow: LETTER_TEXT_SHADOW }}>
+                  Contents must be claimed before deleting.
+                </span>
+              ) : showDeleteConfirm ? (
+                <div className="flex items-center gap-2" style={{ position: "relative", top: 5, left: -5 }} onClick={e => e.stopPropagation()}>
+                  <span className="font-body text-xs text-foreground/80" style={{ textShadow: LETTER_TEXT_SHADOW }}>Delete this message?</span>
+                  <button onClick={handleDeleteConfirm} disabled={deleting}
+                    className="font-display text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded border border-red-500/40"
+                    style={{ background: "rgba(0,0,0,0.65)" }}>
+                    {deleting ? "…" : "Yes"}
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); setShowDeleteConfirm(false) }}
+                    className="font-display text-xs text-foreground/60 hover:text-foreground px-2 py-0.5 rounded border border-border/40"
+                    style={{ background: "rgba(0,0,0,0.65)" }}>
+                    No
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {((msg.mana_reward ?? 0) > 0 || mysteryDrop) && (() => {
+                    const allClaimed = manaClaimed && (!mysteryDrop || !!mysteryDrop.revealed_at)
+                    return (
+                      <span className={`font-display text-lg font-bold w-8 h-8 flex items-center justify-center rounded mr-3 ${allClaimed ? "text-foreground/30 border-[3px] border-foreground/30" : "text-amber-400 border-[3px] border-amber-400"}`} style={{ background: "rgba(0,0,0,0.58)", position: "relative", top: 7 }}>?</span>
+                    )
+                  })()}
+                  <span className="text-xs text-foreground/70 font-body" style={{ textShadow: LETTER_TEXT_SHADOW, position: "relative", top: 5, right: 10 }}>{date}</span>
+                  {isRead
+                    ? <button onClick={handleDeleteClick} className="text-red-300 hover:text-red-200 leading-none font-bold text-[10px] flex items-center justify-center rounded-full w-4 h-4 shrink-0" style={{ marginLeft: "20px", background: "rgba(100,60,60,0.45)", border: "1.5px solid rgba(180,180,180,0.4)", position: "relative", top: 5, right: 10 }}><Trash2 size={8} /></button>
+                    : <div className="w-4 h-4 shrink-0" style={{ marginLeft: "12px", position: "relative", top: 5, right: 10 }} />
+                  }
+                </>
+              )}
+            </div>
           </div>
         </div>
-        {!manaClaimed && (msg.mana_reward ?? 0) > 0 && (
-          <div className="flex items-center gap-1 shrink-0">
-            <img src="/icons/mana-icon.png" alt="" width={10} height={10} />
-            <span className="font-display text-[10px] text-cyan-300/70">+{(msg.mana_reward ?? 0).toLocaleString()}</span>
-          </div>
-        )}
-        <span className="text-[10px] text-muted-foreground/40 font-body shrink-0">{date}</span>
-        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground/30 shrink-0 transition-transform duration-200 ${expanded ? "" : "-rotate-90"}`} />
-      </button>
+      </div>
 
-      {/* Expanded body */}
-      {expanded && scoreMeta && (
-        <div className="border-t border-border/40 px-4 py-4 space-y-4">
-          {/* Metric results grid */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className={`p-2.5 rounded-lg border text-xs ${scoreMeta.players_correct ? "border-emerald-500/25 bg-emerald-500/5" : "border-border bg-secondary/20"}`}>
-              <div className="text-muted-foreground mb-1 font-body">Peak Players</div>
-              <div className="font-mono font-bold text-foreground">
-                {scoreMeta.actual_player_count != null ? fmtPlayers(scoreMeta.actual_player_count) : "—"}
+      {/* Expanded panel — portal to left 50% */}
+      {isExpanded && (
+        <ExpandedPanel onClose={toggle}>
+          {scoreMeta && (
+            <div className="w-[72%] space-y-2 rounded-xl px-6 py-3" style={{ background: "rgba(8,6,4,0.62)", backdropFilter: "blur(2px)" }}>
+              <div>
+                <div className="font-display text-sm text-foreground">{scoreMeta.game_name}</div>
+                {scoreMeta.season_name && (
+                  <div className="font-body text-xs text-muted-foreground mt-0.5">{scoreMeta.season_name}</div>
+                )}
               </div>
-              <div className="text-muted-foreground text-[10px] font-body mt-0.5">
-                Window: {scoreMeta.players_window_low != null ? fmtPlayers(scoreMeta.players_window_low) : "—"}–{scoreMeta.players_window_high != null ? fmtPlayers(scoreMeta.players_window_high) : "—"}
+              <div className="grid grid-cols-2 gap-2">
+                <div className={`p-2.5 rounded-lg border text-xs ${scoreMeta.players_correct ? "border-emerald-500/25 bg-emerald-500/5" : "border-border bg-secondary/20"}`}>
+                  <div className="text-muted-foreground mb-1 font-body">Peak Players</div>
+                  <div className="font-mono font-bold text-foreground">
+                    {scoreMeta.actual_player_count != null ? fmtPlayers(scoreMeta.actual_player_count) : "—"}
+                  </div>
+                  <div className="text-[10px] font-body mt-0.5 text-muted-foreground">
+                    Window: {scoreMeta.players_window_low != null ? fmtPlayers(scoreMeta.players_window_low) : "—"}–{scoreMeta.players_window_high != null ? fmtPlayers(scoreMeta.players_window_high) : "—"}
+                  </div>
+                </div>
+                <div className={`p-2.5 rounded-lg border text-xs ${scoreMeta.reviews_correct ? "border-emerald-500/25 bg-emerald-500/5" : "border-border bg-secondary/20"}`}>
+                  <div className="text-muted-foreground mb-1 font-body">Review Score</div>
+                  <div className="font-mono font-bold text-foreground">
+                    {scoreMeta.actual_review_score != null ? `${scoreMeta.actual_review_score.toFixed(1)}%` : "—"}
+                  </div>
+                  <div className="text-[10px] font-body mt-0.5 text-muted-foreground">
+                    Window: {scoreMeta.reviews_window_low ?? "—"}%–{scoreMeta.reviews_window_high ?? "—"}%
+                  </div>
+                </div>
               </div>
+              {scoreMeta.mana_breakdown?.length > 0 && (
+                <div className="space-y-1">
+                  {scoreMeta.mana_breakdown.map((line, i) => (
+                    <div key={i} className="flex justify-between text-xs font-body text-muted-foreground">
+                      <span>{line.label}</span>
+                      <span className={line.color === "amber" ? "text-amber-400" : "text-cyan-300"}>+{line.amount}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-xs font-medium border-t border-border pt-1 mt-1">
+                    <div className="flex items-center gap-1 text-foreground">
+                      <img src="/icons/mana-icon.png" alt="" width={12} height={12} />
+                      <span>Total mana</span>
+                    </div>
+                    <span className="text-cyan-300 font-display">+{scoreMeta.total_mana.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-medium">
+                    <div className="flex items-center gap-1 text-foreground">
+                      <Trophy className="h-3 w-3 text-amber-500 shrink-0" />
+                      <span>Season score</span>
+                    </div>
+                    <span className="text-amber-400 font-display">+{scoreMeta.total_mana.toLocaleString()} pts</span>
+                  </div>
+                </div>
+              )}
+              {manaClaimed ? (
+                <div className="flex items-center gap-2 text-xs text-emerald-400">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span className="font-display">+{(msg.mana_reward ?? 0).toLocaleString()} mana added to spending balance</span>
+                </div>
+              ) : (msg.mana_reward ?? 0) > 0 ? (
+                <ClaimManaButton
+                  messageId={msg.id}
+                  manaAmount={msg.mana_reward ?? 0}
+                  onClaimed={() => setManaClaimed(true)}
+                />
+              ) : null}
+              {mysteryDrop && (
+                <MysteryDropSection drop={mysteryDrop} messageId={msg.id} />
+              )}
+              {scoreMeta.game_id && (
+                <Link
+                  href={`/games/${scoreMeta.game_id}`}
+                  className="inline-block font-display text-[10px] text-purple-400 border border-purple-500/30 rounded px-2.5 py-1 hover:bg-purple-950/30 transition-colors"
+                  onClick={e => e.stopPropagation()}
+                >
+                  View Prediction →
+                </Link>
+              )}
             </div>
-            <div className={`p-2.5 rounded-lg border text-xs ${scoreMeta.reviews_correct ? "border-emerald-500/25 bg-emerald-500/5" : "border-border bg-secondary/20"}`}>
-              <div className="text-muted-foreground mb-1 font-body">Review Score</div>
-              <div className="font-mono font-bold text-foreground">
-                {scoreMeta.actual_review_score != null ? `${scoreMeta.actual_review_score.toFixed(1)}%` : "—"}
-              </div>
-              <div className="text-muted-foreground text-[10px] font-body mt-0.5">
-                Window: {scoreMeta.reviews_window_low ?? "—"}%–{scoreMeta.reviews_window_high ?? "—"}%
-              </div>
-            </div>
-          </div>
+          )}
 
-          {/* Mana breakdown */}
-          {scoreMeta.mana_breakdown?.length > 0 && (
-            <div className="space-y-1">
-              {scoreMeta.mana_breakdown.map((line, i) => (
-                <div key={i} className="flex justify-between text-xs text-muted-foreground font-body">
-                  <span>{line.label}</span>
-                  <span className={line.color === "amber" ? "text-amber-400" : "text-cyan-300"}>+{line.amount}</span>
+          {ladderMeta && (
+            <div className="w-[72%] space-y-2 rounded-xl px-6 py-5" style={{ background: "rgba(8,6,4,0.62)", backdropFilter: "blur(2px)" }}>
+              {[
+                { label: "Binary matches", value: `+${ladderMeta.binary_mana}`, color: "text-cyan-300" },
+                { label: `Sequence run (${ladderMeta.sequence_length} games)`, value: `+${ladderMeta.sequence_mana}`, color: "text-cyan-300" },
+                ...((ladderMeta.ao_mana ?? 0) > 0
+                  ? [{ label: "Auspicious Omens", value: `+${ladderMeta.ao_mana}`, color: "text-amber-400" }]
+                  : []),
+              ].map((row, i) => (
+                <div key={i} className="flex justify-between text-xs font-body text-muted-foreground">
+                  <span>{row.label}</span>
+                  <span className={row.color}>{row.value}</span>
                 </div>
               ))}
-              <div className="flex justify-between text-xs font-medium border-t border-border pt-1 mt-1">
+              <div className="flex justify-between text-xs font-medium border-t border-border pt-1">
                 <div className="flex items-center gap-1 text-foreground">
                   <img src="/icons/mana-icon.png" alt="" width={12} height={12} />
                   <span>Total mana</span>
                 </div>
-                <span className="text-cyan-300 font-display">+{scoreMeta.total_mana.toLocaleString()}</span>
+                <span className="text-cyan-300 font-display">+{(ladderMeta.total_mana ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs font-medium">
                 <div className="flex items-center gap-1 text-foreground">
                   <Trophy className="h-3 w-3 text-amber-500 shrink-0" />
                   <span>Season score</span>
                 </div>
-                <span className="text-amber-400 font-display">+{scoreMeta.total_mana.toLocaleString()} pts</span>
+                <span className="text-amber-400 font-display">+{(ladderMeta.total_mana ?? 0).toLocaleString()} pts</span>
               </div>
             </div>
           )}
-
-          {/* Mana claim */}
-          {manaClaimed ? (
-            <div className="flex items-center gap-2 text-xs text-emerald-400">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span className="font-display">+{(msg.mana_reward ?? 0).toLocaleString()} mana added to spending balance</span>
-            </div>
-          ) : (msg.mana_reward ?? 0) > 0 ? (
-            <ClaimManaButton
-              messageId={msg.id}
-              manaAmount={msg.mana_reward ?? 0}
-              onClaimed={() => setManaClaimed(true)}
-            />
-          ) : null}
-
-          {/* Mystery drops */}
-          {mysteryDrop && (
-            <MysteryDropSection drop={mysteryDrop} messageId={msg.id} />
-          )}
-
-          {/* Link to game prediction */}
-          {scoreMeta.game_id && (
-            <Link
-              href={`/games/${scoreMeta.game_id}`}
-              className="inline-block font-display text-[10px] text-purple-400 border border-purple-500/30 rounded px-2.5 py-1 hover:bg-purple-950/30 transition-colors"
-            >
-              View Prediction →
-            </Link>
-          )}
-        </div>
-      )}
-
-      {/* Ladder message body */}
-      {expanded && msg.message_type === "score_ladder" && meta && (
-        <div className="border-t border-border/40 px-4 py-4 space-y-2">
-          {[
-            { label: "Binary matches", value: `+${(meta as LadderMetadata).binary_mana}`, color: "text-cyan-300" },
-            { label: `Sequence run (${(meta as LadderMetadata).sequence_length} games)`, value: `+${(meta as LadderMetadata).sequence_mana}`, color: "text-cyan-300" },
-            ...(((meta as LadderMetadata).ao_mana ?? 0) > 0
-              ? [{ label: "Auspicious Omens", value: `+${(meta as LadderMetadata).ao_mana}`, color: "text-amber-400" }]
-              : []),
-          ].map((row, i) => (
-            <div key={i} className="flex justify-between text-xs font-body text-muted-foreground">
-              <span>{row.label}</span>
-              <span className={row.color}>{row.value}</span>
-            </div>
-          ))}
-          <div className="flex justify-between text-xs font-medium border-t border-border pt-1">
-            <div className="flex items-center gap-1 text-foreground">
-              <img src="/icons/mana-icon.png" alt="" width={12} height={12} />
-              <span>Total mana</span>
-            </div>
-            <span className="text-cyan-300 font-display">+{((meta as LadderMetadata).total_mana ?? 0).toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-xs font-medium">
-            <div className="flex items-center gap-1 text-foreground">
-              <Trophy className="h-3 w-3 text-amber-500 shrink-0" />
-              <span>Season score</span>
-            </div>
-            <span className="text-amber-400 font-display">+{((meta as LadderMetadata).total_mana ?? 0).toLocaleString()} pts</span>
-          </div>
-        </div>
+        </ExpandedPanel>
       )}
     </div>
   )
 }
 
-// ─── AdminMessageCard (unchanged behaviour) ───────────────────
+// ─── AdminMessageCard ─────────────────────────────────────────
 
-function AdminMessageCard({ msg, isRead, isClaimed, onRead, onClaim }: {
+function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead, onClaim, onDelete }: {
   msg: MailMessage
   isRead: boolean
   isClaimed: boolean
+  isExpanded: boolean
+  onToggle: () => void
   onRead: () => void
   onClaim: (id: string) => void
+  onDelete: (id: string) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
   const [claiming, setClaiming] = useState(false)
   const [claimError, setClaimError] = useState("")
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showDeleteBlocked, setShowDeleteBlocked] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const isExpired = msg.expires_at ? new Date(msg.expires_at) < new Date() : false
-  const date = new Date(msg.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  const date = new Date(msg.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })
+  const hasUnclaimed = msg.mail_attachments.length > 0 && !isClaimed
 
-  async function toggle() {
-    const opening = !expanded
-    setExpanded(opening)
+  function handleDeleteClick(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (hasUnclaimed) {
+      setShowDeleteBlocked(true)
+      setTimeout(() => setShowDeleteBlocked(false), 3000)
+    } else {
+      setShowDeleteConfirm(true)
+    }
+  }
+
+  async function handleDeleteConfirm(e: React.MouseEvent) {
+    e.stopPropagation()
+    setDeleting(true)
+    await fetch("/api/mail/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message_id: msg.id }),
+    })
+    setDeleting(false)
+    onDelete(msg.id)
+  }
+
+  function toggle() {
+    const opening = !isExpanded
+    onToggle()
     if (opening && !isRead) {
       onRead()
       fetch("/api/mail/read", {
@@ -525,57 +655,102 @@ function AdminMessageCard({ msg, isRead, isClaimed, onRead, onClaim }: {
   }
 
   return (
-    <div className={`border rounded-xl overflow-hidden transition-colors ${
-      isRead ? "border-border bg-card" : "border-purple-500/40 bg-purple-950/[0.08]"
-    }`}>
-      <button
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.02] transition-colors"
+    <div>
+      {/* Roll — always visible */}
+      <div
+        className={`relative cursor-pointer transition-transform duration-150 ${isExpanded ? "scale-[1.06]" : "hover:scale-[1.06]"}`}
         onClick={toggle}
+        style={{ width: "100%" }}
       >
-        <div className={`w-2 h-2 rounded-full shrink-0 ${isRead ? "bg-transparent" : "bg-purple-500"}`} />
-        <span className={`flex-1 font-display text-sm truncate ${isRead ? "text-muted-foreground" : "text-foreground"}`}>
-          {msg.subject}
-        </span>
-        {msg.mail_attachments.length > 0 && <span className="text-amber-400/60 text-xs shrink-0">📦</span>}
-        <span className="text-[10px] text-muted-foreground/40 font-body shrink-0">{date}</span>
-        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground/30 shrink-0 transition-transform duration-200 ${expanded ? "" : "-rotate-90"}`} />
-      </button>
-
-      {expanded && (
-        <div className="border-t border-border/40 px-4 py-4 space-y-4">
-          <p className="text-sm font-body text-muted-foreground leading-relaxed whitespace-pre-wrap">{msg.body}</p>
-
-          {msg.mail_attachments.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-[9px] font-display tracking-widest uppercase text-muted-foreground/40">Attachments</div>
-              {msg.mail_attachments.map((att, i) => (
-                <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-secondary/30 border border-border/50">
-                  {att.items?.image_url && (
-                    <img src={att.items.image_url} alt={att.items.name} className="w-8 h-8 rounded-md object-cover shrink-0" />
-                  )}
-                  <span className="flex-1 text-sm font-body text-foreground">
-                    {att.quantity > 1 && <span className="text-amber-400 font-display">{att.quantity}× </span>}
-                    {att.items?.name ?? "Unknown item"}
-                  </span>
-                  {isClaimed ? (
-                    <span className="text-xs font-display text-emerald-400 shrink-0">✓ Claimed</span>
-                  ) : isExpired ? (
-                    <span className="text-xs font-body text-muted-foreground/50 shrink-0">Expired</span>
-                  ) : (
-                    <button
-                      onClick={handleClaim}
-                      disabled={claiming}
-                      className="px-3 py-1 rounded-lg text-xs font-display bg-purple-500/10 text-purple-400 border border-purple-500/25 hover:bg-purple-500/20 transition-colors disabled:opacity-50 shrink-0"
-                    >
-                      {claiming ? "Claiming…" : "Claim"}
-                    </button>
-                  )}
-                </div>
-              ))}
-              {claimError && <p className="text-xs text-red-400 font-body">{claimError}</p>}
+        <img
+          src="/letter-roll.png"
+          alt=""
+          className="w-full h-auto block"
+          style={isRead
+            ? { filter: "grayscale(0.55) brightness(0.75) drop-shadow(0 6px 18px rgba(0,0,0,0.95))" }
+            : { filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.95))" }
+          }
+        />
+        <div className="absolute inset-0 flex items-center">
+          <div className="container mx-auto flex items-center gap-3 px-6" style={{ transform: "translateY(-15px)" }}>
+            <div className="flex-1 min-w-0" style={{ paddingLeft: 25 }}>
+              <span className={`font-display truncate inline-block max-w-full px-1 py-0.5 ${isRead ? "text-foreground/60" : "text-foreground"}`} style={{ textShadow: LETTER_TEXT_SHADOW, fontSize: 13, position: "relative", top: 10 }}>
+                {msg.subject}
+              </span>
             </div>
-          )}
+            <div className="flex items-center shrink-0" style={{ marginRight: "28px", gap: "6px" }}>
+              {showDeleteBlocked ? (
+                <span className="font-body text-xs text-red-400" style={{ textShadow: LETTER_TEXT_SHADOW }}>
+                  Contents must be claimed before deleting.
+                </span>
+              ) : showDeleteConfirm ? (
+                <div className="flex items-center gap-2" style={{ position: "relative", top: 5, left: -5 }} onClick={e => e.stopPropagation()}>
+                  <span className="font-body text-xs text-foreground/80" style={{ textShadow: LETTER_TEXT_SHADOW }}>Delete this message?</span>
+                  <button onClick={handleDeleteConfirm} disabled={deleting}
+                    className="font-display text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded border border-red-500/40"
+                    style={{ background: "rgba(0,0,0,0.65)" }}>
+                    {deleting ? "…" : "Yes"}
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); setShowDeleteConfirm(false) }}
+                    className="font-display text-xs text-foreground/60 hover:text-foreground px-2 py-0.5 rounded border border-border/40"
+                    style={{ background: "rgba(0,0,0,0.65)" }}>
+                    No
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {msg.mail_attachments.length > 0 && (
+                    <span className={`font-display text-lg font-bold w-8 h-8 flex items-center justify-center rounded mr-3 ${isClaimed ? "text-foreground/30 border-[3px] border-foreground/30" : "text-amber-400 border-[3px] border-amber-400"}`} style={{ background: "rgba(0,0,0,0.58)", position: "relative", top: 7 }}>?</span>
+                  )}
+                  <span className="text-xs text-foreground/70 font-body" style={{ textShadow: LETTER_TEXT_SHADOW, position: "relative", top: 5, right: 10 }}>{date}</span>
+                  {isRead
+                    ? <button onClick={handleDeleteClick} className="text-red-300 hover:text-red-200 leading-none font-bold text-[10px] flex items-center justify-center rounded-full w-4 h-4 shrink-0" style={{ marginLeft: "20px", background: "rgba(100,60,60,0.45)", border: "1.5px solid rgba(180,180,180,0.4)", position: "relative", top: 5, right: 10 }}><Trash2 size={8} /></button>
+                    : <div className="w-4 h-4 shrink-0" style={{ marginLeft: "12px", position: "relative", top: 5, right: 10 }} />
+                  }
+                </>
+              )}
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Expanded panel — portal to left 50% */}
+      {isExpanded && (
+        <ExpandedPanel onClose={toggle}>
+          <div className="w-[72%] space-y-4 rounded-xl px-6 py-5" style={{ background: "rgba(8,6,4,0.62)", backdropFilter: "blur(2px)" }}>
+            <p className="text-sm font-body text-foreground/85 leading-relaxed whitespace-pre-wrap">{msg.body}</p>
+            {msg.mail_attachments.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-[9px] font-display tracking-widest uppercase text-muted-foreground/40">Attachments</div>
+                {msg.mail_attachments.map((att, i) => (
+                  <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-secondary/30 border border-border/50">
+                    {att.items?.image_url && (
+                      <img src={att.items.image_url} alt={att.items.name} className="w-8 h-8 rounded-md object-cover shrink-0" />
+                    )}
+                    <span className="flex-1 text-sm font-body text-foreground">
+                      {att.quantity > 1 && <span className="text-amber-400 font-display">{att.quantity}× </span>}
+                      {att.items?.name ?? "Unknown item"}
+                    </span>
+                    {isClaimed ? (
+                      <span className="text-xs font-display text-emerald-400 shrink-0">✓ Claimed</span>
+                    ) : isExpired ? (
+                      <span className="text-xs font-body text-muted-foreground/50 shrink-0">Expired</span>
+                    ) : (
+                      <button
+                        onClick={e => { e.stopPropagation(); handleClaim() }}
+                        disabled={claiming}
+                        className="px-3 py-1 rounded-lg text-xs font-display bg-purple-500/10 text-purple-400 border border-purple-500/25 hover:bg-purple-500/20 transition-colors disabled:opacity-50 shrink-0"
+                      >
+                        {claiming ? "Claiming…" : "Claim"}
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {claimError && <p className="text-xs text-red-400 font-body">{claimError}</p>}
+              </div>
+            )}
+          </div>
+        </ExpandedPanel>
       )}
     </div>
   )
@@ -587,59 +762,145 @@ interface MailboxClientProps {
   messages: MailMessage[]
 }
 
+const ITEMS_PER_PAGE = 6
+
 export function MailboxClient({ messages }: MailboxClientProps) {
+  useEffect(() => {
+    const prevent = (e: Event) => e.preventDefault()
+    const preventKey = (e: KeyboardEvent) => {
+      if (["ArrowUp","ArrowDown","PageUp","PageDown","Home","End"," "].includes(e.key)) e.preventDefault()
+    }
+    document.addEventListener("wheel", prevent, { passive: false })
+    document.addEventListener("touchmove", prevent, { passive: false })
+    document.addEventListener("keydown", preventKey)
+    document.documentElement.style.scrollbarWidth = "none"
+    return () => {
+      document.removeEventListener("wheel", prevent)
+      document.removeEventListener("touchmove", prevent)
+      document.removeEventListener("keydown", preventKey)
+      document.documentElement.style.scrollbarWidth = ""
+    }
+  }, [])
+
+  const [msgs, setMsgs] = useState(messages)
   const [read, setRead] = useState<Set<string>>(new Set(
     messages.filter(m => getReadRow(m.mail_reads)?.read_at).map(m => m.id)
   ))
   const [claimed, setClaimed] = useState<Set<string>>(new Set(
     messages.filter(m => getReadRow(m.mail_reads)?.claimed_at).map(m => m.id)
   ))
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(0)
 
-  if (messages.length === 0) {
+  const totalPages = Math.max(1, Math.ceil(msgs.length / ITEMS_PER_PAGE))
+  const pagedMsgs = msgs.slice(currentPage * ITEMS_PER_PAGE, (currentPage + 1) * ITEMS_PER_PAGE)
+
+  function goToPage(page: number) {
+    setCurrentPage(page)
+    setExpandedId(null)
+  }
+
+  function handleDelete(id: string) {
+    setMsgs(prev => {
+      const next = prev.filter(m => m.id !== id)
+      const newTotal = Math.max(1, Math.ceil(next.length / ITEMS_PER_PAGE))
+      if (currentPage >= newTotal) setCurrentPage(newTotal - 1)
+      return next
+    })
+    if (expandedId === id) setExpandedId(null)
+  }
+
+  function handleToggle(id: string) {
+    setExpandedId(prev => prev === id ? null : id)
+  }
+
+  if (msgs.length === 0) {
     return (
-      <div className="text-center py-16 text-muted-foreground font-body">
-        Your mailbox is empty.
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        minHeight: "60vh",
+      }}>
+        <div style={{
+          background: "rgba(80,80,80,0.35)",
+          border: "1px solid rgba(160,160,160,0.2)",
+          borderRadius: 12,
+          padding: "20px 36px",
+          backdropFilter: "blur(4px)",
+        }}>
+          <span className="text-foreground/70 font-display text-2xl" style={{
+            textShadow: "0 2px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.8)",
+          }}>
+            Your mailbox is empty.
+          </span>
+        </div>
       </div>
     )
   }
 
-  const unreadCount = messages.filter(m => !read.has(m.id)).length
+  const atFirst = currentPage === 0
+  const atLast = currentPage === totalPages - 1
+
+  const navBtn = (onClick: () => void, disabled: boolean, icon: string, alt: string) => (
+    <button
+      onClick={disabled ? undefined : onClick}
+      style={{
+        opacity: disabled ? 0.35 : 1,
+        cursor: disabled ? "default" : "pointer",
+        transition: "transform 0.1s",
+        background: "none",
+        border: "none",
+        padding: 0,
+        pointerEvents: disabled ? "none" : "auto",
+      }}
+      onMouseDown={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.88)" }}
+      onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
+    >
+      <img src={`/icons/${icon}`} alt={alt} style={{ width: 78, height: 78, objectFit: "contain", display: "block" }} />
+    </button>
+  )
 
   return (
-    <div className="space-y-4">
-      {unreadCount > 0 && (
-        <p className="text-xs font-body text-muted-foreground">
-          {unreadCount} unread {unreadCount === 1 ? "message" : "messages"}
-        </p>
-      )}
+    <div className="space-y-3">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "0 4px", minHeight: 36, marginBottom: -8 }}>
+        {navBtn(() => goToPage(0),               atFirst, "double-left.png",  "Newest")}
+        {navBtn(() => goToPage(currentPage - 1), atFirst, "left.png",         "Newer")}
+        <div style={{ width: 80 }} />
+        {navBtn(() => goToPage(currentPage + 1), atLast,  "right.png",        "Older")}
+        {navBtn(() => goToPage(totalPages - 1),  atLast,  "double-right.png", "Oldest")}
+      </div>
 
-      <div className="space-y-3">
-        {messages.map(msg => {
-          const isRead = read.has(msg.id)
+      {pagedMsgs.map(msg => {
+        const isRead = read.has(msg.id)
 
-          if (msg.message_type === "score_week_one" || msg.message_type === "score_ladder") {
-            return (
-              <ScoringMessageCard
-                key={msg.id}
-                msg={msg}
-                isRead={isRead}
-                onRead={() => setRead(prev => new Set([...prev, msg.id]))}
-              />
-            )
-          }
-
+        if (msg.message_type === "score_week_one" || msg.message_type === "score_ladder") {
           return (
-            <AdminMessageCard
+            <ScoringMessageCard
               key={msg.id}
               msg={msg}
               isRead={isRead}
-              isClaimed={claimed.has(msg.id)}
+              isExpanded={expandedId === msg.id}
+              onToggle={() => handleToggle(msg.id)}
               onRead={() => setRead(prev => new Set([...prev, msg.id]))}
-              onClaim={id => setClaimed(prev => new Set([...prev, id]))}
+              onDelete={handleDelete}
             />
           )
-        })}
-      </div>
+        }
+
+        return (
+          <AdminMessageCard
+            key={msg.id}
+            msg={msg}
+            isRead={isRead}
+            isClaimed={claimed.has(msg.id)}
+            isExpanded={expandedId === msg.id}
+            onToggle={() => handleToggle(msg.id)}
+            onRead={() => setRead(prev => new Set([...prev, msg.id]))}
+            onClaim={id => setClaimed(prev => new Set([...prev, id]))}
+            onDelete={handleDelete}
+          />
+        )
+      })}
     </div>
   )
 }

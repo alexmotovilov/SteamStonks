@@ -141,7 +141,7 @@ export default function AdminUsersPage() {
     actionLoading === `${userId}-${action}`
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="p-2 rounded-lg bg-primary/10">

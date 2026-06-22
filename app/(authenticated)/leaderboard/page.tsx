@@ -246,7 +246,7 @@ export default async function LeaderboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="container mx-auto space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground">Leaderboard</h1>

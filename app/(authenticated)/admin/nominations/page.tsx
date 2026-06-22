@@ -135,7 +135,7 @@ export default function NominationsPage() {
   const rejectedNominations = nominations.filter((n) => n.status === "rejected")
 
   return (
-    <div className="space-y-8">
+    <div className="container mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="icon">

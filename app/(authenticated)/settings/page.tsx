@@ -77,7 +77,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container py-8 max-w-2xl">
+    <div className="max-w-2xl mx-auto py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Settings</h1>
         <p className="text-muted-foreground">Manage your account settings and preferences</p>

@@ -52,7 +52,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
   const prizePool = (season.entry_fee_tokens || 0) * (participantCount || 0)
 
   return (
-    <div className="space-y-8">
+    <div className="container mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

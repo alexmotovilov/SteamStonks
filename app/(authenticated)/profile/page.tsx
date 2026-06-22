@@ -145,7 +145,7 @@ export default function ProfilePage() {
   })
 
   return (
-    <div className="container py-8 max-w-4xl">
+    <div className="max-w-4xl mx-auto py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Profile</h1>
         <p className="text-muted-foreground">Manage your account and view your stats</p>

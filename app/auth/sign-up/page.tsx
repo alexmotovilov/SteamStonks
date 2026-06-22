@@ -14,6 +14,7 @@ import { Loader2 } from "lucide-react"
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [displayName, setDisplayName] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -23,6 +24,12 @@ export default function SignUpPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.")
+      setLoading(false)
+      return
+    }
 
     const supabase = createClient()
     const { error } = await supabase.auth.signUp({
@@ -51,14 +58,14 @@ export default function SignUpPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="relative w-full max-w-md">
         {/* Gargoyle + speech bubble — absolutely positioned to the left of the card */}
-        <div className="absolute right-full bottom-0 hidden md:flex flex-col items-center pr-6" style={{ width: "320px" }}>
+        <div className="absolute right-full hidden md:flex flex-col items-center pr-6" style={{ width: "320px", bottom: "85px" }}>
           {/* Speech bubble */}
           <div
             className="relative rounded-xl border px-4 py-3 text-sm font-body text-white w-full text-center mb-2"
             style={{ backdropFilter: "blur(4px)", borderColor: "#C4A882", backgroundColor: "rgba(196,168,130,0.25)" }}
           >
             Prognos staff will{" "}
-            <span className="text-red-400 font-semibold">NEVER</span> ask you for your password. Do not share it with anybody.
+            <span className="text-red-400 font-semibold">NEVER</span> ask for your password. Do not share it with anyone.
             {/* Tail pointing down */}
             <div
               className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-full"
@@ -129,6 +136,18 @@ export default function SignUpPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
+                className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-foreground">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
                 className="bg-input border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>

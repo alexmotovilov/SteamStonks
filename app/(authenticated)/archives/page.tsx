@@ -35,7 +35,7 @@ export default async function ArchivesPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="container mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-display text-foreground">Archives</h1>
         <p className="text-muted-foreground font-body text-sm mt-1">

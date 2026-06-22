@@ -127,7 +127,7 @@ function LifecycleStep({ n, title, children }: { n: number; title: string; child
 
 export default function GuidePage() {
   return (
-    <div className="flex gap-8">
+    <div className="container mx-auto flex gap-8">
 
       {/* Sidebar */}
       <aside className="hidden lg:block w-44 shrink-0">
