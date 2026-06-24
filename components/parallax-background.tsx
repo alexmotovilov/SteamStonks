@@ -34,7 +34,7 @@ export function ParallaxBackground() {
         <div
           style={{
             position: "fixed",
-            top: "calc(5% + 65px)",
+            top: "calc(5% + 35px)",
             right: "5%",
             bottom: "5%",
             left: "5%",

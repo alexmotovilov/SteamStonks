@@ -331,8 +331,8 @@ async function generateScoringMessage(
       breakdown.push({ label: "First prediction bonus", amount: scoreResult.mana_first_prediction, color: "cyan" })
 
     const totalMana = scoreResult.final_mana ?? 0
-    const resultLabel = scoreResult.result === "perfect" ? "Perfect Hit"
-      : scoreResult.result === "partial" ? "Partial Hit" : "Missed"
+    const resultLabel = scoreResult.result === "perfect" ? "Perfect Prognos"
+      : scoreResult.result === "partial" ? "Partial Prognos" : "Missed"
 
     const { data: message } = await db
       .from("mail_messages")

@@ -329,7 +329,7 @@ function ExpandedPanel({ onClose, children }: { onClose: () => void; children: R
     >
       <div
         className="relative"
-        style={{ width: "85%" }}
+        style={{ width: "85%", transform: "translateX(40px) translateY(175px) scale(0.95)" }}
       >
         <img src="/letter-background.png" alt="" className="w-full h-auto block" />
         <div className="absolute inset-0 flex items-center justify-center">
@@ -416,8 +416,8 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
           alt=""
           className="w-full h-auto block"
           style={isRead
-            ? { filter: "grayscale(0.55) brightness(0.75) drop-shadow(0 6px 18px rgba(0,0,0,0.95))" }
-            : { filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.95))" }
+            ? { filter: "grayscale(0.55) brightness(0.75) drop-shadow(0 6px 19px rgba(0,0,0,1)) drop-shadow(0 10px 24px rgba(0,0,0,0.6))" }
+            : { filter: "drop-shadow(0 6px 19px rgba(0,0,0,1)) drop-shadow(0 10px 24px rgba(0,0,0,0.6))" }
           }
         />
         <div className="absolute inset-0 flex items-center">
@@ -667,8 +667,8 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
           alt=""
           className="w-full h-auto block"
           style={isRead
-            ? { filter: "grayscale(0.55) brightness(0.75) drop-shadow(0 6px 18px rgba(0,0,0,0.95))" }
-            : { filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.95))" }
+            ? { filter: "grayscale(0.55) brightness(0.75) drop-shadow(0 6px 19px rgba(0,0,0,1)) drop-shadow(0 10px 24px rgba(0,0,0,0.6))" }
+            : { filter: "drop-shadow(0 6px 19px rgba(0,0,0,1)) drop-shadow(0 10px 24px rgba(0,0,0,0.6))" }
           }
         />
         <div className="absolute inset-0 flex items-center">
@@ -818,21 +818,13 @@ export function MailboxClient({ messages }: MailboxClientProps) {
     return (
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "center",
-        minHeight: "60vh",
+        minHeight: "60vh", paddingTop: "20px",
       }}>
-        <div style={{
-          background: "rgba(80,80,80,0.35)",
-          border: "1px solid rgba(160,160,160,0.2)",
-          borderRadius: 12,
-          padding: "20px 36px",
-          backdropFilter: "blur(4px)",
+        <span className="text-foreground/70 font-display text-2xl" style={{
+          textShadow: "0 0 2px #000, 0 0 2px #000, 0 0 2px #000, 0 0 4px #000, 0 0 4px #000, 0 0 4px #000, 0 0 6px #000, 0 0 6px #000, 0 0 8px #000, 0 0 8px #000, 0 0 10px #000, 0 0 12px #000, 0 0 16px #000, 0 0 20px #000, 0 0 28px #000, 0 0 40px rgba(0,0,0,0.97), 0 0 60px rgba(0,0,0,0.93), 0 0 90px rgba(0,0,0,0.88)",
         }}>
-          <span className="text-foreground/70 font-display text-2xl" style={{
-            textShadow: "0 2px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.8)",
-          }}>
-            Your mailbox is empty.
-          </span>
-        </div>
+          Your mailbox is empty.
+        </span>
       </div>
     )
   }
@@ -856,13 +848,13 @@ export function MailboxClient({ messages }: MailboxClientProps) {
       onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
     >
-      <img src={`/icons/${icon}`} alt={alt} style={{ width: 78, height: 78, objectFit: "contain", display: "block" }} />
+      <img src={`/icons/${icon}`} alt={alt} style={{ width: 94, height: 94, objectFit: "contain", display: "block" }} />
     </button>
   )
 
   return (
     <div className="space-y-3">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "0 4px", minHeight: 36, marginBottom: -8 }}>
+<div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "0 4px", minHeight: 36, marginBottom: -8, transform: "translateY(-20px)" }}>
         {navBtn(() => goToPage(0),               atFirst, "double-left.png",  "Newest")}
         {navBtn(() => goToPage(currentPage - 1), atFirst, "left.png",         "Newer")}
         <div style={{ width: 80 }} />
@@ -870,6 +862,7 @@ export function MailboxClient({ messages }: MailboxClientProps) {
         {navBtn(() => goToPage(totalPages - 1),  atLast,  "double-right.png", "Oldest")}
       </div>
 
+      <div style={{ transform: "translateY(-25px) scale(1.03)", transformOrigin: "top center", display: "flex", flexDirection: "column", gap: "10px" }}>
       {pagedMsgs.map(msg => {
         const isRead = read.has(msg.id)
 
@@ -901,6 +894,9 @@ export function MailboxClient({ messages }: MailboxClientProps) {
           />
         )
       })}
+      </div>
     </div>
   )
 }
+
+

@@ -201,18 +201,21 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
           )}
         </div>
 
+        {/* Join season CTA — centered in header */}
+        {user && !hasJoinedActiveSeason && activeSeasonName && activeSeasonId && (
+          <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2 pointer-events-none" style={{ zIndex: 2 }}>
+            <Link
+              href={`/seasons/${activeSeasonId}`}
+              className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-display text-xs tracking-wide bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/18 transition-colors whitespace-nowrap"
+            >
+              Join {activeSeasonName} →
+            </Link>
+          </div>
+        )}
+
         <div className="flex items-center gap-4">
           {user ? (
             <>
-              {/* Join season CTA — only when player hasn't joined the active season */}
-              {user && !hasJoinedActiveSeason && activeSeasonName && activeSeasonId && (
-                <Link
-                  href={`/seasons/${activeSeasonId}`}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-display text-xs tracking-wide bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/18 transition-colors whitespace-nowrap"
-                >
-                  Join {activeSeasonName} →
-                </Link>
-              )}
               {/* Equipment badge (purple) — current equipment + tier */}
               {user && <Suspense fallback={null}><EquipmentBadge user={user} /></Suspense>}
               {/* Season score + rank on goblin scroll */}

@@ -993,7 +993,7 @@ function ScoredPredictionCard({ result, gameName, existingPrediction, snapshotPl
           <div>
             <CardTitle className="text-foreground text-base">{gameName}</CardTitle>
             <CardDescription className={isPerfect ? "text-emerald-400" : isPartial ? "text-yellow-400" : "text-muted-foreground"}>
-              {isPerfect ? "Perfect!" : isPartial ? "Partial Hit" : "Missed"} · <span className="text-cyan-300 font-bold">+{totalMana} mana</span>
+              {isPerfect ? "Perfect Prognos!" : isPartial ? "Partial Prognos" : "Missed"} · <span className="text-cyan-300 font-bold">+{totalMana} mana</span>
             </CardDescription>
           </div>
         </div>

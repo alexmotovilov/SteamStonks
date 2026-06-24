@@ -9,6 +9,10 @@ html {
   background-color: oklch(0.13 0.01 260);
 }
 
+::-webkit-scrollbar {
+  display: none;
+}
+
 :root {
   --background: oklch(0.13 0.01 260 / 0);
   --foreground: oklch(0.95 0 0);

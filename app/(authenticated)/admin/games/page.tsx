@@ -16,6 +16,7 @@ interface Game {
   id: string
   steam_appid: number
   name: string
+  ticker_symbol: string | null
   header_image_url: string | null
   release_date: string | null
   release_time_override: string | null
@@ -211,6 +212,16 @@ export default function AdminGamesPage() {
     }
   }
 
+  async function setTickerSymbol(gameId: string, value: string | null) {
+    const { error } = await supabase
+      .from("games")
+      .update({ ticker_symbol: value || null, updated_at: new Date().toISOString() })
+      .eq("id", gameId)
+    if (!error) {
+      setGames(games.map(g => g.id === gameId ? { ...g, ticker_symbol: value || null } : g))
+    }
+  }
+
   async function setReleaseOverride(gameId: string, value: string | null) {
     const { error } = await supabase
       .from("games")
@@ -333,6 +344,7 @@ export default function AdminGamesPage() {
                   <TableHead>Season</TableHead>
                   <TableHead>24h Peak</TableHead>
                   <TableHead>Reviews</TableHead>
+                  <TableHead>Ticker</TableHead>
                   <TableHead>Launch Override (UTC)</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -432,6 +444,17 @@ export default function AdminGamesPage() {
                         ) : (
                           "-"
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <input
+                          type="text"
+                          maxLength={5}
+                          placeholder="auto"
+                          className="text-xs bg-transparent border border-border rounded px-1 py-0.5 text-foreground w-16 uppercase"
+                          title="Ticker symbol (max 5 chars) — leave blank to auto-derive from game name"
+                          value={game.ticker_symbol ?? ""}
+                          onChange={e => setTickerSymbol(game.id, e.target.value.toUpperCase())}
+                        />
                       </TableCell>
                       <TableCell>
                         <input
