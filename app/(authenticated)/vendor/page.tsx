@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { VendorShop, type InventoryItem } from "@/components/vendor-shop"
+import { VendorShop, BoosterStock, type InventoryItem } from "@/components/vendor-shop"
 import { StipendBanner } from "@/components/stipend-banner"
 import { VendorCountdown } from "@/components/vendor-countdown"
 
@@ -94,23 +94,28 @@ export default async function VendorPage() {
   const stipendClaimable = (entry.stipend_week_number ?? 0) < (season.current_vendor_week ?? 1)
 
   return (
-    <div className="container mx-auto space-y-6">
-      <div className="text-center">
-        <h1 className="text-3xl font-display text-foreground">Arcane Repository</h1>
-        <VendorCountdown />
+    <div className="flex gap-0" style={{ minHeight: "calc(100vh - 120px)" }}>
+      {/* Left: shopkeeper interface */}
+      <div className="flex-1 flex flex-col items-center justify-end gap-4 pb-12 overflow-hidden">
+        <div className="text-center">
+          <h1 className="text-3xl font-display text-foreground">Arcane Repository</h1>
+          <VendorCountdown />
+        </div>
+        <StipendBanner claimable={stipendClaimable} seasonId={season.id} />
+        <VendorShop
+          items={items ?? []}
+          purchasedCounts={purchasedByItemId}
+          manaBalance={profile?.mana_balance ?? 0}
+          seasonId={season.id}
+          vendorWeek={season.current_vendor_week ?? 1}
+          vendorCycle={cycle}
+        />
       </div>
 
-      <StipendBanner claimable={stipendClaimable} seasonId={season.id} />
-
-      <VendorShop
-        items={items ?? []}
-        purchasedCounts={purchasedByItemId}
-        manaBalance={profile?.mana_balance ?? 0}
-        seasonId={season.id}
-        vendorWeek={season.current_vendor_week ?? 1}
-        vendorCycle={cycle}
-        inventory={(inventory ?? []) as unknown as InventoryItem[]}
-      />
+      {/* Right: booster stock */}
+      <div className="w-80 shrink-0 flex items-center justify-center">
+        <BoosterStock inventory={(inventory ?? []) as unknown as InventoryItem[]} />
+      </div>
     </div>
   )
 }

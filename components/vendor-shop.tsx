@@ -36,7 +36,6 @@ interface VendorShopProps {
   seasonId: string
   vendorWeek: number
   vendorCycle: "A" | "B"
-  inventory: InventoryItem[]
 }
 
 function BoosterDisplayTile({ inv }: { inv: InventoryItem }) {
@@ -77,7 +76,7 @@ function BoosterDisplayTile({ inv }: { inv: InventoryItem }) {
   )
 }
 
-export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, inventory }: VendorShopProps) {
+export function VendorShop({ items, purchasedCounts, manaBalance, seasonId }: VendorShopProps) {
   const router = useRouter()
   const [localMana, setLocalMana] = useState(manaBalance)
   const [localPurchased, setLocalPurchased] = useState<Record<string, number>>(purchasedCounts)
@@ -110,17 +109,17 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, inve
   const hoveredItem = hoveredSlug && !confirmingSlug ? items.find(i => i.slug === hoveredSlug) ?? null : null
 
   return (
-    <div className="relative space-y-10">
+    <div className="relative">
       {/* Vendor item grid */}
-      <div className="relative">
+      <div className="relative flex justify-center">
         <img
-          src="/other-gargoyle.png"
+          src="/shopkeep.png"
           alt=""
-          className="absolute bottom-0 max-h-80 w-auto object-contain pointer-events-none select-none"
-          style={{ right: "calc(50% + 290px)" }}
+          className="pointer-events-none select-none"
+          style={{ width: "1020px", maxWidth: "100%" }}
           draggable={false}
         />
-        <div className="flex flex-wrap justify-center gap-3">
+        <div className="absolute bottom-[30px] left-0 right-0 flex flex-wrap justify-center gap-36">
         {items.map(item => {
           const bought = localPurchased[item.id] ?? 0
           const exhausted = bought >= item.vendor_weekly_limit
@@ -132,11 +131,8 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, inve
           return (
             <div
               key={item.id}
-              className={`relative rounded-2xl border bg-[rgba(190,200,215,0.22)] p-4 flex flex-col items-center gap-3 transition-all duration-200 w-[171px] ${
-                exhausted
-                  ? "border-white/10"
-                  : "border-slate-400/30 hover:border-slate-300/50"
-              }`}
+              className="relative p-4 flex flex-col items-center gap-3 transition-all duration-200 w-[171px]"
+              style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,1)) drop-shadow(0 4px 24px rgba(0,0,0,1))" }}
               onMouseEnter={() => setHoveredSlug(item.slug)}
               onMouseLeave={() => setHoveredSlug(null)}
               onMouseMove={e => setMousePos({ x: e.clientX, y: e.clientY })}
@@ -169,30 +165,27 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, inve
                 </div>
               )}
 
-              <div className={`w-[86px] h-[86px] rounded-xl overflow-hidden border transition-all duration-200 ${
-                exhausted ? "border-white/10 grayscale opacity-40" : "border-slate-400/20"
-              }`}>
-                {item.image_url
-                  ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                  : <div className="w-full h-full bg-amber-950/30 flex items-center justify-center text-3xl opacity-50">⚗</div>
-                }
+              <div className="relative w-[86px] h-[86px]">
+                <div className={`w-full h-full rounded-xl overflow-hidden border transition-all duration-200 ${
+                  exhausted ? "border-white/10 grayscale opacity-40" : "border-slate-400/20"
+                }`}>
+                  {item.image_url
+                    ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                    : <div className="w-full h-full bg-amber-950/30 flex items-center justify-center text-3xl opacity-50">⚗</div>
+                  }
+                </div>
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/85 border border-cyan-500/40 z-10 whitespace-nowrap">
+                  <img src="/icons/mana-icon.png" alt="mana" width={9} height={9} className="shrink-0" />
+                  <span className="font-display text-[9px] leading-none text-cyan-300">{item.vendor_price}</span>
+                </div>
+                <div className={`absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-black/90 border flex items-center justify-center z-10 ${exhausted ? "border-red-500/60" : "border-amber-500/60"}`}>
+                  <span className={`font-display text-[7px] leading-none ${exhausted ? "text-red-400" : "text-amber-300"}`}>×{exhausted ? 0 : remaining}</span>
+                </div>
               </div>
 
               {/* Name — min-h reserves two lines so bottom content aligns across all tiles */}
               <div className={`font-display text-sm text-center min-h-[42px] w-full flex flex-col items-center justify-start ${exhausted ? "text-muted-foreground" : "text-amber-300"}`}>
                 {item.name}
-              </div>
-
-              <div className="font-body text-[11px] text-muted-foreground text-center">
-                {exhausted
-                  ? "Limit reached this week"
-                  : `${remaining} of ${item.vendor_weekly_limit} purchase${item.vendor_weekly_limit !== 1 ? "s" : ""} remaining`
-                }
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <ManaIcon size={14} />
-                <span className="font-display text-sm text-cyan-300">{item.vendor_price}</span>
               </div>
 
               {errors[item.slug] && (
@@ -242,25 +235,34 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, inve
         </div>
       )}
 
-      {/* Booster inventory section */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="h-px flex-1 bg-white/8" />
-          <span className="font-display text-[11px] text-muted-foreground tracking-widest uppercase">Your Booster Stock</span>
-          <div className="h-px flex-1 bg-white/8" />
-        </div>
+    </div>
+  )
+}
 
-        {inventory.length === 0 ? (
-          <p className="text-[11px] text-muted-foreground font-body text-center">
-            Your inventory is empty. Purchase items above or earn drops from predictions.
-          </p>
-        ) : (
-          <div className="grid grid-cols-4 gap-3 mx-auto w-fit">
-            {inventory.map(inv => (
-              <BoosterDisplayTile key={inv.item_id} inv={inv} />
-            ))}
-          </div>
-        )}
+export function BoosterStock({ inventory }: { inventory: InventoryItem[] }) {
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <span className="font-display text-[11px] text-muted-foreground/70 tracking-widest uppercase">Booster Stock</span>
+      <div className="relative" style={{ width: "420px", transform: "translateX(-75px)" }}>
+        <img
+          src="/booster-bag.png"
+          alt=""
+          className="w-full pointer-events-none select-none"
+          draggable={false}
+        />
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          {inventory.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground/70 font-body text-center w-36 leading-relaxed">
+              No boosters — earn drops or purchase from the shop.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {inventory.slice(0, 8).map(inv => (
+                <BoosterDisplayTile key={inv.item_id} inv={inv} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

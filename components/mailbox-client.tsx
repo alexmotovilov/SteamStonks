@@ -4,7 +4,7 @@ const LETTER_TEXT_SHADOW = "0 0 2px #000, 0 0 2px #000, 0 0 2px #000, 0 0 4px rg
 
 import { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
-import { CheckCircle2, Loader2, Trophy, Trash2 } from "lucide-react"
+import { CheckCircle2, Loader2, Trash2 } from "lucide-react"
 import Link from "next/link"
 
 // ─── Types ────────────────────────────────────────────────────
@@ -317,27 +317,75 @@ function MysteryDropSection({ drop, messageId }: { drop: MysteryDrop; messageId:
 // Rendered via portal into document.body — appears on left 50% of screen
 
 function ExpandedPanel({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
-  return createPortal(
-    <div
-      style={{
-        position: "fixed", left: 0, top: 0,
-        width: "50vw", height: "100vh",
-        zIndex: 50,
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="relative"
-        style={{ width: "85%", transform: "translateX(40px) translateY(175px) scale(0.95)" }}
-      >
-        <img src="/letter-background.png" alt="" className="w-full h-auto block" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          {children}
-        </div>
-      </div>
-    </div>,
-    document.body
+  const [modalOpen, setModalOpen] = useState(false)
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <>
+      {createPortal(
+        <div
+          style={{
+            position: "fixed", left: 0, top: 0,
+            width: "50vw", height: "100vh",
+            zIndex: 50,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            className="relative"
+            style={{
+              width: "85%",
+              transform: `translateX(40px) translateY(175px) scale(${hovered ? 1.0 : 0.95})`,
+              transition: "transform 0.2s ease",
+              pointerEvents: "auto",
+            }}
+            onClickCapture={e => {
+              if (!(e.target as HTMLElement).closest("button, a, [role='button']")) {
+                setModalOpen(true)
+              }
+            }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+          >
+            <img src="/letter-background.png" alt="" className="w-full h-auto block" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              {children}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {modalOpen && createPortal(
+        <div
+          style={{
+            position: "fixed", inset: 0,
+            zIndex: 60,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(0,0,0,0.65)",
+          }}
+        >
+          <div
+            className="relative"
+            style={{ width: "62vw", maxWidth: "860px" }}
+          >
+            <img src="/letter-background.png" alt="" className="w-full h-auto block" />
+            <button
+              onClick={() => setModalOpen(false)}
+              className="absolute z-10 flex items-center justify-center rounded bg-black/40 border border-white/15 text-white/80 hover:text-white hover:bg-black/60 transition-colors"
+              style={{ top: "68px", right: "58px", width: "48px", height: "48px", fontSize: "26px", lineHeight: 1 }}
+            >
+              ×
+            </button>
+            <div className="absolute inset-0 flex items-center justify-center">
+              {children}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   )
 }
 
@@ -514,7 +562,7 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
                   </div>
                   <div className="flex justify-between text-xs font-medium">
                     <div className="flex items-center gap-1 text-foreground">
-                      <Trophy className="h-3 w-3 text-amber-500 shrink-0" />
+                      <img src="/icons/season-score-icon.png" alt="" width={12} height={12} className="shrink-0" />
                       <span>Season score</span>
                     </div>
                     <span className="text-amber-400 font-display">+{scoreMeta.total_mana.toLocaleString()} pts</span>
@@ -571,7 +619,7 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
               </div>
               <div className="flex justify-between text-xs font-medium">
                 <div className="flex items-center gap-1 text-foreground">
-                  <Trophy className="h-3 w-3 text-amber-500 shrink-0" />
+                  <img src="/icons/season-score-icon.png" alt="" width={12} height={12} className="shrink-0" />
                   <span>Season score</span>
                 </div>
                 <span className="text-amber-400 font-display">+{(ladderMeta.total_mana ?? 0).toLocaleString()} pts</span>
@@ -603,7 +651,7 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
   const [deleting, setDeleting] = useState(false)
   const isExpired = msg.expires_at ? new Date(msg.expires_at) < new Date() : false
   const date = new Date(msg.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })
-  const hasUnclaimed = msg.mail_attachments.length > 0 && !isClaimed
+  const hasUnclaimed = msg.mail_attachments.length > 0 && !isClaimed && !isExpired
 
   function handleDeleteClick(e: React.MouseEvent) {
     e.stopPropagation()

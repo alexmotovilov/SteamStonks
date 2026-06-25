@@ -216,9 +216,7 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
         <div className="flex items-center gap-4">
           {user ? (
             <>
-              {/* Equipment badge (purple) — current equipment + tier */}
-              {user && <Suspense fallback={null}><EquipmentBadge user={user} /></Suspense>}
-              {/* Season score + rank on goblin scroll */}
+{/* Season score + rank on goblin scroll */}
               {user && <Suspense fallback={null}><SeasonScoreBadge user={user} activeSeasonId={activeSeasonId} /></Suspense>}
               {/* Spendable mana balance (cyan) */}
               {user && <Suspense fallback={null}><SeasonPointsBadge manaBalance={manaBalance} /></Suspense>}

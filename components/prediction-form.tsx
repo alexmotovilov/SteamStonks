@@ -1024,7 +1024,7 @@ function ScoredPredictionCard({ result, gameName, existingPrediction, snapshotPl
             <span className="text-cyan-300 font-bold">+{totalMana}</span>
           </div>
           <div className="flex justify-between font-medium text-foreground">
-            <div className="flex items-center gap-1"><Trophy className="h-3 w-3 text-amber-500 shrink-0" /><span>Season score</span></div>
+            <div className="flex items-center gap-1"><img src="/icons/season-score-icon.png" alt="" width={12} height={12} className="shrink-0" /><span>Season score</span></div>
             <span className="text-amber-400 font-bold">+{totalMana} pts</span>
           </div>
           {(existingPrediction.drops_awarded ?? 0) > 0 && <div className="flex justify-between text-amber-400 font-medium"><span>Loot drops</span><span>+{existingPrediction.drops_awarded} item{(existingPrediction.drops_awarded ?? 0) !== 1 ? "s" : ""}</span></div>}

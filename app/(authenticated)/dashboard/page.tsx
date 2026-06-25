@@ -286,7 +286,7 @@ export default async function DashboardPage() {
           <Card className="border-amber-500/20 bg-amber-950/20">
             <CardHeader className="flex flex-row items-center justify-between p-4 pb-1">
               <CardTitle className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase">Season Score</CardTitle>
-              <Trophy className="h-3.5 w-3.5 text-amber-500" />
+              <img src="/icons/season-score-icon.png" alt="" width={14} height={14} />
             </CardHeader>
             <CardContent className="px-4 pb-3 pt-0">
               <div className="text-2xl font-bold text-amber-400">{totalPoints.toLocaleString()}</div>

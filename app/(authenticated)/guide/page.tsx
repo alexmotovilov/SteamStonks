@@ -51,6 +51,10 @@ function ManaSymbol() {
   return <img src="/icons/mana-icon.png" alt="mana" width={12} height={12} className="inline-block align-middle" />
 }
 
+function SeasonScoreSymbol() {
+  return <img src="/icons/season-score-icon.png" alt="season score" width={12} height={12} className="inline-block align-middle" />
+}
+
 function Mono({ children }: { children: React.ReactNode }) {
   return <code className="font-mono text-emerald-400 text-xs bg-emerald-950/20 px-1 py-0.5 rounded">{children}</code>
 }
@@ -505,8 +509,8 @@ export default function GuidePage() {
         <div className="mt-4 p-4 rounded-lg border border-amber-500/15 bg-amber-950/10">
           <div className="font-display text-xs text-amber-400 mb-2">Season Score vs Mana Balance</div>
           <Body>
-            Every mana you earn from scoring is added to both your <span className="text-foreground">Season Score</span> (leaderboard rank, never decreases)
-            and your <span className="text-foreground">Mana Balance</span> (used for rites and the vendor).
+            Every mana you earn from scoring is added to both your <SeasonScoreSymbol /> <span className="text-foreground">Season Score</span> (leaderboard rank, never decreases)
+            and your <ManaSymbol /> <span className="text-foreground">Mana Balance</span> (used for rites and the vendor).
             The weekly stipend of <span className="font-body text-xs text-cyan-400 inline-flex items-center gap-0.5">+15 <ManaSymbol /></span> goes to your balance only.
           </Body>
         </div>
