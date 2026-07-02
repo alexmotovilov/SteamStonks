@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/score-calculator",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/vendor-reset",
+      "schedule": "0 0 * * 1"
     }
   ]
 }

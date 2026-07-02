@@ -39,16 +39,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Already claimed this week" }, { status: 400 })
   }
 
-  const { error: rpcError } = await supabaseAdmin.rpc("add_weekly_stipend", {
-    p_user_id:    user.id,
-    p_season_id:  season_id,
-    p_amount:     STIPEND_AMOUNT,
-    p_week_number: currentWeek,
-  })
+  // Mark stipend as claimed for this week
+  const { error: weekError } = await supabaseAdmin
+    .from("season_entries")
+    .update({ stipend_week_number: currentWeek })
+    .eq("user_id", user.id)
+    .eq("season_id", season_id)
 
-  if (rpcError) {
-    console.error("[vendor/stipend] add_weekly_stipend error:", rpcError)
-    return NextResponse.json({ error: `Stipend failed: ${rpcError.message}` }, { status: 500 })
+  if (weekError) {
+    console.error("[vendor/stipend] stipend_week_number update error:", weekError)
+    return NextResponse.json({ error: `Stipend failed: ${weekError.message}` }, { status: 500 })
+  }
+
+  // Add mana directly to profiles.mana_balance (the live cross-season wallet)
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("mana_balance")
+    .eq("id", user.id)
+    .single()
+
+  const { error: manaError } = await supabaseAdmin
+    .from("profiles")
+    .update({ mana_balance: (profile?.mana_balance ?? 0) + STIPEND_AMOUNT })
+    .eq("id", user.id)
+
+  if (manaError) {
+    console.error("[vendor/stipend] mana_balance update error:", manaError)
+    // Week is already marked claimed — log but don't fail the request
   }
 
   return NextResponse.json({ success: true, mana_awarded: STIPEND_AMOUNT })

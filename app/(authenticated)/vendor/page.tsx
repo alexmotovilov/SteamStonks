@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { VendorShop, BoosterStock, type InventoryItem } from "@/components/vendor-shop"
-import { StipendBanner } from "@/components/stipend-banner"
+import { VendorShop, type InventoryItem } from "@/components/vendor-shop"
 import { VendorCountdown } from "@/components/vendor-countdown"
+import { NoScroll } from "@/components/no-scroll"
 
 const CYCLE_A_SLUGS = ["scrying_orb_polish", "blood_bargain", "infernal_patrons_pact"]
 const CYCLE_B_SLUGS = ["crystal_focus", "black_gem_accumulator", "tincture_of_divination"]
@@ -94,28 +94,39 @@ export default async function VendorPage() {
   const stipendClaimable = (entry.stipend_week_number ?? 0) < (season.current_vendor_week ?? 1)
 
   return (
-    <div className="flex gap-0" style={{ minHeight: "calc(100vh - 120px)" }}>
-      {/* Left: shopkeeper interface */}
-      <div className="flex-1 flex flex-col items-center justify-end gap-4 pb-12 overflow-hidden">
-        <div className="text-center">
-          <h1 className="text-3xl font-display text-foreground">Arcane Repository</h1>
-          <VendorCountdown />
-        </div>
-        <StipendBanner claimable={stipendClaimable} seasonId={season.id} />
-        <VendorShop
+    <>
+    <NoScroll />
+    <div className="relative w-full" style={{ minHeight: "calc(100vh - 120px)", paddingTop: "30px" }}>
+      {/* Full-width shopkeeper interface */}
+      <div className="flex flex-col items-center justify-end gap-4 pb-12 overflow-hidden w-full">
+<div style={{ transform: "translateY(115px)" }}>
+<VendorShop
           items={items ?? []}
           purchasedCounts={purchasedByItemId}
           manaBalance={profile?.mana_balance ?? 0}
           seasonId={season.id}
           vendorWeek={season.current_vendor_week ?? 1}
           vendorCycle={cycle}
+          stipendClaimable={stipendClaimable}
+          inventory={(inventory ?? []) as unknown as InventoryItem[]}
         />
+</div>
       </div>
 
-      {/* Right: booster stock */}
-      <div className="w-80 shrink-0 flex items-center justify-center">
-        <BoosterStock inventory={(inventory ?? []) as unknown as InventoryItem[]} />
+      {/* Restock sign — upper right */}
+      <img
+        src="/restock-sign.png"
+        alt=""
+        className="vendor-blur"
+        style={{ position: "fixed", top: "80px", right: "940px", width: "335px", height: "auto", zIndex: 10, pointerEvents: "none" }}
+        draggable={false}
+      />
+      {/* Countdown overlaid on the right blank portion of the sign */}
+      <div className="vendor-blur" style={{ position: "fixed", top: "175px", right: "948px", width: "160px", zIndex: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <VendorCountdown />
       </div>
+
     </div>
+    </>
   )
 }

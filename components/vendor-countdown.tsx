@@ -17,15 +17,12 @@ function getNextReset(): Date {
 }
 
 function formatDiff(ms: number): string {
-  if (ms <= 0) return "Restocking…"
+  if (ms <= 0) return "00:00:00"
   const totalSecs = Math.floor(ms / 1000)
   const d = Math.floor(totalSecs / 86400)
   const h = Math.floor((totalSecs % 86400) / 3600)
   const m = Math.floor((totalSecs % 3600) / 60)
-  const s = totalSecs % 60
-  if (d > 0) return `${d}d ${h}h ${m}m ${s}s`
-  if (h > 0) return `${h}h ${m}m ${s}s`
-  return `${m}m ${s}s`
+  return `${String(d).padStart(2, "0")}:${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 }
 
 export function VendorCountdown() {
@@ -36,16 +33,13 @@ export function VendorCountdown() {
       setLabel(formatDiff(getNextReset().getTime() - Date.now()))
     }
     tick()
-    const id = setInterval(tick, 1000)
+    const id = setInterval(tick, 60000)
     return () => clearInterval(id)
   }, [])
 
   if (!label) return null
 
   return (
-    <p className="font-display text-[11px] text-muted-foreground/60 tracking-widest mt-1">
-      Restocks in{" "}
-      <span className="text-amber-400/80">{label}</span>
-    </p>
+    <span className="font-display text-white tracking-widest" style={{ display: "inline-block", transform: "scaleY(1.5)", transformOrigin: "center center" }}>{label}</span>
   )
 }

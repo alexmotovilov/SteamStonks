@@ -120,27 +120,27 @@ export default async function MailboxPage() {
     .or(`target.eq.all,target_user_id.eq.${user.id}`)
     .order("created_at", { ascending: false })
 
+  const visibleMessages = (messages ?? []).filter((m: any) => {
+    const reads = Array.isArray(m.mail_reads) ? m.mail_reads[0] : m.mail_reads
+    return !reads?.deleted_at
+  })
+
+  const hasUnread = visibleMessages.some((m: any) => {
+    const reads = Array.isArray(m.mail_reads) ? m.mail_reads[0] : m.mail_reads
+    return !reads?.read_at
+  })
+
+  const hasUnclaimed = visibleMessages.some((m: any) => {
+    const reads = Array.isArray(m.mail_reads) ? m.mail_reads[0] : m.mail_reads
+    const hasManaReward = m.mana_reward != null && !reads?.claimed_at
+    const hasAttachments = Array.isArray(m.mail_attachments) && m.mail_attachments.length > 0 && !reads?.claimed_at
+    const hasUnrevealedDrops = Array.isArray(m.mail_mystery_drops) && m.mail_mystery_drops.some((d: any) => !d.revealed_at)
+    return hasManaReward || hasAttachments || hasUnrevealedDrops
+  })
+
   return (
     <>
-    {/* Scoring countdown decorative image */}
-    <img
-      src="/scoring-countdown.png"
-      alt=""
-      style={{
-        position: "fixed",
-        top: "calc(64px + 20vh - 30px)",
-        left: "25vw",
-        transform: "translate(calc(-50% + 40px), calc(-50% + 75px))",
-        width: "calc(42vw * 1.19)",
-        height: "auto",
-        zIndex: 52,
-        pointerEvents: "none",
-        filter: "drop-shadow(0 4px 5px rgba(0,0,0,1)) drop-shadow(0 6px 9px rgba(0,0,0,0.95))",
-        WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 10%)",
-        maskImage: "linear-gradient(to bottom, transparent 0%, black 10%)",
-      }}
-    />
-    <ScoringCountdownPanel games={enrichedGames} />
+    <ScoringCountdownPanel games={enrichedGames} hasUnread={hasUnread} hasUnclaimed={hasUnclaimed} />
 
     <div style={{
       position: "fixed",
@@ -149,20 +149,12 @@ export default async function MailboxPage() {
       right: "calc(4vw + 15px)",
       left: "5vw",
       padding: "1rem 1.5rem",
-      backdropFilter: "blur(1.5px)",
-      WebkitBackdropFilter: "blur(1.5px)",
-      background: "rgba(0,0,0,0.18)",
-      border: "1px solid rgba(192,192,192,0.35)",
-      boxShadow: "0 0 0 1px rgba(255,255,255,0.06), inset 0 0 0 1px rgba(255,255,255,0.04)",
       display: "flex",
       flexDirection: "column",
       justifyContent: "flex-start",
     }}>
       <div style={{ width: "40vw", marginLeft: "auto", flexShrink: 0 }}>
-        <MailboxClient messages={(messages ?? []).filter((m: any) => {
-          const reads = Array.isArray(m.mail_reads) ? m.mail_reads[0] : m.mail_reads
-          return !reads?.deleted_at
-        }) as any} />
+        <MailboxClient messages={visibleMessages as any} />
       </div>
     </div>
     </>

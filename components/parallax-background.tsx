@@ -8,6 +8,7 @@ export function ParallaxBackground() {
   const pathname = usePathname()
   const isHomepage = pathname === "/"
   const isMailbox = pathname === "/mailbox"
+  const isVendor = pathname === "/vendor"
   const bgImage = isHomepage ? "/background-extended.png" : "/background.png"
   // How far (in vh) the image slides down over the full page scroll
   const slideVh = isHomepage ? 60 : 8
@@ -27,6 +28,30 @@ export function ParallaxBackground() {
     return () => window.removeEventListener("scroll", onScroll)
   }, [slideVh])
 
+  if (isVendor) {
+    return (
+      <>
+        <div style={{ position: "fixed", inset: 0, zIndex: -2, backgroundColor: "#000" }} />
+        <div
+          className="vendor-blur"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: -1,
+            backgroundImage: "url('/vendor-background.png')",
+            backgroundSize: "100.93%",
+            backgroundPosition: "calc(50% + 0px) calc(50% + 0px)",
+            backgroundRepeat: "no-repeat",
+            WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 25%, black 75%, transparent 100%), linear-gradient(to bottom, transparent 5%, black 35%, black 75%, transparent 80%)",
+            WebkitMaskComposite: "destination-in",
+            maskImage: "linear-gradient(to right, transparent 0%, black 25%, black 75%, transparent 100%), linear-gradient(to bottom, transparent 5%, black 35%, black 75%, transparent 80%)",
+            maskComposite: "intersect",
+          }}
+        />
+      </>
+    )
+  }
+
   if (isMailbox) {
     return (
       <>
@@ -45,9 +70,9 @@ export function ParallaxBackground() {
             backgroundSize: "cover",
             backgroundPosition: "center center",
             backgroundRepeat: "no-repeat",
-            WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 8%, black 80%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%), linear-gradient(to bottom, transparent 3%, black 25%, black 80%, transparent 97%)",
             WebkitMaskComposite: "destination-in",
-            maskImage: "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 8%, black 80%, transparent 100%)",
+            maskImage: "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%), linear-gradient(to bottom, transparent 3%, black 25%, black 80%, transparent 97%)",
             maskComposite: "intersect",
           }}
         />

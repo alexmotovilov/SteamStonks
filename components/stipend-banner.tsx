@@ -1,9 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, CheckCircle2 } from "lucide-react"
-import { ManaIcon } from "@/components/mana-icon"
 
 interface StipendBannerProps {
   claimable: boolean
@@ -15,8 +13,22 @@ export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
   const [localClaimed, setLocalClaimed] = useState(!claimable)
   const [claiming, setClaiming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hovering, setHovering] = useState(false)
+  const [animating, setAnimating] = useState(false)
+
+  useEffect(() => {
+    if (hovering) {
+      document.body.classList.add("chest-hovered")
+    } else {
+      document.body.classList.remove("chest-hovered")
+    }
+    return () => document.body.classList.remove("chest-hovered")
+  }, [hovering])
 
   async function handleCollect() {
+    if (localClaimed || claiming) return
+    setAnimating(true)
+    setTimeout(() => setAnimating(false), 700)
     setClaiming(true)
     setError(null)
     const res = await fetch("/api/vendor/stipend", {
@@ -34,41 +46,70 @@ export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
     setClaiming(false)
   }
 
-  if (localClaimed) {
-    return (
-      <div className="w-[537px] max-w-full mx-auto flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/8 bg-[rgba(15,15,25,0.6)]">
-        <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
-        <span className="font-display text-[11px] text-muted-foreground/60 tracking-wide">
-          Weekly stipend claimed — returns next week
-        </span>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-1.5 w-[537px] max-w-full mx-auto">
-      <div className="flex items-center justify-center gap-4 px-4 py-3 rounded-xl border border-cyan-500/20 bg-[rgba(10,20,30,0.7)]">
-        <div className="flex items-center gap-2.5">
-          <span className="font-display text-[11px] text-cyan-200 tracking-wide">
-            Weekly mana stipend available
-          </span>
-          <div className="flex items-center gap-1">
-            <ManaIcon size={13} />
-            <span className="font-display text-[11px] text-cyan-300">+15</span>
-          </div>
-        </div>
-        <button
-          onClick={handleCollect}
-          disabled={claiming}
-          className="shrink-0 px-3 py-1.5 rounded-lg font-display text-[11px] border border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-950/60 hover:border-cyan-500/60 transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
+    <>
+      <style>{`
+        .vendor-blur {
+          transition: filter 0.3s ease;
+        }
+        body.chest-hovered .vendor-blur {
+          filter: blur(3px);
+        }
+        @keyframes collectFlyUp {
+          0%   { opacity: 1; transform: translateY(0)    scale(1);    }
+          25%  { opacity: 1; transform: translateY(-8px) scale(1.18); }
+          100% { opacity: 0; transform: translateY(-60px) scale(1.35); }
+        }
+      `}</style>
+      <div className="flex flex-col items-center gap-1.5">
+        <div
+          className="relative"
+          onMouseEnter={() => { if (!localClaimed) setHovering(true) }}
+          onMouseLeave={() => setHovering(false)}
         >
-          {claiming && <Loader2 className="h-3 w-3 animate-spin" />}
-          {claiming ? "Collecting…" : "Collect"}
-        </button>
+          {/* Hover label + click fly-up animation */}
+          {!localClaimed && (hovering || animating) && (
+            <div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+              style={{ animation: animating ? "collectFlyUp 0.65s ease-out forwards" : "none" }}
+            >
+              <div
+                className="flex items-center gap-1 font-display text-xl text-amber-300"
+                style={{
+                  transform: "translateY(-19px)",
+                  textShadow: "0 0 2px rgba(0,0,0,1), 0 0 3px rgba(0,0,0,1), 1px 1px 0px rgba(0,0,0,1), -1px -1px 0px rgba(0,0,0,1), 1px -1px 0px rgba(0,0,0,1), -1px 1px 0px rgba(0,0,0,1), 0 0 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,1), 0 0 28px rgba(0,0,0,1), 0 0 40px rgba(0,0,0,0.9)",
+                }}
+              >
+                <span>Collect</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icons/mana-icon.png" alt="mana" width={20} height={20} className="shrink-0" style={{ filter: "drop-shadow(0 0 3px rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.7))" }} />
+                <span>+15.</span>
+              </div>
+            </div>
+          )}
+
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={localClaimed ? "/free-mana-empty.png" : "/free-mana-full.png"}
+            alt={localClaimed ? "Stipend already collected" : "Collect weekly mana stipend"}
+            width={317}
+            height={317}
+            onClick={handleCollect}
+            className={[
+              "select-none transition-all duration-300",
+              !localClaimed && !claiming
+                ? "cursor-pointer hover:scale-105 hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] active:scale-95"
+                : "",
+              claiming ? "opacity-60 cursor-wait" : "",
+              localClaimed ? "brightness-[0.45]" : "",
+            ].join(" ")}
+            draggable={false}
+          />
+        </div>
+        {error && (
+          <p className="text-[10px] text-red-400 font-body text-center">{error}</p>
+        )}
       </div>
-      {error && (
-        <p className="text-[10px] text-red-400 font-body text-center">{error}</p>
-      )}
-    </div>
+    </>
   )
 }
