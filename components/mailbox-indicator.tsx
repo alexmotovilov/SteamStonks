@@ -9,10 +9,11 @@ interface Props {
   user: SupabaseUser
   href: string
   className: string
+  style?: React.CSSProperties
   children: React.ReactNode
 }
 
-export function MailboxIndicator({ user, href, className, children }: Props) {
+export function MailboxIndicator({ user, href, className, style, children }: Props) {
   const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export function MailboxIndicator({ user, href, className, children }: Props) {
   }, [user.id])
 
   if (unreadCount === 0) {
-    return <Link href={href} className={className}>{children}</Link>
+    return <Link href={href} className={className} style={style}>{children}</Link>
   }
 
   return (
@@ -50,6 +51,7 @@ export function MailboxIndicator({ user, href, className, children }: Props) {
       href={href}
       className={`${className} relative rounded px-2 py-0.5`}
       style={{
+        ...style,
         outline: "1.5px solid rgba(157,132,212,0.6)",
         outlineOffset: "2px",
         animation: "pulse-border 2s ease-in-out infinite",

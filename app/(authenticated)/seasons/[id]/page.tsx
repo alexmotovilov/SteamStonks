@@ -193,8 +193,9 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
                   Spend tokens to unlock predictions and compete for prizes
                 </p>
                 {canJoin && (
-                  <JoinSeasonButton 
-                    seasonId={season.id} 
+                  <JoinSeasonButton
+                    seasonId={season.id}
+                    seasonName={season.name}
                     entryFee={season.entry_fee_tokens}
                     currentBalance={profile?.token_balance || 0}
                   />
@@ -221,7 +222,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
                           <h3 className="font-medium text-foreground truncate">{game.name}</h3>
                           <p className="text-sm text-muted-foreground">
                             {game.release_date
-                              ? `Releases ${new Date(game.release_date).toLocaleDateString()}`
+                              ? `Releases ${new Date(game.release_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`
                               : "Release date TBA"}
                           </p>
                         </div>
@@ -263,11 +264,13 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
             <CardContent className="p-0">
               {leaderboard && leaderboard.length > 0 ? (
                 <div className="divide-y divide-border">
-                  {leaderboard.map((entry, index) => (
+                  {leaderboard.map((entry, index) => {
+                    const prof = entry.profiles as unknown as { id: string; display_name: string | null; username: string | null } | null | undefined
+                    return (
                     <div
                       key={index}
                       className={`flex items-center justify-between p-4 ${
-                        entry.profiles?.id === user?.id ? "bg-primary/5" : ""
+                        prof?.id === user?.id ? "bg-primary/5" : ""
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -280,14 +283,15 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
                           {entry.rank}
                         </span>
                         <span className="text-foreground font-medium">
-                          {entry.profiles?.display_name || entry.profiles?.username || "Unknown"}
+                          {prof?.display_name || prof?.username || "Unknown"}
                         </span>
                       </div>
                       <span className="text-primary font-bold">
                         {entry.total_points?.toLocaleString()} pts
                       </span>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="p-8 text-center">

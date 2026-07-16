@@ -1,12 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
-import Image from "next/image"
 import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, Calendar, Users, ThumbsUp } from "lucide-react"
 import { PredictionFormClient as PredictionForm } from "@/components/prediction-form-client"
+import { PredictionTabletShell } from "@/components/prediction-tablet-shell"
 
 interface GamePageProps {
   params: Promise<{ id: string }>
@@ -165,7 +161,7 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
 
   const releaseDate = game.release_date
     ? new Date(game.release_date).toLocaleDateString("en-US", {
-        weekday: "long", month: "long", day: "numeric", year: "numeric",
+        weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
       })
     : "TBA"
 
@@ -173,107 +169,24 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
   const canPredict = !!user && hasJoinedSeason && seasonData?.status === "active"
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <Button asChild variant="ghost" size="sm">
-        <Link href="/games">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Games
-        </Link>
-      </Button>
-
-      {/* Game Header — compact two-column card */}
-      <Card className="overflow-hidden border-border">
-        <div className="flex gap-0">
-          {/* Left — clickable image links to Steam */}
-          <a
-            href={`https://store.steampowered.com/app/${game.steam_appid}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="relative shrink-0 w-48 sm:w-64 block group"
-            title="View on Steam"
-          >
-            {game.header_image_url ? (
-              <Image src={game.header_image_url} alt={game.name} fill className="object-cover transition-opacity group-hover:opacity-80" priority />
-            ) : (
-              <div className="absolute inset-0 bg-secondary flex items-center justify-center">
-                <span className="text-muted-foreground text-xs">No Image</span>
-              </div>
-            )}
-            {/* Steam hover overlay */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-              <span className="font-display text-[10px] text-white tracking-widest uppercase">View on Steam</span>
-            </div>
-          </a>
-
-          {/* Right — game info */}
-          <CardContent className="flex-1 p-4 flex flex-col justify-between min-h-[120px]">
-            {/* Top row — name + badges */}
-            <div className="space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h1 className="font-display text-lg text-foreground leading-tight">{game.name}</h1>
-                  {game.developer && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{game.developer}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                  {game.is_released
-                    ? <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/25 text-[10px] font-display">Released</Badge>
-                    : <Badge variant="secondary" className="text-[10px] font-display">Upcoming</Badge>
-                  }
-                  {seasonData && (
-                    <Badge variant="outline" className="text-[10px] font-display border-purple-500/30 text-purple-400">
-                      {seasonData.name}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Release date + stats row */}
-              <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>{releaseDate}</span>
-                </div>
-                {game.is_released && (
-                  <>
-                    <div className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      <span>{game.peak_24h_player_count?.toLocaleString() || "N/A"} peak</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <ThumbsUp className="h-3 w-3" />
-                      <span>{reviewPercentage ? `${reviewPercentage}%` : "N/A"} positive</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Bottom — join prompt if needed */}
-            {!user && (
-              <Button asChild size="sm" variant="outline" className="mt-3 w-fit text-xs font-display">
-                <Link href="/auth/login">Sign in to Predict</Link>
-              </Button>
-            )}
-            {user && !hasJoinedSeason && seasonData?.status === "active" && (
-              <Button asChild size="sm" variant="outline" className="mt-3 w-fit text-xs font-display">
-                <Link href={`/seasons/${seasonData.id}`}>Join Season to Predict</Link>
-              </Button>
-            )}
-          </CardContent>
-        </div>
-      </Card>
-
-      {/* Prediction Form */}
-      {seasonData && (canPredict || existingPrediction) && (
+    <PredictionTabletShell
+      gameName={game.name}
+      developer={game.developer}
+      releaseDate={releaseDate}
+    >
+      {seasonData && (canPredict || existingPrediction) ? (
         <PredictionForm
           gameId={game.id}
           gameName={game.name}
           seasonId={seasonData.id}
           seasonStatus={seasonData.status}
           existingPrediction={existingPrediction ?? null}
-          isReleased={game.is_released || (!!game.release_date && new Date(game.release_date) <= new Date())}
+          isReleased={game.is_released || (() => {
+            const t = game.release_time_override
+              ? new Date(game.release_time_override)
+              : game.release_date ? new Date(game.release_date) : null
+            return t !== null && t <= new Date()
+          })()}
           releaseDate={game.release_date}
           predictionLockDate={seasonData.prediction_lock_date}
           snapshotPlayerCount={weekOneSnapshot?.player_count}
@@ -290,15 +203,19 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
           predictedGameIds={predictedGameIds}
           inventory={(inventory ?? []) as unknown as { item_id: string; quantity: number; items: { slug: string; name: string; image_url: string | null; effects: Record<string, number>; description: string } }[]}
         />
-      )}
-
-      {seasonData && !canPredict && !existingPrediction && (
-        <div className="text-center py-8 text-muted-foreground">
-          {seasonData.status !== "active"
-            ? "Predictions are closed for this season."
-            : "Join the season to make predictions."}
+      ) : !user ? (
+        <div className="text-center py-12 font-body text-muted-foreground">
+          <Link href="/auth/login" className="text-cyan-400 hover:underline">Sign in</Link> to make predictions.
         </div>
-      )}
-    </div>
+      ) : user && !hasJoinedSeason && seasonData?.status === "active" ? (
+        <div className="text-center py-12 font-body text-muted-foreground">
+          <Link href={`/seasons/${seasonData.id}`} className="text-cyan-400 hover:underline">Join the season</Link> to make predictions.
+        </div>
+      ) : seasonData ? (
+        <div className="text-center py-12 font-body text-muted-foreground">
+          Predictions are closed for this season.
+        </div>
+      ) : null}
+    </PredictionTabletShell>
   )
 }

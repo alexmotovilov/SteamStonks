@@ -172,7 +172,7 @@ VALUES
     'booster',
     '/items/black-gem-accumulator.png',
     11.00, true, true, 20, 1, 999,
-    '{"players_window_pct": -5, "mana_players_bonus": 75}'
+    '{"players_window_pct": -3, "mana_players_bonus": 75}'
   ),
   (
     'infernal_patrons_pact',

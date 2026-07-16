@@ -136,7 +136,7 @@ export default async function SeasonsPage() {
       </div>
 
       {/* Past Seasons */}
-      {seasons?.filter(s => s.status === "completed" || s.status === "scoring").length > 0 && (
+      {(seasons?.filter(s => s.status === "completed" || s.status === "scoring") ?? []).length > 0 && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Past Seasons</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

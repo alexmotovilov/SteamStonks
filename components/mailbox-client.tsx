@@ -2,8 +2,9 @@
 
 const LETTER_TEXT_SHADOW = "0 0 2px #000, 0 0 2px #000, 0 0 2px #000, 0 0 4px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9)"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
+import { useRouter } from "next/navigation"
 import { CheckCircle2, Loader2, Trash2 } from "lucide-react"
 import Link from "next/link"
 
@@ -112,6 +113,7 @@ function ClaimManaButton({ messageId, manaAmount, onClaimed }: {
 }) {
   const [claiming, setClaiming] = useState(false)
   const [error, setError] = useState("")
+  const router = useRouter()
 
   async function handleClaim(e: React.MouseEvent) {
     e.stopPropagation()
@@ -124,6 +126,7 @@ function ClaimManaButton({ messageId, manaAmount, onClaimed }: {
     })
     if (res.ok) {
       onClaimed()
+      router.refresh()
     } else {
       const data = await res.json()
       setError(data.error || "Failed to claim")
@@ -149,26 +152,175 @@ function ClaimManaButton({ messageId, manaAmount, onClaimed }: {
   )
 }
 
+// ─── Roulette reel ────────────────────────────────────────────
+
+const ALL_ITEM_SLUGS = [
+  "scrying-orb-polish",
+  "crystal-focus",
+  "evocation-distillate",
+  "thaumaturgic-concentrate",
+  "blood-bargain",
+  "black-gem-accumulator",
+  "infernal-patrons-pact",
+  "tincture-of-divination",
+]
+
+const SLOT_W  = 88  // slot width including gap
+const ITEM_W  = 72  // image display size
+const WIN_IDX = 27  // winning item position in the 32-item reel
+// translateX to center WIN_IDX in a 3-slot window = -((WIN_IDX - 1) * SLOT_W)
+const REEL_END_X = -((WIN_IDX - 1) * SLOT_W)
+
+function buildReel(wonImageUrl: string): string[] {
+  const pool = ALL_ITEM_SLUGS.map(s => `/items/${s}.png`)
+  // Fisher-Yates shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  const reel: string[] = []
+  for (let i = 0; i < WIN_IDX; i++) {
+    // Avoid placing the won item immediately before the landing slot (breaks suspense)
+    const candidate = pool[i % pool.length]
+    reel.push(candidate === wonImageUrl && i === WIN_IDX - 1 ? pool[(i + 1) % pool.length] : candidate)
+  }
+  reel.push(wonImageUrl)
+  while (reel.length < 32) reel.push(pool[reel.length % pool.length])
+  return reel
+}
+
+function RouletteReel({ wonItem, onDone }: { wonItem: RevealedItem; onDone: () => void }) {
+  const [reel] = useState(() => buildReel(wonItem.image_url ?? "/items/evocation-distillate.png"))
+  const [glowing, setGlowing] = useState(false)
+  const reelRef = useRef<HTMLDivElement>(null)
+  const windowW = SLOT_W * 3
+
+  useEffect(() => {
+    const el = reelRef.current
+    if (!el) return
+    const anim = el.animate(
+      [
+        { transform: "translateX(0px)" },
+        { transform: `translateX(${REEL_END_X}px)` },
+      ],
+      { duration: 3200, easing: "cubic-bezier(0.08, 0.0, 0.22, 1.0)", fill: "forwards" }
+    )
+    anim.onfinish = () => {
+      setGlowing(true)
+      setTimeout(onDone, 1500)
+    }
+    return () => anim.cancel()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      {/* Reel viewport */}
+      <div
+        style={{
+          width: windowW,
+          height: ITEM_W + 24,
+          overflow: "hidden",
+          position: "relative",
+          borderRadius: 10,
+          border: "1px solid rgba(217,119,6,0.2)",
+          background: "rgba(4,2,0,0.80)",
+          WebkitMaskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)",
+          maskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)",
+        }}
+      >
+        {/* Center-slot highlight frame */}
+        <div
+          style={{
+            position: "absolute",
+            left: SLOT_W,
+            top: 0,
+            width: SLOT_W,
+            height: "100%",
+            borderLeft: "1px solid rgba(217,119,6,0.35)",
+            borderRight: "1px solid rgba(217,119,6,0.35)",
+            background: glowing ? "rgba(217,119,6,0.07)" : "rgba(217,119,6,0.02)",
+            boxShadow: glowing ? "inset 0 0 24px rgba(217,119,6,0.18), 0 0 32px rgba(217,119,6,0.35)" : "none",
+            transition: "all 0.45s ease",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Scrolling strip */}
+        <div
+          ref={reelRef}
+          style={{ display: "flex", alignItems: "center", height: "100%", willChange: "transform" }}
+        >
+          {reel.map((src, i) => (
+            <div
+              key={i}
+              style={{
+                width: ITEM_W,
+                height: ITEM_W,
+                flexShrink: 0,
+                margin: `0 ${(SLOT_W - ITEM_W) / 2}px`,
+                borderRadius: 8,
+                overflow: "hidden",
+                border: i === WIN_IDX && glowing ? "2px solid rgba(217,119,6,0.75)" : "2px solid transparent",
+                boxShadow: i === WIN_IDX && glowing ? "0 0 28px rgba(217,119,6,0.85), 0 0 10px rgba(217,119,6,0.6)" : "none",
+                transition: "border-color 0.4s ease, box-shadow 0.45s ease",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Item name — fades in on land */}
+      <div
+        className="font-display text-sm tracking-wide text-center"
+        style={{
+          opacity: glowing ? 1 : 0,
+          transition: "opacity 0.6s ease",
+          color: "#f59e0b",
+          textShadow: "0 0 14px rgba(217,119,6,0.65)",
+          minHeight: "1.5em",
+        }}
+      >
+        {wonItem.name}
+        {wonItem.quantity > 1 && (
+          <span style={{ color: "#fbbf24", marginLeft: 6 }}>×{wonItem.quantity}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── DropRevealModal ──────────────────────────────────────────
 
 function DropRevealModal({ items, onClose }: { items: RevealedItem[]; onClose: () => void }) {
-  const [phase, setPhase] = useState<"opening" | "revealing" | "done">("opening")
+  const [phase, setPhase] = useState<"opening" | "roulette" | "results">("opening")
+  const [reelIdx, setReelIdx] = useState(0)
   const [visibleItems, setVisibleItems] = useState<RevealedItem[]>([])
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase("revealing"), 800)
-    return () => clearTimeout(t1)
-  }, [])
+    if (phase !== "opening") return
+    const t = setTimeout(() => setPhase("roulette"), 900)
+    return () => clearTimeout(t)
+  }, [phase])
 
   useEffect(() => {
-    if (phase !== "revealing") return
+    if (phase !== "results") return
     items.forEach((item, i) => {
-      setTimeout(() => {
-        setVisibleItems(prev => [...prev, item])
-        if (i === items.length - 1) setPhase("done")
-      }, i * 600 + 200)
+      setTimeout(() => setVisibleItems(prev => [...prev, item]), i * 500)
     })
   }, [phase, items])
+
+  function handleReelDone() {
+    if (reelIdx < items.length - 1) {
+      setTimeout(() => setReelIdx(prev => prev + 1), 400)
+    } else {
+      setTimeout(() => setPhase("results"), 600)
+    }
+  }
 
   return (
     <div
@@ -190,12 +342,24 @@ function DropRevealModal({ items, onClose }: { items: RevealedItem[]; onClose: (
         </div>
       )}
 
-      {(phase === "revealing" || phase === "done") && (
+      {phase === "roulette" && (
+        <div className="flex flex-col items-center gap-6">
+          <div className="font-display text-xl text-amber-400 tracking-widest">
+            {items.length > 1 ? `Revealing ${reelIdx + 1} of ${items.length}…` : "Revealing Drop…"}
+          </div>
+          <RouletteReel
+            key={reelIdx}
+            wonItem={items[reelIdx]}
+            onDone={handleReelDone}
+          />
+        </div>
+      )}
+
+      {phase === "results" && (
         <div className="flex flex-col items-center gap-8 px-8">
           <div className="font-display text-2xl text-amber-400 tracking-widest">
-            {items.length > 1 ? "Items Revealed!" : "Item Revealed!"}
+            {items.length > 1 ? "Items Received!" : "Item Received!"}
           </div>
-
           <div className="flex flex-wrap gap-6 justify-center">
             {visibleItems.map((item, i) => (
               <div
@@ -217,15 +381,12 @@ function DropRevealModal({ items, onClose }: { items: RevealedItem[]; onClose: (
               </div>
             ))}
           </div>
-
-          {phase === "done" && (
-            <button
-              onClick={onClose}
-              className="font-display text-sm px-6 py-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors tracking-wide"
-            >
-              Added to Inventory ✓
-            </button>
-          )}
+          <button
+            onClick={onClose}
+            className="font-display text-sm px-6 py-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors tracking-wide"
+          >
+            Added to Inventory ✓
+          </button>
         </div>
       )}
     </div>
@@ -234,7 +395,7 @@ function DropRevealModal({ items, onClose }: { items: RevealedItem[]; onClose: (
 
 // ─── MysteryDropSection ───────────────────────────────────────
 
-function MysteryDropSection({ drop, messageId }: { drop: MysteryDrop; messageId: string }) {
+function MysteryDropSection({ drop, messageId, onDropClaimed }: { drop: MysteryDrop; messageId: string; onDropClaimed: () => void }) {
   const [opening, setOpening] = useState(false)
   const [revealedItems, setRevealedItems] = useState<RevealedItem[] | null>(
     drop.revealed_items ?? null
@@ -255,6 +416,7 @@ function MysteryDropSection({ drop, messageId }: { drop: MysteryDrop; messageId:
     if (res.ok) {
       setRevealedItems(data.revealed)
       setShowModal(true)
+      onDropClaimed()
     } else {
       setError(data.error || "Failed to open")
     }
@@ -400,6 +562,7 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
   onDelete: (id: string) => void
 }) {
   const [manaClaimed, setManaClaimed] = useState(!!msg.mana_claimed_at)
+  const [dropClaimed, setDropClaimed] = useState(() => !!getMysteryDrop(msg.mail_mystery_drops)?.revealed_at)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showDeleteBlocked, setShowDeleteBlocked] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -414,7 +577,7 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
   const isLadder = msg.message_type === "score_ladder"
   const ladderMeta = isLadder ? meta as LadderMetadata : null
   const subjectColor = isLadder ? "text-purple-300" : isPerfect ? "text-emerald-400" : isPartial ? "text-amber-300" : isRead ? "text-foreground/60" : "text-foreground"
-  const hasUnclaimed = ((msg.mana_reward ?? 0) > 0 && !manaClaimed) || (!!mysteryDrop && !mysteryDrop.revealed_at)
+  const hasUnclaimed = ((msg.mana_reward ?? 0) > 0 && !manaClaimed) || (!!mysteryDrop && !dropClaimed)
 
   function handleDeleteClick(e: React.MouseEvent) {
     e.stopPropagation()
@@ -497,7 +660,7 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
               ) : (
                 <>
                   {((msg.mana_reward ?? 0) > 0 || mysteryDrop) && (() => {
-                    const allClaimed = manaClaimed && (!mysteryDrop || !!mysteryDrop.revealed_at)
+                    const allClaimed = manaClaimed && (!mysteryDrop || dropClaimed)
                     return (
                       <span className={`font-display text-lg font-bold w-8 h-8 flex items-center justify-center rounded mr-3 ${allClaimed ? "text-foreground/30 border-[3px] border-foreground/30" : "text-amber-400 border-[3px] border-amber-400"}`} style={{ background: "rgba(0,0,0,0.58)", position: "relative", top: 7 }}>?</span>
                     )
@@ -582,7 +745,7 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
                 />
               ) : null}
               {mysteryDrop && (
-                <MysteryDropSection drop={mysteryDrop} messageId={msg.id} />
+                <MysteryDropSection drop={mysteryDrop} messageId={msg.id} onDropClaimed={() => setDropClaimed(true)} />
               )}
               {scoreMeta.game_id && (
                 <Link

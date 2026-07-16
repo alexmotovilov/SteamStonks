@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 
 interface CountdownGame {
   id: string
@@ -41,16 +41,41 @@ function inPlayersRange(g: CountdownGame): boolean {
     && g.peak_players >= g.players_window_low && g.peak_players <= g.players_window_high
 }
 
+function playersExceededRange(g: CountdownGame): boolean {
+  return g.peak_players != null && g.players_window_high != null
+    && g.peak_players > g.players_window_high
+}
+
 function inReviewsRange(g: CountdownGame): boolean {
   return g.latest_review_pct != null && g.reviews_window_low != null && g.reviews_window_high != null
     && g.latest_review_pct >= g.reviews_window_low && g.latest_review_pct <= g.reviews_window_high
 }
 
 function formatPeak(n: number | null): string {
-  if (n == null) return "—"
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M"
-  if (n >= 1000) return (n / 1000).toFixed(1) + "K"
-  return String(n)
+  if (n == null) return "————.—K"  // 7 chars: ————.—K
+  if (n >= 10_000_000) {
+    const mStr = (n / 1_000_000).toFixed(1)
+    const [i, d] = mStr.split(".")
+    return i.padStart(4, "0") + "." + d + "M"
+  }
+  const kStr = (n / 1000).toFixed(1)
+  const [i, d] = kStr.split(".")
+  return i.padStart(4, "0") + "." + d + "K"
+}
+
+function formatReview(pct: number | null): string {
+  if (pct == null) return "  — "  // 4 chars: ··—·
+  return String(Math.round(pct)).padStart(3) + "%"
+}
+
+// Renders each character in str in a fixed-width inline-block cell so
+// all characters occupy stable horizontal positions regardless of content.
+function fixedChars(str: string, color: string, w = 12, ns = "") {
+  return Array.from(str).map((ch, i) => (
+    <span key={`${ns}${i}`} style={{ display: "inline-block", width: w, textAlign: "center", color }}>
+      {ch}
+    </span>
+  ))
 }
 
 function trendIcon(trend: "up" | "down" | "flat" | null): string {
@@ -80,6 +105,66 @@ const BOARD_WIDTH = "calc(42vw * 1.19)"
 // Base CSS transform (centering) shared by board and goblin
 const BOARD_BASE_TRANSFORM = "translate(calc(-50% + 40px), calc(-50% + 75px))"
 
+// ─── Debris sources and spawn points ──────────────────────────────
+const DEBRIS_SRCS = [
+  "/goblin-debris1.png",
+  "/goblin-debris2.png",
+  "/goblin-debris3.png",
+  "/goblin-debris4.png",
+  "/goblin-debris5.png",
+  "/goblin-debris6.png",
+]
+
+// Piece center within each 1212×588 overlay, used as transform-origin for rotation
+const DEBRIS_ORIGINS: Record<string, string> = {
+  "/goblin-debris1.png": "17% 50%",
+  "/goblin-debris2.png": "51% 42%",
+  "/goblin-debris3.png": "43% 53%",
+  "/goblin-debris4.png": "53% 33%",
+  "/goblin-debris5.png": "77% 48%",
+  "/goblin-debris6.png": "59% 36%",
+}
+
+const DEBRIS_END_TRANSFORMS = [
+  "translate(0, 110vh)",
+  "translate(0, 118vh)",
+  "translate(0, 122vh)",
+  "translate(0, 115vh)",
+  "translate(0, 108vh)",
+  "translate(0, 112vh)",
+  "translate(0, 120vh)",
+  "translate(0, 116vh)",
+  "translate(0, 119vh)",
+  "translate(0, 106vh)",
+]
+
+// Spin amounts per slot — alternating direction, some multi-spin
+const DEBRIS_ROTATIONS = [
+  "rotate(360deg)",
+  "rotate(-360deg)",
+  "rotate(540deg)",
+  "rotate(-360deg)",
+  "rotate(720deg)",
+  "rotate(-540deg)",
+  "rotate(360deg)",
+  "rotate(-360deg)",
+  "rotate(540deg)",
+  "rotate(-720deg)",
+]
+
+const SPAWN_POINTS = [
+  { left: "3vw",  top: "calc(64px + 27vh)" },
+  { left: "8vw",  top: "calc(64px + 25vh)" },
+  { left: "13vw", top: "calc(64px + 28vh)" },
+  { left: "18vw", top: "calc(64px + 26vh)" },
+  { left: "22vw", top: "calc(64px + 27vh)" },
+  { left: "27vw", top: "calc(64px + 25vh)" },
+  { left: "31vw", top: "calc(64px + 28vh)" },
+  { left: "36vw", top: "calc(64px + 26vh)" },
+  { left: "40vw", top: "calc(64px + 27vh)" },
+  { left: "45vw", top: "calc(64px + 25vh)" },
+]
+
 // ─── Independent row positions — adjust each freely ───────────────
 const ROW_POSITIONS: React.CSSProperties[] = [
   { top: "calc(64px + 5vh + 17px)",   left: "175px" },  // Row 1 (nearest)
@@ -96,6 +181,7 @@ const ROW_PANEL_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: "14px",
+  width: "466px",
 }
 
 export function ScoringCountdownPanel({
@@ -107,11 +193,18 @@ export function ScoringCountdownPanel({
   hasUnread?: boolean
   hasUnclaimed?: boolean
 }) {
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState<number | null>(null)
   const [active, setActive] = useState<CountdownGame[]>(games)
   const [boardHovered, setBoardHovered] = useState(false)
+  const canvasRef    = useRef<HTMLCanvasElement>(null)
+  const animRef      = useRef<number>(0)
+  const hoverZoneRef = useRef<HTMLDivElement>(null)
+  const debrisRefs        = useRef<(HTMLImageElement | null)[]>([])
+  const debrisWrapperRefs = useRef<(HTMLDivElement | null)[]>([])
+  const debrisAnims       = useRef<Animation[]>([])
 
   useEffect(() => {
+    setNow(Date.now())
     const id = setInterval(() => {
       const t = Date.now()
       setNow(t)
@@ -119,6 +212,152 @@ export function ScoringCountdownPanel({
     }, 1000)
     return () => clearInterval(id)
   }, [])
+
+  // Cancel in-flight animations only on unmount
+  useEffect(() => () => {
+    cancelAnimationFrame(animRef.current)
+    debrisAnims.current.forEach(a => { try { a.cancel() } catch { /**/ } })
+  }, [])
+
+  function triggerDebris() {
+    // Cancel any still-running set before starting a new one
+    debrisAnims.current.forEach(a => { try { a.cancel() } catch { /**/ } })
+    debrisAnims.current = []
+
+    const srcs = [...DEBRIS_SRCS]
+    for (let i = srcs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [srcs[i], srcs[j]] = [srcs[j], srcs[i]]
+    }
+
+    SPAWN_POINTS.forEach((_, i) => {
+      const wrapper = debrisWrapperRefs.current[i]
+      const el      = debrisRefs.current[i]
+      if (!wrapper || !el) return
+      const src = srcs[i % srcs.length]
+      el.src = src
+      el.style.transformOrigin = DEBRIS_ORIGINS[src] ?? "50% 50%"
+      const delay    = Math.random() * 420
+      const duration = 820 + Math.random() * 200
+      // Outer wrapper: fall straight down + fade
+      const wrapAnim = wrapper.animate(
+        [
+          { transform: "translate(0,0)", opacity: 0, offset: 0 },
+          { transform: "translate(0,0)", opacity: 1, offset: 0.06 },
+          { transform: DEBRIS_END_TRANSFORMS[i], opacity: 0, offset: 1 },
+        ],
+        { duration, delay, fill: "forwards", easing: "ease-in" },
+      )
+      // Inner img: spin around the piece's own center
+      const imgAnim = el.animate(
+        [
+          { transform: "rotate(0deg)", offset: 0 },
+          { transform: DEBRIS_ROTATIONS[i], offset: 1 },
+        ],
+        { duration, delay, fill: "forwards", easing: "linear" },
+      )
+      debrisAnims.current.push(wrapAnim, imgAnim)
+    })
+  }
+
+  function triggerSparks() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    cancelAnimationFrame(animRef.current)
+    canvas.width  = window.innerWidth
+    canvas.height = window.innerHeight
+
+    const rect = hoverZoneRef.current?.getBoundingClientRect()
+    const spawnXMin = rect ? rect.left   : window.innerWidth  * 0.03
+    const spawnXMax = rect ? rect.right  : window.innerWidth  * 0.47
+    const spawnY    = rect ? rect.bottom : window.innerHeight * 0.26 + 64
+    const spawnYTop = rect ? rect.top    : window.innerHeight * 0.06 + 64
+
+    type Spark = {
+      x: number; y: number; px: number; py: number
+      vx: number; vy: number
+      life: number; decay: number
+      size: number; hue: number; lightness: number
+      startFrame: number
+    }
+
+    // Burst sparks — explode outward from bottom edge of board
+    const burstSparks: Spark[] = Array.from({ length: 70 }, () => {
+      const angle = -Math.PI * 0.5 + (Math.random() - 0.5) * Math.PI * 1.6
+      const speed = 2 + Math.random() * 8
+      const x     = spawnXMin + Math.random() * (spawnXMax - spawnXMin)
+      return {
+        x, y: spawnY + (Math.random() - 0.5) * 12,
+        px: x, py: spawnY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0.8 + Math.random() * 0.2,
+        decay: 0.016 + Math.random() * 0.020,
+        size: 1.5 + Math.random() * 3,
+        hue: 28 + Math.random() * 38,
+        lightness: 70 + Math.random() * 30,
+        startFrame: 0,
+      }
+    })
+
+    // Rain sparks — fall downward with the debris, staggered across the fall duration
+    const rainSparks: Spark[] = Array.from({ length: 100 }, () => {
+      const x = spawnXMin + Math.random() * (spawnXMax - spawnXMin)
+      const y = spawnYTop + Math.random() * (spawnY - spawnYTop)
+      return {
+        x, y,
+        px: x, py: y,
+        vx: (Math.random() - 0.5) * 1.8,
+        vy: 1.5 + Math.random() * 5,
+        life: 0.65 + Math.random() * 0.6,
+        decay: 0.009 + Math.random() * 0.011,
+        size: 0.7 + Math.random() * 1.8,
+        hue: 22 + Math.random() * 55,
+        lightness: 65 + Math.random() * 35,
+        startFrame: Math.floor(Math.random() * 38),
+      }
+    })
+
+    const allSparks = [...burstSparks, ...rainSparks]
+    let frameCount = 0
+
+    function frame() {
+      if (!ctx) return
+      ctx.clearRect(0, 0, canvas!.width, canvas!.height)
+      frameCount++
+      let alive = false
+      ctx.globalCompositeOperation = "lighter"
+
+      for (const s of allSparks) {
+        if (frameCount < s.startFrame) { alive = true; continue }
+        if (s.life <= 0) continue
+        alive = true
+        s.px = s.x; s.py = s.y
+        s.x  += s.vx; s.y  += s.vy
+        s.vy += 0.18; s.vx *= 0.97; s.vy *= 0.97
+        s.life -= s.decay
+        const alpha = Math.max(0, s.life)
+        ctx.globalAlpha = alpha * 0.8
+        ctx.strokeStyle = `hsl(${s.hue}, 100%, ${s.lightness}%)`
+        ctx.lineWidth   = Math.max(0, s.size * s.life)
+        ctx.lineCap     = "round"
+        ctx.beginPath(); ctx.moveTo(s.px, s.py); ctx.lineTo(s.x, s.y); ctx.stroke()
+        ctx.globalAlpha = alpha
+        ctx.fillStyle   = `hsl(${s.hue + 20}, 100%, 95%)`
+        ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(0, s.size * 0.6 * s.life), 0, Math.PI * 2); ctx.fill()
+      }
+
+      ctx.globalCompositeOperation = "source-over"
+      ctx.globalAlpha = 1
+      if (alive) animRef.current = requestAnimationFrame(frame)
+      else ctx.clearRect(0, 0, canvas!.width, canvas!.height)
+    }
+
+    animRef.current = requestAnimationFrame(frame)
+  }
 
   const firstGame = active[0] ?? null
   const goblinCtx: GoblinCtx = {
@@ -133,6 +372,20 @@ export function ScoringCountdownPanel({
 
   return (
     <>
+      {/* Spark canvas — full viewport, pointer-events none, below debris (z:50) */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          zIndex: 50,
+          pointerEvents: "none",
+        }}
+      />
+
       {/* Goblin — behind board (z:51). Slides up to hide behind board when not hovered. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -158,83 +411,39 @@ export function ScoringCountdownPanel({
       />
 
       {/* Scoring countdown board — above goblin (z:52) */}
-      <style>{`
-        @keyframes boardShake {
-          0%   { transform: translate(0,    0)   rotate(0deg);   }
-          18%  { transform: translate(5px,  2px) rotate(0.5deg); }
-          36%  { transform: translate(-4px, 0px) rotate(-0.4deg);}
-          54%  { transform: translate(3px,  1px) rotate(0.3deg); }
-          72%  { transform: translate(-2px, 0px) rotate(-0.15deg);}
-          100% { transform: translate(0,    0)   rotate(0deg);   }
-        }
-        @keyframes debrisFall1 {
-          0%   { transform: translateY(0)     rotate(0deg);    opacity: 0; }
-          8%   { opacity: 1; }
-          100% { transform: translateY(130vh) rotate(160deg);  opacity: 0; }
-        }
-        @keyframes debrisFall2 {
-          0%   { transform: translateY(0)     rotate(0deg);    opacity: 0; }
-          8%   { opacity: 1; }
-          100% { transform: translateY(130vh) rotate(-220deg); opacity: 0; }
-        }
-        @keyframes debrisFall3 {
-          0%   { transform: translateY(0)     rotate(0deg);    opacity: 0; }
-          8%   { opacity: 1; }
-          100% { transform: translateY(130vh) rotate(90deg);   opacity: 0; }
-        }
-        @keyframes debrisFall4 {
-          0%   { transform: translateY(0)     rotate(0deg);    opacity: 0; }
-          8%   { opacity: 1; }
-          100% { transform: translateY(130vh) rotate(-130deg); opacity: 0; }
-        }
-        @keyframes debrisFall5 {
-          0%   { transform: translateY(0)     rotate(0deg);    opacity: 0; }
-          8%   { opacity: 1; }
-          100% { transform: translateY(130vh) rotate(280deg);  opacity: 0; }
-        }
-        @keyframes debrisFall6 {
-          0%   { transform: translateY(0)     rotate(0deg);    opacity: 0; }
-          8%   { opacity: 1; }
-          100% { transform: translateY(130vh) rotate(-180deg); opacity: 0; }
-        }
-      `}</style>
-      {/* Debris pieces — same canvas coords as board, invisible by default, fall on hover (z:54) */}
-      {[
-        { src: "/goblin-debris1.png", anim: "debrisFall1", delay: "0.05s", dur: "1.0s" },
-        { src: "/goblin-debris2.png", anim: "debrisFall2", delay: "0.22s", dur: "0.85s" },
-        { src: "/goblin-debris3.png", anim: "debrisFall3", delay: "0.08s", dur: "0.92s" },
-        { src: "/goblin-debris4.png", anim: "debrisFall4", delay: "0.32s", dur: "0.88s" },
-        { src: "/goblin-debris5.png", anim: "debrisFall5", delay: "0.14s", dur: "1.02s" },
-        { src: "/goblin-debris6.png", anim: "debrisFall6", delay: "0.40s", dur: "0.82s" },
-      ].map(({ src, anim, delay, dur }) => (
-        <div
-          key={src}
-          style={{
-            position: "fixed",
-            top: BOARD_TOP,
-            left: BOARD_LEFT,
-            transform: BOARD_BASE_TRANSFORM,
-            zIndex: 51,
-            pointerEvents: "none",
-            lineHeight: 0,
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt=""
-            style={{
-              width: BOARD_WIDTH,
-              height: "auto",
-              display: "block",
-              opacity: 0,
-              animation: boardHovered
-                ? `${anim} ${dur} ease-in ${delay} forwards`
-                : "none",
-            }}
-          />
-        </div>
-      ))}
+      {/* Debris — wrapper mirrors the board's exact position/transform so each 1212×588
+           overlay renders at full board size with its piece at the correct location.
+           aspectRatio matches the source images so -50% in BOARD_BASE_TRANSFORM
+           resolves to the same value as it does on the board <img>. */}
+      <div
+        style={{
+          position: "fixed",
+          top: BOARD_TOP,
+          left: BOARD_LEFT,
+          transform: BOARD_BASE_TRANSFORM,
+          width: BOARD_WIDTH,
+          aspectRatio: "1212 / 588",
+          zIndex: 51,
+          pointerEvents: "none",
+          lineHeight: 0,
+        }}
+      >
+        {SPAWN_POINTS.map((_, i) => (
+          <div
+            key={i}
+            ref={el => { debrisWrapperRefs.current[i] = el }}
+            style={{ position: "absolute", top: 0, left: 0, width: BOARD_WIDTH, opacity: 0 }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              ref={el => { debrisRefs.current[i] = el }}
+              src={DEBRIS_SRCS[i % DEBRIS_SRCS.length]}
+              alt=""
+              style={{ width: "100%", height: "auto", display: "block" }}
+            />
+          </div>
+        ))}
+      </div>
 
       {/* Outer div: fixed position + centering transform */}
       <div style={{ position: "fixed", top: BOARD_TOP, left: BOARD_LEFT, transform: BOARD_BASE_TRANSFORM, zIndex: 52, pointerEvents: "none", lineHeight: 0 }}>
@@ -258,6 +467,7 @@ export function ScoringCountdownPanel({
 
       {/* Transparent hover zone — explicitly positioned to match board's visual bounds (z:53) */}
       <div
+        ref={hoverZoneRef}
         style={{
           position: "fixed",
           top: "calc(64px + 4vh)",
@@ -267,14 +477,15 @@ export function ScoringCountdownPanel({
           zIndex: 53,
           cursor: "default",
         }}
-        onMouseEnter={() => setBoardHovered(true)}
+        onMouseEnter={() => { setBoardHovered(true); triggerSparks(); triggerDebris() }}
         onMouseLeave={() => setBoardHovered(false)}
       />
 
       {/* Ticker rows */}
       {ROW_POSITIONS.map((pos, i) => {
         const game = active[i]
-        const ms = game ? new Date(game.scoring_at).getTime() - now : null
+        if (!game) return null
+        const ms = now != null ? new Date(game.scoring_at).getTime() - now : null
         return (
           <div
             key={i}
@@ -289,37 +500,25 @@ export function ScoringCountdownPanel({
             }}
           >
             <div style={ROW_PANEL_STYLE}>
-              {game ? (
-                <span className="font-display text-sm tabular-nums" style={{ letterSpacing: "0.44em" }}>
-                  <span style={{ color: "#f59e0b", letterSpacing: "0.08em", marginRight: "6px" }}>{game.ticker}</span>
-                  <span style={{ color: "rgba(255,255,255,0.2)", marginRight: "6px", letterSpacing: 0 }}>|</span>
-                  <span style={{ color: trendColor(game.player_trend) }}>{trendIcon(game.player_trend)}</span>
-                  <span style={{ color: inPlayersRange(game) ? "#34d399" : "rgba(255,255,255,0.85)" }}>
-                    {formatPeak(game.peak_players)}
-                  </span>
-                  <span style={{ color: "rgba(255,255,255,0.25)", margin: "0 6px" }}>,</span>
-                  <span style={{ color: trendColor(game.review_trend) }}>{trendIcon(game.review_trend)}</span>
-                  <span style={{ color: inReviewsRange(game) ? "#34d399" : "rgba(255,255,255,0.85)" }}>
-                    {game.latest_review_pct != null ? `${Math.round(game.latest_review_pct)}%` : "—"}
-                  </span>
-                </span>
-              ) : (
-                <span className="font-display text-sm tabular-nums" style={{ letterSpacing: "0.44em" }}>
-                  <span style={{ color: "#f59e0b", letterSpacing: "0.08em", marginRight: "6px" }}>TICK</span>
-                  <span style={{ color: "rgba(255,255,255,0.2)", marginRight: "6px", letterSpacing: 0 }}>|</span>
-                  <span style={{ color: "#94a3b8" }}>▲</span>
-                  <span style={{ color: "rgba(255,255,255,0.85)" }}>0000.0K</span>
-                  <span style={{ color: "rgba(255,255,255,0.25)", margin: "0 6px" }}>,</span>
-                  <span style={{ color: "#94a3b8" }}>▲</span>
-                  <span style={{ color: "rgba(255,255,255,0.85)" }}>00%</span>
-                </span>
-              )}
+              <span className="font-display text-sm tabular-nums" style={{ letterSpacing: 0 }}>
+                {fixedChars(game.ticker.slice(0, 4).padEnd(4), "#f59e0b", 14, "tk")}
+                {fixedChars(" | ", "rgba(255,255,255,0.2)", 12, "s1")}
+                <span style={{ display: "inline-block", width: 16, textAlign: "center", color: trendColor(game.player_trend), position: "relative", left: "-10px" }}>{trendIcon(game.player_trend)}</span>
+                {fixedChars(formatPeak(game.peak_players), inPlayersRange(game) ? "#34d399" : playersExceededRange(game) ? "#f87171" : "rgba(255,255,255,0.85)", 12, "pk")}
+                <span style={{ display: "inline-block", width: 15 }} />
+                {fixedChars(trendIcon(game.review_trend), trendColor(game.review_trend), 16, "rt")}
+                {fixedChars(formatReview(game.latest_review_pct), inReviewsRange(game) ? "#34d399" : "rgba(255,255,255,0.85)", 12, "rv")}
+              </span>
               <span style={{ color: "rgba(255,255,255,0.15)", letterSpacing: 0 }}>|</span>
-              <span className="font-display text-sm text-cyan-300 tabular-nums" style={{ letterSpacing: 0 }}>
-                {(ms != null ? formatCountdown(ms) : "DD:HH:MM:SS").split(":").map((part, j) => (
-                  <span key={j}>
-                    {j > 0 && <span style={{ margin: "0 8.5px", opacity: 0.55 }}>:</span>}
-                    {part}
+              <span className="font-display text-sm text-cyan-300 tabular-nums" style={{ letterSpacing: 0, marginLeft: "auto" }}>
+                {Array.from(ms != null ? formatCountdown(ms) : "DD:HH:MM:SS").map((ch, i) => (
+                  <span key={i} style={{
+                    display: "inline-block",
+                    width: ch === ":" ? 10 : 13,
+                    textAlign: "center",
+                    opacity: ch === ":" ? 0.55 : 1,
+                  }}>
+                    {ch}
                   </span>
                 ))}
               </span>

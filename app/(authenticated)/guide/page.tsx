@@ -397,7 +397,7 @@ export default function GuidePage() {
             { name: "Eldritch Wager",        cost: "30",       reusable: false, image: "/rites/eldritch-wager.png",         text: "Adds +25 mana to your reward for each correct metric, additional +25 mana if both are correct. One use per prediction." },
             { name: "Sigil of Multiplicity", cost: "50",       reusable: false, image: "/rites/sigil-of-multiplicity.png",  text: "Unlocks a third booster slot for this prediction. One use per prediction." },
             { name: "Temporal Translocation",cost: "100",      reusable: false, image: "/rites/temporal-translocation.png", text: "Removes your early lock, letting you update your sliders again. Only available if you have an active early lock." },
-            { name: "Auspicious Omens",      cost: "variable", reusable: false, image: "/rites/auspicious-omens.png",       text: <>Marks this game for an  optional all-or-nothing side bet on your season ladder.  Every marked game must finish in the Top 8 to collect the reward. The more marks you place correctly, the larger the bonus. Each additional mark costs more mana.</> },
+            { name: "Auspicious Omens",      cost: "variable", reusable: false, image: "/rites/auspicious-omens.png",       text: <>Marks this game for an optional all-or-nothing side bet on your season ladder. Every marked game must finish in the Top 8 to <a href="#ao-ladder" className="text-amber-400 underline underline-offset-2 hover:text-amber-300">collect the reward</a>. The more marks you place correctly, the larger the bonus. Each additional mark costs more mana.</> },
           ].map(({ name, cost, reusable, image, text }) => (
             <div key={name} className="flex gap-3 p-3 rounded-lg border border-purple-500/15 bg-purple-950/10">
               <div className="w-10 h-10 rounded-full border border-purple-500/30 bg-purple-950/30 overflow-hidden shrink-0">
@@ -564,7 +564,7 @@ export default function GuidePage() {
           </table>
         </div>
 
-        <div className="mt-3 p-4 rounded-lg border border-amber-500/15 bg-amber-950/10">
+        <div id="ao-ladder" className="mt-3 p-4 rounded-lg border border-amber-500/15 bg-amber-950/10 scroll-mt-20">
           <div className="font-display text-xs text-amber-400 mb-2">Auspicious Omens (ladder)</div>
           <Body>
             If you used Auspicious Omens to mark games during the season, those marks are evaluated
@@ -692,7 +692,7 @@ export default function GuidePage() {
             <Body>After each prediction is scored you receive a detailed breakdown showing your result, the actual values, and a full mana breakdown. These messages contain:</Body>
             <ul className="mt-2 space-y-1.5">
               {[
-                { label: "Claim Mana", text: "Adds your earned mana to your spendable balance and registers the score." },
+                { label: "Claim Mana", text: "Adds your earned mana to your spendable balance. Your season score is updated automatically when the prediction is scored." },
                 { label: "Mystery drops", text: "If earned, click Open to roll the loot table and reveal your items." },
               ].map(({ label, text }) => (
                 <li key={label} className="flex items-start gap-2 font-body text-xs text-muted-foreground">

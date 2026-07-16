@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Play, CheckCircle, BarChart3, Trophy, Loader2 } from "lucide-react"
+import { Play, CheckCircle, BarChart3, Trophy, Loader2, RotateCcw } from "lucide-react"
 
 interface SeasonStatusActionsProps {
   seasonId: string
@@ -21,6 +21,7 @@ const statusFlow = {
 
 export function SeasonStatusActions({ seasonId, currentStatus }: SeasonStatusActionsProps) {
   const [updating, setUpdating] = useState(false)
+  const [rollingBack, setRollingBack] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
@@ -28,28 +29,38 @@ export function SeasonStatusActions({ seasonId, currentStatus }: SeasonStatusAct
 
   async function handleStatusChange() {
     if (!flow.next) return
-
     setUpdating(true)
     setError(null)
-
     try {
       const supabase = createClient()
-
       const { error: updateError } = await supabase
         .from("seasons")
-        .update({ 
-          status: flow.next,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ status: flow.next, updated_at: new Date().toISOString() })
         .eq("id", seasonId)
-
       if (updateError) throw updateError
-
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update status")
     } finally {
       setUpdating(false)
+    }
+  }
+
+  async function handleRollbackToActive() {
+    setRollingBack(true)
+    setError(null)
+    try {
+      const supabase = createClient()
+      const { error: updateError } = await supabase
+        .from("seasons")
+        .update({ status: "active", updated_at: new Date().toISOString() })
+        .eq("id", seasonId)
+      if (updateError) throw updateError
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to roll back status")
+    } finally {
+      setRollingBack(false)
     }
   }
 
@@ -70,7 +81,6 @@ export function SeasonStatusActions({ seasonId, currentStatus }: SeasonStatusAct
             const StatusIcon = info.icon
             const isActive = status === currentStatus
             const isPast = Object.keys(statusFlow).indexOf(status) < Object.keys(statusFlow).indexOf(currentStatus)
-            
             return (
               <div key={status} className="flex items-center">
                 <div
@@ -85,11 +95,7 @@ export function SeasonStatusActions({ seasonId, currentStatus }: SeasonStatusAct
                   <StatusIcon className="h-5 w-5" />
                 </div>
                 {index < Object.keys(statusFlow).length - 1 && (
-                  <div
-                    className={`w-12 h-0.5 mx-2 ${
-                      isPast ? "bg-success" : "bg-border"
-                    }`}
-                  />
+                  <div className={`w-12 h-0.5 mx-2 ${isPast ? "bg-success" : "bg-border"}`} />
                 )}
               </div>
             )
@@ -106,31 +112,36 @@ export function SeasonStatusActions({ seasonId, currentStatus }: SeasonStatusAct
       </div>
 
       {/* Action */}
-      <div className="pt-4 border-t border-border">
-        <p className="text-sm text-muted-foreground mb-4">{flow.description}</p>
-        
+      <div className="pt-4 border-t border-border space-y-3">
+        <p className="text-sm text-muted-foreground">{flow.description}</p>
+
         {flow.next ? (
-          <Button
-            onClick={handleStatusChange}
-            disabled={updating}
-            className="w-full"
-          >
+          <Button onClick={handleStatusChange} disabled={updating || rollingBack} className="w-full">
             {updating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Updating...
-              </>
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
             ) : (
-              <>
-                <Icon className="mr-2 h-4 w-4" />
-                {flow.label}
-              </>
+              <><Icon className="mr-2 h-4 w-4" />{flow.label}</>
             )}
           </Button>
         ) : (
           <Button disabled className="w-full">
             <CheckCircle className="mr-2 h-4 w-4" />
             Season Complete
+          </Button>
+        )}
+
+        {currentStatus === "scoring" && (
+          <Button
+            variant="outline"
+            onClick={handleRollbackToActive}
+            disabled={updating || rollingBack}
+            className="w-full text-warning border-warning/40 hover:bg-warning/10"
+          >
+            {rollingBack ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Rolling back...</>
+            ) : (
+              <><RotateCcw className="mr-2 h-4 w-4" />Reopen Season (scoring → active)</>
+            )}
           </Button>
         )}
       </div>

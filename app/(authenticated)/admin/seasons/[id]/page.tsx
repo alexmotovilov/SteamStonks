@@ -234,7 +234,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
                       <p className="font-medium text-foreground">{game.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {game.release_date
-                          ? new Date(game.release_date).toLocaleDateString()
+                          ? new Date(game.release_date).toLocaleDateString("en-US", { timeZone: "UTC" })
                           : "TBA"}
                       </p>
                     </div>

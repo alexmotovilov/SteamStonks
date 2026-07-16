@@ -9,10 +9,11 @@ interface Props {
   user: SupabaseUser
   href: string
   className: string
+  style?: React.CSSProperties
   children: React.ReactNode
 }
 
-export function PendingPredictionsIndicator({ user, href, className, children }: Props) {
+export function PendingPredictionsIndicator({ user, href, className, style, children }: Props) {
   const [hasPending, setHasPending] = useState(false)
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export function PendingPredictionsIndicator({ user, href, className, children }:
   }, [user.id])
 
   if (!hasPending) {
-    return <Link href={href} className={className}>{children}</Link>
+    return <Link href={href} className={className} style={style}>{children}</Link>
   }
 
   return (
@@ -61,6 +62,7 @@ export function PendingPredictionsIndicator({ user, href, className, children }:
       href={href}
       className={`${className} rounded px-2 py-0.5`}
       style={{
+        ...style,
         outline: "1.5px solid rgba(34,197,94,0.5)",
         outlineOffset: "2px",
         animation: "pulse-border 2s ease-in-out infinite",

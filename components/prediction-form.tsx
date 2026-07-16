@@ -110,6 +110,8 @@ interface PredictionFormProps {
   aoMarkedGameIds?: string[]  // game IDs where this player has applied AO this season
   predictedGameIds?: string[]  // game IDs where this player has made a prediction this season
   firstPredictionBonusEligible?: boolean
+  onSave?: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
 const PLAYERS_MIN = 100
@@ -221,9 +223,10 @@ function RiteCircle({ rite, isPerformed, disabled, onConfirm }: { rite: typeof R
 
 function BoosterTile({ inv, isApplied, canApply, isSavedLocked, onToggle }: { inv: InventoryItem; isApplied: boolean; canApply: boolean; isSavedLocked?: boolean; onToggle: () => void }) {
   const [hovering, setHovering] = useState(false)
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const outOfStock = inv.quantity <= 0 && !isApplied
   return (
-    <div className="relative" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+    <div className="relative" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)} onMouseMove={e => setMousePos({ x: e.clientX, y: e.clientY })}>
       <button onClick={onToggle} disabled={isSavedLocked || (!canApply && !isApplied) || outOfStock}
         className={`w-full flex flex-col items-center gap-1 p-1 rounded-xl border transition-all duration-200 ${
           isSavedLocked ? "border-amber-500/60 shadow-[0_0_0_1px_rgba(217,119,6,0.2),inset_0_0_8px_rgba(217,119,6,0.06)] bg-amber-950/20 cursor-default"
@@ -257,9 +260,11 @@ function BoosterTile({ inv, isApplied, canApply, isSavedLocked, onToggle }: { in
         <div className="font-display text-[8px] text-muted-foreground text-center leading-tight line-clamp-2 w-full">{inv.items.name}</div>
       </button>
       {hovering && (
-        <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 z-50 w-40 bg-[rgba(10,10,25,0.98)] border border-amber-500/25 rounded-xl p-2.5 shadow-2xl pointer-events-none">
-          <div className="absolute bottom-[-6px] left-1/2 w-3 h-3 bg-[rgba(10,10,25,0.98)] border-r border-b border-amber-500/25" style={{transform:"translateX(-50%) rotate(45deg)"}} />
-          <div className="font-display text-[10px] text-amber-300 mb-1">{inv.items.name}</div>
+        <div
+          className="fixed z-[9999] w-44 bg-[rgba(10,10,25,0.98)] border border-amber-500/25 rounded-xl p-2.5 shadow-2xl pointer-events-none flex flex-col gap-1"
+          style={{ left: mousePos.x + 14, top: mousePos.y - 10 }}
+        >
+          <div className="font-display text-[10px] text-amber-300">{inv.items.name}</div>
           <div className="text-[9px] text-muted-foreground leading-relaxed">
             {isSavedLocked ? "Applied & locked — boosters cannot be removed after saving" : inv.items.description}
           </div>
@@ -324,7 +329,7 @@ const BOOSTER_EFFECTS: Record<string, EffectLine[]> = {
   evocation_distillate:     [{ text: "+25 mana total reward", color: "cyan" }],
   thaumaturgic_concentrate: [{ text: "+50 mana total reward", color: "cyan" }],
   blood_bargain:            [{ text: "Reviews window +3", color: "green" }, { text: "Players window −3%", color: "red" }],
-  black_gem_accumulator:    [{ text: "Players window −5%", color: "red" }, { text: "+75 mana if players correct", color: "cyan" }],
+  black_gem_accumulator:    [{ text: "Players window −3%", color: "red" }, { text: "+75 mana if players correct", color: "cyan" }],
   infernal_patrons_pact:    [{ text: "Reviews window −1", color: "red" }, { text: "+1 loot drop total reward", color: "amber" }],
   tincture_of_divination:   [{ text: "Players window +10%", color: "green" }, { text: "Reviews window +5", color: "green" }],
 }
@@ -405,38 +410,55 @@ function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters
   }
 
   return (
-    <div className="bg-[rgba(10,10,20,0.6)] border border-white/8 rounded-xl p-3 space-y-1.5">
-      <div className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase">Active Effects</div>
+    <div
+      className="bg-[rgba(10,10,20,0.6)] border border-white/8 rounded-xl p-3 flex flex-col gap-1.5"
+      style={{ height: "148px" }}
+    >
+      <style>{`
+        .effects-scroll::-webkit-scrollbar { width: 4px; }
+        .effects-scroll::-webkit-scrollbar-track { background: transparent; }
+        .effects-scroll::-webkit-scrollbar-thumb { background: rgba(196,168,130,0.22); border-radius: 2px; }
+        .effects-scroll::-webkit-scrollbar-thumb:hover { background: rgba(196,168,130,0.45); }
+      `}</style>
+
+      {/* Static header — never scrolls */}
+      <div className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase shrink-0">Active Effects</div>
 
       {firstPredictionBonusEligible && (
-        <div className="flex items-start gap-1.5">
+        <div className="flex items-start gap-1.5 shrink-0">
           <div className="w-1.5 h-1.5 rounded-full shrink-0 mt-1 bg-cyan-400" />
           <span className="text-[9px] leading-tight text-cyan-300">+50 mana first prediction bonus</span>
         </div>
       )}
 
-      <div className="border-t border-white/8" />
+      <div className="border-t border-white/8 shrink-0" />
 
-      {sourcedGroups.length === 0 ? (
-        <p className="text-[9px] italic text-muted-foreground/40">No boosters or rites active</p>
-      ) : (
-        <div className="space-y-2">
-          {sourcedGroups.map((group, gi) => (
-            <div key={gi}>
-              <div
-                className={`font-display text-[9px] mb-0.5 ${group.sourceColor ? "" : "text-muted-foreground/60"}`}
-                style={group.sourceColor ? { color: group.sourceColor } : undefined}
-              >{group.source}</div>
-              {group.effects.map((effect, ei) => (
-                <div key={ei} className="flex items-start gap-1.5">
-                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1 ${DOT_COLOR[effect.color]}`} />
-                  <span className={`text-[9px] leading-tight ${TEXT_COLOR[effect.color]}`}>{effect.text}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Scrollable effects list */}
+      <div
+        className="effects-scroll flex-1 overflow-y-auto"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(196,168,130,0.22) transparent" }}
+      >
+        {sourcedGroups.length === 0 ? (
+          <p className="text-[9px] italic text-muted-foreground/40">No boosters or rites active</p>
+        ) : (
+          <div className="space-y-2">
+            {sourcedGroups.map((group, gi) => (
+              <div key={gi}>
+                <div
+                  className={`font-display text-[9px] mb-0.5 ${group.sourceColor ? "" : "text-muted-foreground/60"}`}
+                  style={group.sourceColor ? { color: group.sourceColor } : undefined}
+                >{group.source}</div>
+                {group.effects.map((effect, ei) => (
+                  <div key={ei} className="flex items-start gap-1.5">
+                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1 ${DOT_COLOR[effect.color]}`} />
+                    <span className={`text-[9px] leading-tight ${TEXT_COLOR[effect.color]}`}>{effect.text}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -527,6 +549,8 @@ export function PredictionForm({
   aoMarkedGameIds = [],
   predictedGameIds = [],
   firstPredictionBonusEligible = false,
+  onSave,
+  onDirtyChange,
 }: PredictionFormProps) {
   const predictedSet = new Set(predictedGameIds)
   const router = useRouter()
@@ -571,7 +595,6 @@ export function PredictionForm({
   const dragOverItem = useRef<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
   const [countdown, setCountdown] = useState<string | null>(null)
   const [auguryGradientPlayers, setAuguryGradientPlayers] = useState<string | null>(null)
   const [auguryGradientReviews, setAuguryGradientReviews] = useState<string | null>(null)
@@ -580,6 +603,26 @@ export function PredictionForm({
   const [auguryIsSparse, setAuguryIsSparse] = useState(false)
   const [showSavePop, setShowSavePop] = useState(false)
   const [showLockPop, setShowLockPop] = useState(false)
+  const [leftTab, setLeftTab] = useState<"rites" | "boosters">("rites")
+
+  const isDirty = (() => {
+    if (isFullyLocked || isSeasonClosed) return false
+    const playersSame = playersMidpoint === (existingPrediction?.players_midpoint ?? 10000)
+    const reviewsSame = reviewsMidpoint === (existingPrediction?.reviews_midpoint ?? 75)
+    const currentTop8 = ladder.slice(0, 8).filter((id): id is string => id !== null)
+    const savedTop8 = existingLadder.slice(0, 8)
+    const ladderSame = currentTop8.length === savedTop8.length && currentTop8.every((id, i) => id === savedTop8[i])
+    return !playersSame || !reviewsSame || !ladderSame
+  })()
+
+  useEffect(() => { onDirtyChange?.(isDirty) }, [isDirty]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [saveFlash, setSaveFlash] = useState(false)
+  const prevDirtyRef = useRef(false)
+  useEffect(() => {
+    if (isDirty && !prevDirtyRef.current) setSaveFlash(true)
+    prevDirtyRef.current = isDirty
+  }, [isDirty])
 
   const boosters = resolveBoosterEffects(appliedBoosters)
   const equipment = resolveEquipmentEffects(equipmentSlug, equipmentTierScore)
@@ -699,7 +742,7 @@ export function PredictionForm({
   }
 
   async function handleSavePrediction() {
-    setSaving(true); setShowSavePop(false); setError(null); setSuccess(null)
+    setSaving(true); setShowSavePop(false); setError(null)
     try {
       if (isReleased || isFullyLocked) throw new Error("Predictions are locked after a game's release date.")
       const { data: { user } } = await supabase.auth.getUser()
@@ -716,7 +759,7 @@ export function PredictionForm({
       }
       const rankedGames = ladder.slice(0, 8).filter((id): id is string => id !== null)
       if (rankedGames.length > 0) await supabase.from("ladder_rankings").upsert({ user_id: user.id, season_id: seasonId, ranked_games: rankedGames, updated_at: new Date().toISOString() }, { onConflict: "user_id,season_id" })
-      setSuccess("Prediction saved!"); router.refresh()
+      router.refresh(); onSave?.()
     } catch (err) { setError(err instanceof Error ? err.message : "Failed to save") }
     finally { setSaving(false) }
   }
@@ -725,9 +768,18 @@ export function PredictionForm({
     if (!existingPrediction || isSlidersLocked || isEarlyLocked) return
     setSaving(true); setShowLockPop(false); setError(null)
     try {
-      const { error: e } = await supabase.from("predictions").update({ early_locked_at: new Date().toISOString() }).eq("id", existingPrediction.id)
+      const { error: e } = await supabase.from("predictions").update({
+        players_midpoint: playersMidpoint,
+        reviews_midpoint: reviewsMidpoint,
+        players_window_low: playersWindow.low,
+        players_window_high: playersWindow.high,
+        reviews_window_low: reviewsWindow.low,
+        reviews_window_high: reviewsWindow.high,
+        early_locked_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("id", existingPrediction.id)
       if (e) throw e
-      setSuccess("Early lock applied! Boosters, rites, and the season ladder remain fully editable."); router.refresh()
+      router.refresh()
     } catch (err) { setError(err instanceof Error ? err.message : "Failed to early lock") }
     finally { setSaving(false) }
   }
@@ -739,36 +791,47 @@ export function PredictionForm({
   const orbs = Array.from({ length: maxSlots }, (_, i) => i < appliedBoosters.length)
 
   return (
-    <Card className="border-border bg-[rgba(10,10,20,0.95)]">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-foreground">
-              <Target className="h-5 w-5 text-primary" />{gameName}
-            </CardTitle>
-            <CardDescription className="text-muted-foreground text-xs mt-0.5">
-              Predict week-one performance · Rank in the season ladder
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            {isEarlyLocked && <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-xs"><Lock className="h-3 w-3 mr-1" />Early Locked</Badge>}
-            {existingPrediction?.is_locked && <Badge variant="secondary" className="text-xs"><Lock className="h-3 w-3 mr-1" />Locked</Badge>}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-3 pt-0">
+    <>
+    <style>{`
+      @keyframes save-btn-flash {
+        0%   { box-shadow: 0 0 0 0 rgba(74,222,128,0.0); }
+        25%  { box-shadow: 0 0 0 5px rgba(74,222,128,0.50), inset 0 0 10px rgba(74,222,128,0.12); }
+        100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.0); }
+      }
+    `}</style>
+    <Card className="border-border bg-[rgba(10,10,20,0.95)]" style={{ filter: isFullyLocked ? "grayscale(1)" : undefined }}>
+      <CardContent className="p-2">
         {error && <Alert variant="destructive" className="mb-3"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
-        {success && <Alert className="border-emerald-500/30 bg-emerald-500/8 mb-3"><CheckCircle2 className="h-4 w-4 text-emerald-400" /><AlertDescription className="text-emerald-400">{success}</AlertDescription></Alert>}
 
-        <div className="grid gap-3" style={{ gridTemplateColumns: "120px 1fr 128px" }}>
+        <div className="grid gap-2" style={{ gridTemplateColumns: "120px 1fr 160px" }}>
 
-          {/* LEFT — Rites */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-center gap-1">
-              <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase">Rites</span>
-              <GuideLink section="rites" label="About rites" />
+          {/* LEFT — Rites / Boosters */}
+          <div className="flex flex-col gap-2">
+            {/* Tab toggle */}
+            <div className="flex rounded overflow-hidden border border-white/10" style={{ fontSize: 9 }}>
+              <button
+                onClick={() => setLeftTab("rites")}
+                className={`flex-1 py-1 font-display tracking-widest uppercase transition-colors ${
+                  leftTab === "rites"
+                    ? "bg-purple-900/50 text-purple-300"
+                    : "bg-transparent text-muted-foreground/40 hover:text-muted-foreground/70"
+                }`}
+              >
+                Rites
+              </button>
+              <button
+                onClick={() => setLeftTab("boosters")}
+                className={`flex-1 py-1 font-display tracking-widest uppercase transition-colors ${
+                  leftTab === "boosters"
+                    ? "bg-amber-900/40 text-amber-400"
+                    : "bg-transparent text-muted-foreground/40 hover:text-muted-foreground/70"
+                }`}
+              >
+                Boosters
+              </button>
             </div>
-            {(() => {
+
+            {leftTab === "rites" && (() => {
               const auguryActive = !!auguryExpiry && Date.now() < auguryExpiry
               return RITES.map(rite => (
                 <RiteCircle key={rite.slug}
@@ -782,14 +845,35 @@ export function PredictionForm({
                   onConfirm={() => performRite(rite.slug)} />
               ))
             })()}
+
+            {leftTab === "boosters" && !isSeasonClosed && (
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {orbs.map((filled, i) => (
+                    <div key={i} className={`w-5 h-5 rounded-sm border-2 transition-all duration-300 ${filled ? "border-amber-400 bg-gradient-to-br from-yellow-300 via-amber-500 to-amber-700 shadow-[0_0_8px_rgba(251,191,36,0.4)]" : "border-amber-900/50 bg-transparent"}`} />
+                  ))}
+                  <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase flex items-center gap-1">Slots <GuideLink section="boosters" label="About boosters" /></span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {inventory.map(inv => {
+                    if (!inv.items) return null
+                    const isApplied = appliedBoosters.includes(inv.items.slug)
+                    const isSavedLocked = (existingPrediction?.applied_boosters ?? []).includes(inv.items.slug)
+                    const canApply = !isApplied && appliedBoosters.length < maxSlots && inv.quantity > 0
+                    return <BoosterTile key={inv.item_id} inv={inv} isApplied={isApplied} isSavedLocked={isSavedLocked} canApply={canApply} onToggle={() => toggleBooster(inv.items.slug)} />
+                  })}
+                  {inventory.length === 0 && <div className="col-span-2 text-[10px] text-muted-foreground text-center py-3">No boosters</div>}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* CENTER — Sliders + Boosters + Actions */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
 
             {/* Week 1 sliders — wrapped together so the early lock overlay spans both */}
-            <div className="relative flex flex-col gap-4">
-              <div className={`space-y-1.5 transition-opacity duration-200 ${isEarlyLocked ? "opacity-30" : ""}`}>
+            <div className="relative flex flex-col gap-3">
+              <div className={`space-y-1 transition-opacity duration-200 ${isEarlyLocked ? "opacity-30" : ""}`}>
                 <div className="flex items-center justify-between">
                   <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase flex items-center gap-1">Highest Player Count · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
                   <input
@@ -809,11 +893,11 @@ export function PredictionForm({
                     className={`font-mono text-xs text-emerald-400 font-bold bg-transparent rounded px-1.5 py-0.5 text-right w-24 outline-none transition-colors border ${isSlidersLocked ? "cursor-default border-emerald-500/10" : "cursor-text border-emerald-500/25 hover:border-emerald-500/50 focus:border-emerald-500/70 focus:bg-emerald-950/20"}`}
                   />
                 </div>
-                <GemSlider min={PLAYERS_MIN} max={PLAYERS_MAX} step={PLAYERS_STEP} value={Math.max(PLAYERS_MIN, playersMidpoint)} onChange={setPlayersMidpoint} disabled={isSlidersLocked} windowLow={Math.max(0, playersWindow.low)} windowHigh={playersWindow.high} auguryGradient={auguryGradientPlayers} formatValue={v => v.toLocaleString() + " players"} logScale />
+                <GemSlider min={PLAYERS_MIN} max={PLAYERS_MAX} step={PLAYERS_STEP} value={Math.max(PLAYERS_MIN, playersMidpoint)} savedValue={existingPrediction?.players_midpoint ?? 10000} onChange={setPlayersMidpoint} disabled={isSlidersLocked} windowLow={Math.max(0, playersWindow.low)} windowHigh={playersWindow.high} auguryGradient={auguryGradientPlayers} formatValue={v => v.toLocaleString() + " players"} logScale />
                 <div className="text-[10px] text-emerald-700 text-center">{playersWindow.low.toLocaleString()} – {playersWindow.high.toLocaleString()}</div>
               </div>
 
-              <div className={`space-y-1.5 transition-opacity duration-200 ${isEarlyLocked ? "opacity-30" : ""}`}>
+              <div className={`space-y-1 transition-opacity duration-200 ${isEarlyLocked ? "opacity-30" : ""}`}>
                 <div className="flex items-center justify-between">
                   <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase flex items-center gap-1">% Positive Reviews · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
                   <div className="flex items-center">
@@ -836,7 +920,7 @@ export function PredictionForm({
                     <span className="font-mono text-xs text-emerald-400 font-bold">%</span>
                   </div>
                 </div>
-                <GemSlider min={0} max={100} step={1} value={reviewsMidpoint} onChange={setReviewsMidpoint} disabled={isSlidersLocked} windowLow={reviewsWindow.low} windowHigh={reviewsWindow.high} auguryGradient={auguryGradientReviews} formatValue={v => v + "% positive"} />
+                <GemSlider min={0} max={100} step={1} value={reviewsMidpoint} savedValue={existingPrediction?.reviews_midpoint ?? 75} onChange={setReviewsMidpoint} disabled={isSlidersLocked} windowLow={reviewsWindow.low} windowHigh={reviewsWindow.high} auguryGradient={auguryGradientReviews} formatValue={v => v + "% positive"} />
                 <div className="text-[10px] text-emerald-700 text-center">{reviewsWindow.low}% – {reviewsWindow.high}%</div>
               </div>
 
@@ -876,7 +960,7 @@ export function PredictionForm({
             {!isSeasonClosed && existingPrediction && !isEarlyLocked && !isReleased && !isFullyLocked && (
               <div className="relative">
                 <button onClick={() => { setShowLockPop(p => !p); setShowSavePop(false) }} disabled={saving}
-                  className="w-full py-2 rounded-lg font-display text-xs tracking-wide bg-amber-500/8 text-amber-400 border border-amber-500/22 hover:bg-amber-500/15 transition-colors">
+                  className="w-full py-1.5 rounded-lg font-display text-xs tracking-wide bg-amber-500/8 text-amber-400 border border-amber-500/22 hover:bg-amber-500/15 transition-colors">
                   <Lock className="inline h-3 w-3 mr-1" />Early Lock (+{earlyLockMana} mana bonus) <GuideLink section="early-lock" label="About early lock" />
                 </button>
                 <ActionPopover open={showLockPop} title="Apply Early Lock?" description="Your week-one sliders and prediction window will be frozen, securing your early lock mana bonus. Boosters, rites, and the season ladder remain fully editable." confirmLabel="Lock It" onConfirm={handleEarlyLock} onCancel={() => setShowLockPop(false)} colorClass="amber" />
@@ -905,35 +989,22 @@ export function PredictionForm({
               firstPredictionBonusEligible={firstPredictionBonusEligible ?? false}
             />
 
-            {/* Booster orbs + grid */}
-            {!isSeasonClosed && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  {orbs.map((filled, i) => (
-                    <div key={i} className={`w-5 h-5 rounded-sm border-2 transition-all duration-300 ${filled ? "border-amber-400 bg-gradient-to-br from-yellow-300 via-amber-500 to-amber-700 shadow-[0_0_8px_rgba(251,191,36,0.4)]" : "border-amber-900/50 bg-transparent"}`} />
-                  ))}
-                  <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase ml-1 flex items-center gap-1">Booster slots <GuideLink section="boosters" label="About boosters" /></span>
-                </div>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {inventory.map(inv => {
-                    if (!inv.items) return null
-                    const isApplied = appliedBoosters.includes(inv.items.slug)
-                    const isSavedLocked = (existingPrediction?.applied_boosters ?? []).includes(inv.items.slug)
-                    const canApply = !isApplied && appliedBoosters.length < maxSlots && inv.quantity > 0
-                    return <BoosterTile key={inv.item_id} inv={inv} isApplied={isApplied} isSavedLocked={isSavedLocked} canApply={canApply} onToggle={() => toggleBooster(inv.items.slug)} />
-                  })}
-                  {inventory.length === 0 && <div className="col-span-4 text-[10px] text-muted-foreground text-center py-3">No boosters in inventory</div>}
-                </div>
-              </div>
-            )}
-
             {/* Action buttons */}
             {!isSeasonClosed && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 {!isFullyLocked && (
                   <div className="relative">
-                    <button onClick={() => { setShowSavePop(p => !p); setShowLockPop(false) }} disabled={saving}
-                      className="w-full py-2 rounded-lg font-display text-xs tracking-wide bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/18 transition-colors disabled:opacity-50">
+                    <button
+                      onClick={() => { setShowSavePop(p => !p); setShowLockPop(false) }}
+                      disabled={saving}
+                      onAnimationEnd={() => setSaveFlash(false)}
+                      style={saveFlash ? { animation: "save-btn-flash 0.55s ease-out forwards" } : undefined}
+                      className={`w-full py-1.5 rounded-lg font-display text-xs tracking-wide border transition-colors disabled:opacity-50 ${
+                        isDirty
+                          ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/25 hover:bg-emerald-500/18"
+                          : "bg-zinc-800/40 text-zinc-500/70 border-zinc-600/20 hover:text-zinc-400 hover:border-zinc-500/30"
+                      }`}
+                    >
                       {saving ? <Loader2 className="inline h-3 w-3 animate-spin mr-1" /> : null}
                       {existingPrediction ? "Update Prediction" : "Save Prediction"}
                     </button>
@@ -977,6 +1048,7 @@ export function PredictionForm({
         </div>
       </CardContent>
     </Card>
+    </>
   )
 }
 

@@ -6,8 +6,10 @@ import { ScoringCountdownPanel } from "@/components/scoring-countdown-panel"
 function deriveTicker(name: string): string {
   const clean = name.replace(/[™®©]/g, "").trim()
   const words = clean.split(/[\s\-:]+/).filter(Boolean)
-  if (words.length === 1) return words[0].slice(0, 4).toUpperCase()
-  return words.map(w => w[0]).join("").slice(0, 5).toUpperCase()
+  const initials = words.map(w => w[0]).join("").toUpperCase()
+  if (initials.length >= 4) return initials.slice(0, 4)
+  // Fewer than 4 words — fill remaining chars from the first word
+  return (initials + words[0].slice(1).toUpperCase()).slice(0, 4)
 }
 
 function getScoringTime(releaseDate: string, releaseTimeOverride: string | null): Date {
@@ -23,16 +25,27 @@ export default async function MailboxPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  // Upcoming games with unscored predictions for this user
+  // Get the active season so we only show predictions from it.
+  const { data: activeSeason } = await supabase
+    .from("seasons")
+    .select("id")
+    .eq("status", "active")
+    .single()
+
+  // Upcoming games with unscored predictions for this user in the active season.
+  // Use games!game_id to disambiguate — predictions has two FKs to games
+  // (game_id and ladder_red_slot_game_id added in migration 018).
   const { data: pendingRaw } = await supabase
     .from("predictions")
-    .select("game_id, players_window_low, players_window_high, reviews_window_low, reviews_window_high, games!inner(id, name, ticker_symbol, release_date, release_time_override, is_released)")
+    .select("game_id, players_window_low, players_window_high, reviews_window_low, reviews_window_high, games!game_id(id, name, ticker_symbol, release_date, release_time_override, is_released, peak_player_count, review_score_positive, review_score_negative)")
     .eq("user_id", user.id)
+    .eq("season_id", activeSeason?.id ?? "")
     .is("result", null)
     .order("game_id")
 
   const seen = new Set<string>()
   const predWindows: Record<string, { players_window_low: number | null; players_window_high: number | null; reviews_window_low: number | null; reviews_window_high: number | null }> = {}
+  const gameStats: Record<string, { peak_player_count: number | null; review_score_positive: number | null; review_score_negative: number | null }> = {}
   const scoringGames = (pendingRaw ?? [])
     .map((p: any) => {
       if (p.games?.id && !predWindows[p.games.id]) {
@@ -42,10 +55,21 @@ export default async function MailboxPage() {
           reviews_window_low: p.reviews_window_low ?? null,
           reviews_window_high: p.reviews_window_high ?? null,
         }
+        gameStats[p.games.id] = {
+          peak_player_count: p.games.peak_player_count ?? null,
+          review_score_positive: p.games.review_score_positive ?? null,
+          review_score_negative: p.games.review_score_negative ?? null,
+        }
       }
       return p.games
     })
-    .filter((g: any) => g?.is_released && g?.release_date && !seen.has(g.id) && seen.add(g.id))
+    .filter((g: any) => {
+      if (!g?.release_date || seen.has(g.id)) return false
+      const isReleased = g.is_released || new Date(g.release_date) <= new Date()
+      if (!isReleased) return false
+      seen.add(g.id)
+      return true
+    })
     .map((g: any) => ({
       id: g.id,
       name: g.name,
@@ -89,16 +113,29 @@ export default async function MailboxPage() {
 
     enrichedGames = scoringGames.map((g: any) => {
       const snaps = byGame[g.id] ?? []
-      const sinceRelease = snaps.filter((s: any) => new Date(s.captured_at) >= new Date(g.release_date))
-      const peak_players = sinceRelease.length > 0
-        ? Math.max(...sinceRelease.map((s: any) => s.player_count ?? 0))
-        : null
+      const gs = gameStats[g.id]
+
+      // Take the best of both sources: snapshots record every 30-min interval so
+      // the true peak (stored in games.peak_player_count by the cron) can exceed
+      // any individual snapshot row if the spike occurred between captures.
+      const snapPeak = snaps.length > 0
+        ? Math.max(...snaps.map((s: any) => s.player_count ?? 0))
+        : 0
+      const peak_players = Math.max(snapPeak, gs?.peak_player_count ?? 0) || null
+
       const p0 = snaps[0]?.player_count ?? null
       const p1 = snaps[1]?.player_count ?? null
       const player_trend = (p0 != null && p1 != null)
         ? p0 > p1 ? "up" : p0 < p1 ? "down" : "flat"
         : null
-      const r0 = reviewPct(snaps[0])
+
+      const r0 = snaps.length > 0
+        ? reviewPct(snaps[0])
+        : (() => {
+            const pos = gs?.review_score_positive, neg = gs?.review_score_negative
+            if (pos == null || neg == null || pos + neg === 0) return null
+            return (pos / (pos + neg)) * 100
+          })()
       const r1 = reviewPct(snaps[1])
       const review_trend = (r0 != null && r1 != null)
         ? r0 > r1 ? "up" : r0 < r1 ? "down" : "flat"

@@ -98,8 +98,8 @@ export default async function VendorPage() {
     <NoScroll />
     <div className="relative w-full" style={{ minHeight: "calc(100vh - 120px)", paddingTop: "30px" }}>
       {/* Full-width shopkeeper interface */}
-      <div className="flex flex-col items-center justify-end gap-4 pb-12 overflow-hidden w-full">
-<div style={{ transform: "translateY(115px)" }}>
+      <div className="flex flex-col items-center justify-end gap-4 pb-12 w-full">
+<div style={{ transform: "translateY(175px)" }}>
 <VendorShop
           items={items ?? []}
           purchasedCounts={purchasedByItemId}

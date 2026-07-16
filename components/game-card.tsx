@@ -357,7 +357,7 @@ function PredictionBand({ prediction, gameId, isReleased, releaseDate, releaseTi
 
 export function GameCard({ game, seasonId, prediction, dimmed }: GameCardProps) {
   const shortDate = game.release_date
-    ? new Date(game.release_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    ? new Date(game.release_date).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
     : null
 
   let borderStyle: CSSProperties = {}
@@ -431,7 +431,12 @@ export function GameCard({ game, seasonId, prediction, dimmed }: GameCardProps) 
           <PredictionBand
             prediction={prediction ?? null}
             gameId={game.id}
-            isReleased={game.is_released || (!!game.release_date && new Date(game.release_date) <= new Date())}
+            isReleased={game.is_released || (() => {
+              const t = game.release_time_override
+                ? new Date(game.release_time_override)
+                : game.release_date ? new Date(game.release_date) : null
+              return t !== null && t <= new Date()
+            })()}
             releaseDate={game.release_date}
             releaseTimeOverride={game.release_time_override}
           />

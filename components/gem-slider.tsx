@@ -6,6 +6,7 @@ interface GemSliderProps {
   min: number
   max: number
   value: number
+  savedValue?: number
   onChange: (value: number) => void
   disabled?: boolean
   windowLow: number
@@ -137,6 +138,7 @@ export function GemSlider({
   min,
   max,
   value,
+  savedValue,
   onChange,
   disabled = false,
   windowLow,
@@ -146,6 +148,7 @@ export function GemSlider({
   step = 1,
   logScale = false,
 }: GemSliderProps) {
+  const isChanged = savedValue !== undefined && value !== savedValue
   const svgRef = useRef<SVGSVGElement>(null)
 
   // Convert values to SVG x positions, accounting for log scale
@@ -173,6 +176,14 @@ export function GemSlider({
 
   return (
     <div className="relative select-none" style={{ userSelect: "none" }}>
+      {isChanged && (
+        <style>{`
+          @keyframes gem-changed-pulse {
+            0%, 100% { filter: drop-shadow(0 0 0px rgba(74,222,128,0)); }
+            50%       { filter: drop-shadow(0 0 5px rgba(74,222,128,0.75)); }
+          }
+        `}</style>
+      )}
       <svg
         ref={svgRef}
         width="100%"
@@ -246,8 +257,10 @@ export function GemSlider({
           </foreignObject>
         )}
 
-        {/* Gem */}
-        <GemShape cx={gemX} cy={TRACK_Y} />
+        {/* Gem — pulses when value has moved from its saved position */}
+        <g style={isChanged ? { animation: "gem-changed-pulse 1.6s ease-in-out infinite" } : undefined}>
+          <GemShape cx={gemX} cy={TRACK_Y} />
+        </g>
       </svg>
 
       {/* Native range input — invisible, sits on top for drag/keyboard */}

@@ -40,29 +40,45 @@ export function SeasonScoreBadge({ user, activeSeasonId }: SeasonScoreBadgeProps
     fetchData()
   }, [user.id, activeSeasonId])
 
+  // All sizes in vh/vw — scales with viewport, immune to zoom reflow.
+  // Reference: 84×92px badge at 1080px viewport height = 7.8vh × 8.5vh.
   return (
-    <div className="hidden sm:flex items-center relative" style={{ width: 84, height: 92, marginRight: "-25px", zIndex: 2 }}>
+    <div
+      className="hidden sm:flex items-center relative"
+      style={{ width: "10.4vh", height: "11.3vh", marginRight: "-3.3vh", zIndex: 2 }}
+    >
       <img
         src="/icons/season-score-scroll.png"
         alt="Season Score"
-        style={{ width: 84, height: 92, objectFit: "contain", marginTop: "2px", WebkitMaskImage: "linear-gradient(to bottom, black 80%, transparent 100%)", maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)" }}
+        style={{
+          width: "10.4vh",
+          height: "11.3vh",
+          objectFit: "contain",
+          marginTop: "0.3vh",
+          WebkitMaskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
+          maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
+        }}
       />
       {score !== null && rank !== null && (
         <div
           className="absolute inset-0 flex flex-col items-center justify-end font-display"
-          style={{ paddingBottom: "20px" }}
+          style={{ paddingBottom: "2.5vh" }}
         >
           <span
             className="text-amber-900 font-bold leading-none"
-            style={{ fontSize: "11px", textShadow: "0 0 6px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.3)" }}
+            style={{ fontSize: "1.3vh", textShadow: "0 0 6px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.3)" }}
           >
             #{rank}
           </span>
-          <span className="flex items-center gap-0.5 leading-none">
-            <img src="/icons/season-score-icon.png" alt="" width={10} height={10} style={{ opacity: 0.6, filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))" }} />
+          <span className="flex items-center leading-none" style={{ gap: "0.3vh" }}>
+            <img
+              src="/icons/season-score-icon.png"
+              alt=""
+              style={{ width: "1.2vh", height: "1.2vh", opacity: 0.6, filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))" }}
+            />
             <span
               className="text-amber-900 font-semibold leading-none"
-              style={{ fontSize: "10px", textShadow: "0 0 6px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.3)" }}
+              style={{ fontSize: "1.25vh", textShadow: "0 0 6px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.3)" }}
             >
               {score.toLocaleString()}
             </span>

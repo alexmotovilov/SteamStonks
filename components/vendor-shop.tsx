@@ -123,11 +123,8 @@ function BoosterBagCounter({ inventory }: { inventory: InventoryItem[] }) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
   useEffect(() => {
-    if (hovering) {
-      document.body.classList.add("bag-hovered")
-    } else {
-      document.body.classList.remove("bag-hovered")
-    }
+    if (hovering) document.body.classList.add("bag-hovered")
+    else document.body.classList.remove("bag-hovered")
     return () => document.body.classList.remove("bag-hovered")
   }, [hovering])
 
@@ -135,9 +132,9 @@ function BoosterBagCounter({ inventory }: { inventory: InventoryItem[] }) {
     <>
       {/* Contact shadow under the bag */}
       <div
-        className="absolute pointer-events-none"
+        className="absolute pointer-events-none chest-blur"
         style={{
-          left: "122px",
+          right: "145px",
           bottom: "338px",
           width: "170px",
           height: "13px",
@@ -148,8 +145,8 @@ function BoosterBagCounter({ inventory }: { inventory: InventoryItem[] }) {
         }}
       />
       <div
-        className="absolute"
-        style={{ left: "150px", bottom: "345px", zIndex: 5, cursor: hovering ? "none" : "default" }}
+        className="absolute chest-blur"
+        style={{ right: "140px", bottom: "345px", zIndex: 5, cursor: hovering ? "none" : "default" }}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         onMouseMove={e => setMousePos({ x: e.clientX, y: e.clientY })}
@@ -249,6 +246,13 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [hoveredSlug, setHoveredSlug] = useState<string | null>(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const [chestHovering, setChestHovering] = useState(false)
+
+  useEffect(() => {
+    if (chestHovering) document.body.classList.add("chest-hovered")
+    else document.body.classList.remove("chest-hovered")
+    return () => document.body.classList.remove("chest-hovered")
+  }, [chestHovering])
 
   async function handlePurchase(item: VendorItem) {
     setConfirmingSlug(null)
@@ -272,26 +276,25 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
 
   const hoveredItem = hoveredSlug && !confirmingSlug ? items.find(i => i.slug === hoveredSlug) ?? null : null
 
-  const gargoyleCtx: GargoyleCtx = {
+  // Quote is fixed for the lifetime of this page visit — picked once at mount from initial props
+  const [gargoyleQuote] = useState(() => pickGargoyleQuote({
     stipendClaimable: stipendClaimable ?? false,
-    anyPurchased: Object.values(localPurchased).some(n => n > 0),
-    allExhausted: items.length > 0 && items.every(item => (localPurchased[item.id] ?? 0) >= item.vendor_weekly_limit),
-    canAffordAny: items.some(item => localMana >= item.vendor_price && (localPurchased[item.id] ?? 0) < item.vendor_weekly_limit),
-    manaBalance: localMana,
+    anyPurchased: Object.values(purchasedCounts).some(n => n > 0),
+    allExhausted: items.length > 0 && items.every(item => (purchasedCounts[item.id] ?? 0) >= item.vendor_weekly_limit),
+    canAffordAny: items.some(item => manaBalance >= item.vendor_price && (purchasedCounts[item.id] ?? 0) < item.vendor_weekly_limit),
+    manaBalance,
     noItems: items.length === 0,
-  }
-  const gargoyleQuote = pickGargoyleQuote(gargoyleCtx)
+  }))
 
   return (
     <div className="relative">
       <style>{`
-        body.bag-hovered .vendor-blur {
-          filter: blur(3px);
-        }
+        body.bag-hovered .bag-blur { filter: blur(3px); }
+        body.chest-hovered .chest-blur { filter: blur(3px); }
       `}</style>
       {/* Vendor item grid */}
       <div className="relative flex justify-center">
-        <div className="vendor-blur pointer-events-none" style={{ lineHeight: 0 }}>
+        <div className="bag-blur chest-blur pointer-events-none" style={{ lineHeight: 0 }}>
           <img
             src="/shopkeep.png"
             alt=""
@@ -321,9 +324,9 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
           <>
             {/* Contact shadow — dark oval on the stone counter surface */}
             <div
-              className="absolute pointer-events-none"
+              className="absolute pointer-events-none bag-blur"
               style={{
-                right: "145px",
+                left: "112px",
                 bottom: "352px",
                 width: "280px",
                 height: "36px",
@@ -333,12 +336,17 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
                 zIndex: 4,
               }}
             />
-            <div className="absolute right-[110px] bottom-[350px]" style={{ zIndex: 5 }}>
+            <div
+              className="absolute left-[110px] bottom-[350px] bag-blur"
+              style={{ zIndex: 5 }}
+              onMouseEnter={() => setChestHovering(true)}
+              onMouseLeave={() => setChestHovering(false)}
+            >
               <StipendBanner claimable={stipendClaimable} seasonId={seasonId} />
             </div>
           </>
         )}
-        <div className="vendor-blur absolute bottom-[110px] left-0 right-0 flex flex-wrap justify-center gap-[185px]">
+        <div className="bag-blur chest-blur absolute bottom-[110px] left-0 right-0 flex flex-wrap justify-center gap-[185px]">
         {items.map(item => {
           const bought = localPurchased[item.id] ?? 0
           const exhausted = bought >= item.vendor_weekly_limit

@@ -316,7 +316,7 @@ export function resolveBoosterEffects(boosterSlugs: string[]): BoosterEffects {
         effects.players_window_pct_delta -= 3
         break
       case 'black_gem_accumulator':
-        effects.players_window_pct_delta -= 5
+        effects.players_window_pct_delta -= 3
         effects.mana_players_bonus += 75
         break
       case 'infernal_patrons_pact':

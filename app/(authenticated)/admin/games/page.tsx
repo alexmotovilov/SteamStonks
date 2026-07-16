@@ -22,6 +22,7 @@ interface Game {
   release_time_override: string | null
   is_released: boolean
   peak_24h_player_count: number | null
+  peak_player_count: number | null
   review_score_positive: number | null
   review_score_negative: number | null
   season_id: string | null
@@ -49,6 +50,7 @@ export default function AdminGamesPage() {
   const [addingGame, setAddingGame] = useState<number | null>(null)
   const [assigningGame, setAssigningGame] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [pendingOverrides, setPendingOverrides] = useState<Record<string, string>>({})
   const supabase = createClient()
 
   useEffect(() => {
@@ -167,11 +169,14 @@ export default function AdminGamesPage() {
   }
 
   async function deleteGame(id: string) {
-    if (!confirm("Are you sure you want to delete this game? This will also delete all predictions for it.")) return
+    if (!confirm("Are you sure you want to delete this game? This will also delete all predictions and snapshots for it.")) return
 
-    const { error } = await supabase.from("games").delete().eq("id", id)
-    if (!error) {
+    const res = await fetch(`/api/admin/games/${id}`, { method: "DELETE" })
+    if (res.ok) {
       setGames(games.filter((g) => g.id !== id))
+    } else {
+      const body = await res.json().catch(() => ({}))
+      alert("Delete failed: " + (body.error ?? res.statusText))
     }
   }
 
@@ -342,7 +347,7 @@ export default function AdminGamesPage() {
                   <TableHead>AppID</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Season</TableHead>
-                  <TableHead>24h Peak</TableHead>
+                  <TableHead>Peak Players</TableHead>
                   <TableHead>Reviews</TableHead>
                   <TableHead>Ticker</TableHead>
                   <TableHead>Launch Override (UTC)</TableHead>
@@ -369,7 +374,7 @@ export default function AdminGamesPage() {
                             <p className="font-medium">{game.name}</p>
                             {game.release_date && (
                               <p className="text-xs text-muted-foreground">
-                                {new Date(game.release_date).toLocaleDateString()}
+                                {new Date(game.release_date).toLocaleDateString("en-US", { timeZone: "UTC" })}
                               </p>
                             )}
                           </div>
@@ -434,7 +439,7 @@ export default function AdminGamesPage() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        {game.peak_24h_player_count?.toLocaleString() || "-"}
+                        {game.peak_player_count?.toLocaleString() || "-"}
                       </TableCell>
                       <TableCell>
                         {reviewScore !== null ? (
@@ -457,16 +462,33 @@ export default function AdminGamesPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <input
-                          type="datetime-local"
-                          className="text-xs bg-transparent border border-border rounded px-1 py-0.5 text-foreground w-44"
-                          title="Exact UTC launch time — overrides release_date for countdown and is_released check"
-                          value={game.release_time_override ? game.release_time_override.slice(0, 16) : ""}
-                          onChange={e => {
-                            const val = e.target.value
-                            setReleaseOverride(game.id, val ? val + ":00.000Z" : null)
-                          }}
-                        />
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="datetime-local"
+                            className="text-xs bg-transparent border border-border rounded px-1 py-0.5 text-foreground w-44"
+                            title="Exact UTC launch time — overrides release_date for countdown and is_released check"
+                            value={
+                              game.id in pendingOverrides
+                                ? pendingOverrides[game.id]
+                                : game.release_time_override ? game.release_time_override.slice(0, 16) : ""
+                            }
+                            onChange={e => setPendingOverrides(p => ({ ...p, [game.id]: e.target.value }))}
+                          />
+                          {game.id in pendingOverrides && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => {
+                                const val = pendingOverrides[game.id]
+                                setReleaseOverride(game.id, val ? val + ":00.000Z" : null)
+                                setPendingOverrides(p => { const n = { ...p }; delete n[game.id]; return n })
+                              }}
+                            >
+                              OK
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
