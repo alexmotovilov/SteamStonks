@@ -36,7 +36,7 @@ export default async function GamesPage() {
 
   const { data: games } = await supabase
     .from("games")
-    .select("id, name, header_image_url, release_date, release_time_override, is_released, season_id")
+    .select("id, name, header_image_url, header_image_position, release_date, release_time_override, is_released, season_id")
     .eq("season_id", currentSeason?.id ?? "")
     .order("release_date", { ascending: true })
 

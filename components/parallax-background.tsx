@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 
 export function ParallaxBackground() {
   const ref = useRef<HTMLDivElement>(null)
+  const moteCanvasRef = useRef<HTMLCanvasElement>(null)
   const pathname = usePathname()
   const isHomepage = pathname === "/"
   const isMailbox = pathname === "/mailbox"
@@ -28,6 +29,91 @@ export function ParallaxBackground() {
     onScroll()
     return () => window.removeEventListener("scroll", onScroll)
   }, [slideVh])
+
+  useEffect(() => {
+    if (!isGames) return
+    const canvas = moteCanvasRef.current
+    if (!canvas) return
+
+    const resize = () => {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    resize()
+    window.addEventListener("resize", resize)
+
+    type Mote = {
+      x: number; y: number; vx: number; vy: number
+      alpha: number; alphaDir: number; alphaSpeed: number
+      holdFrames: number
+      size: number; hue: number; lightness: number
+    }
+
+    const bandTop = () => canvas.height * 0.38
+    const bandBot = () => canvas.height * 0.62
+
+    const motes: Mote[] = Array.from({ length: 45 }, () => ({
+      x: Math.random() * window.innerWidth,
+      y: bandTop() + Math.random() * (bandBot() - bandTop()),
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: (Math.random() - 0.5) * 0.15,
+      alpha: Math.random(),
+      alphaDir: Math.random() > 0.5 ? 1 : -1,
+      alphaSpeed: 0.003 + Math.random() * 0.005,
+      holdFrames: 0,
+      size: 0.8 + Math.random() * 2.4,
+      hue: 265 + Math.random() * 45,
+      lightness: 65 + Math.random() * 25,
+    }))
+
+    let rafId: number
+    const draw = () => {
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      for (const m of motes) {
+        if (m.holdFrames > 0) {
+          m.holdFrames--
+        } else {
+          m.alpha += m.alphaDir * m.alphaSpeed
+          if (m.alpha >= 1) {
+            m.alpha = 1; m.alphaDir = -1
+            m.holdFrames = 40 + Math.floor(Math.random() * 140)
+          }
+          if (m.alpha <= 0) {
+            m.alpha = 0; m.alphaDir = 1
+            m.holdFrames = 20 + Math.floor(Math.random() * 80)
+          }
+        }
+        m.x += m.vx
+        m.y += m.vy
+        if (m.x < -10) m.x = canvas.width + 10
+        if (m.x > canvas.width + 10) m.x = -10
+        const bt = bandTop(), bb = bandBot()
+        if (m.y < bt) { m.y = bb; m.vy = Math.abs(m.vy) * -1 }
+        if (m.y > bb) { m.y = bt; m.vy = Math.abs(m.vy) }
+
+        ctx.save()
+        ctx.globalAlpha = m.alpha * 0.75
+        ctx.shadowBlur = m.size * 8
+        ctx.shadowColor = `hsl(${m.hue}, 85%, ${m.lightness}%)`
+        ctx.fillStyle = `hsl(${m.hue}, 95%, ${m.lightness + 12}%)`
+        ctx.beginPath()
+        ctx.arc(m.x, m.y, m.size, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
+      }
+
+      rafId = requestAnimationFrame(draw)
+    }
+    draw()
+
+    return () => {
+      cancelAnimationFrame(rafId)
+      window.removeEventListener("resize", resize)
+    }
+  }, [isGames])
 
   if (isVendor) {
     return (
@@ -92,6 +178,22 @@ export function ParallaxBackground() {
     return (
       <>
         <div style={{ position: "fixed", inset: 0, zIndex: -2, backgroundColor: "#000" }} />
+        {/* Purple glow — behind tablet, blurred radial bloom */}
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: -1,
+            background: "radial-gradient(ellipse 55% 75% at 50% 50%, rgba(130,40,220,0.5) 0%, rgba(90,20,170,0.28) 30%, rgba(50,10,100,0.08) 60%, transparent 80%)",
+            filter: "blur(60px)",
+            pointerEvents: "none",
+          }}
+        />
+        {/* Floating energy motes */}
+        <canvas
+          ref={moteCanvasRef}
+          style={{ position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none" }}
+        />
         <div
           style={{
             position: "fixed",
@@ -100,6 +202,7 @@ export function ParallaxBackground() {
             transform: "translate(-50%, -50%)",
             zIndex: -1,
             pointerEvents: "none",
+            opacity: 0.65,
             WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%)",
             maskImage: "linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%)",
           }}

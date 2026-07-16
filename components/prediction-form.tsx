@@ -83,6 +83,7 @@ interface LadderGame {
   id: string
   name: string
   header_image_url: string | null
+  header_image_position?: string | null
   is_released: boolean
   release_date: string | null
 }
@@ -504,7 +505,7 @@ function LadderTile({ game, rank, isLocked, isExcluded, isOverflow, isCurrentGam
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       className={`rounded-lg border overflow-hidden bg-[rgba(15,12,25,0.9)] transition-all duration-200 ${borderClass} ${!isLocked && !isExcluded ? "cursor-grab active:cursor-grabbing" : ""}`}>
       <div className={`w-full relative overflow-hidden transition-all duration-300 ${isLocked ? "grayscale" : ""}`} style={{ height: `${imgHeight}px` }}>
-        {game.header_image_url ? <img src={game.header_image_url} alt={game.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-purple-950/30" />}
+        {game.header_image_url ? <img src={game.header_image_url} alt={game.name} className="w-full h-full object-cover" style={{ objectPosition: game.header_image_position ?? "50% 50%" }} /> : <div className="w-full h-full bg-purple-950/30" />}
         {isOverflow && <div className="absolute inset-0 bg-red-950/60" />}
         {!isExcluded && <div className={`absolute top-1 left-1.5 font-display text-[9px] px-1.5 py-0.5 rounded bg-black/70 ${isCurrentGame ? "text-emerald-400" : isOverflow ? "text-red-400" : "text-muted-foreground"}`}>{isOverflow ? "—" : rank}</div>}
         {isAoMarked && (
@@ -799,7 +800,7 @@ export function PredictionForm({
         100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.0); }
       }
     `}</style>
-    <Card className="border-border bg-[rgba(10,10,20,0.95)]" style={{ filter: isFullyLocked ? "grayscale(1)" : undefined }}>
+    <Card className="border-border bg-[rgba(10,10,20,0.50)]" style={{ filter: isFullyLocked ? "grayscale(1)" : undefined }}>
       <CardContent className="p-2">
         {error && <Alert variant="destructive" className="mb-3"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
 

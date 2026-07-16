@@ -27,7 +27,7 @@ const SLIDES: Slide[] = [
     tag: "TIP",
     tagColor: "#f59e0b",
     title: "The Season Ladder",
-    body: "Rank your top 8 picks by their predicted all-time player peak by the end of the season. Ladders can earn you up to +1100 mana at the end of the season. Use the rite of Auspicious Omens to push those rewards even further. ",
+    body: "Rank your top 8 picks by their predicted all-time player peak by the end of the season. Your ladder can earn you up to +1100 mana at the end of the season. Use the rite of Auspicious Omens to push those rewards even further. ",
   },
   {
     tag: "TIP",
@@ -39,11 +39,11 @@ const SLIDES: Slide[] = [
     tag: "TIP",
     tagColor: "#f59e0b",
     title: "Equipment Mastery",
-    body: "Your equipment levels up on every Perfect or Partial prediction. Reach Tier III to unlock the strongest passive bonuses for the season.",
+    body: "Your equipment stays with you the entire season and levels up on every Perfect or Partial prediction. Reach Tier III to unlock the strongest passive bonuses.",
   },
   {
     tag: "TIP",
-    tagColor: "#67e8f9",
+    tagColor: "#f59e0b",
     title: "Ritual of Augury",
     body: "Spend 10 mana to reveal a heatmap of crowd predictions on your sliders for 2 minutes. Use the wisdom of many or defy it.",
   },
@@ -123,7 +123,7 @@ export function CrystalBulletinBoard() {
     >
       {/* Tablet background */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/crystal-tablet.png" alt="" style={{ width: "100%", display: "block" }} />
+      <img src="/crystal-tablet.png" alt="" style={{ width: "100%", display: "block", opacity: 0.72 }} />
 
       {/* Content overlay — inset to the glowing inner panel */}
       <div

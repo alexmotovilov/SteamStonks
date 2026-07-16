@@ -8,6 +8,7 @@ type RolodexGame = {
   id: string
   name: string
   header_image_url: string | null
+  header_image_position?: string | null
   release_date: string | null
   release_time_override?: string | null
   is_released: boolean
@@ -172,6 +173,7 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
                         width: "84%",
                         height: "84%",
                         objectFit: "cover",
+                        objectPosition: game.header_image_position ?? "50% 50%",
                         borderRadius: "4px",
                         border: "1px solid rgba(196,168,130,0.3)",
                         boxShadow: "0 2px 12px rgba(0,0,0,0.8)",

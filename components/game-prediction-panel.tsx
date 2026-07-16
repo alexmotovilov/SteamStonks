@@ -22,7 +22,7 @@ type PanelData = {
   weekOneSnapshot: { player_count: number | null; review_positive: number | null; review_negative: number | null; captured_at: string | null } | null
   seasonEntry: { equipment_id: string | null; equipment_tier_score: number } | null
   inventory: { item_id: string; quantity: number; items: { slug: string; name: string; image_url: string | null; effects: Record<string, number>; description: string } }[]
-  seasonGames: { id: string; name: string; header_image_url: string | null; is_released: boolean; release_date: string | null }[]
+  seasonGames: { id: string; name: string; header_image_url: string | null; header_image_position: string | null; is_released: boolean; release_date: string | null }[]
   aoMarkCount: number
   aoMarkedGameIds: string[]
   predictedGameIds: string[]
@@ -88,7 +88,7 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         user
           ? supabase.from("inventory").select("item_id, quantity").eq("user_id", user.id)
           : Promise.resolve({ data: [] }),
-        supabase.from("games").select("id, name, header_image_url, is_released, release_date").eq("season_id", seasonId).order("release_date", { ascending: true }),
+        supabase.from("games").select("id, name, header_image_url, header_image_position, is_released, release_date").eq("season_id", seasonId).order("release_date", { ascending: true }),
         user
           ? supabase.from("rite_history").select("id").eq("user_id", user.id).eq("season_id", seasonId).eq("rite_slug", "auspicious_omens")
           : Promise.resolve({ data: [] }),
@@ -200,18 +200,18 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
     <div
       style={{
         position: "fixed",
-        top: "9vh",
+        top: "calc(9vh + 10px)",
         left: "51%",
         right: "1vw",
-        height: "70vh",
+        height: "calc(70vh - 25px)",
         zIndex: 30,
-        background: "rgba(6,4,2,0.98)",
-        border: "1px solid rgba(196,168,130,0.18)",
+        background: "radial-gradient(ellipse at 50% 0%, rgba(24,8,40,0.78) 0%, rgba(14,6,28,0.82) 65%)",
+        border: "1px solid rgba(157,132,212,0.25)",
         borderRadius: "8px",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        boxShadow: "0 24px 80px rgba(0,0,0,0.95), 0 0 40px rgba(0,0,0,0.6)",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.95), 0 0 40px rgba(80,30,140,0.15)",
       }}
     >
       {/* Title row */}
@@ -220,13 +220,13 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "10px 16px",
+          padding: "3px 12px",
           flexShrink: 0,
         }}
       >
         <div
           className="font-display"
-          style={{ fontSize: "1rem", color: "#f5e6c8", textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}
+          style={{ fontSize: "0.875rem", color: "#f5e6c8", textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}
         >
           {loading ? "Loading…" : (game?.name as string | undefined) ?? "Prediction"}
         </div>
@@ -244,18 +244,23 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         </button>
       </div>
 
-      {/* Unsaved-changes confirmation strip */}
+      {/* Unsaved-changes confirmation strip — absolute so it doesn't shift content */}
       {(showExitConfirm || !!pendingSwitchId) && (
         <div
           style={{
+            position: "absolute",
+            top: 28,
+            left: 0,
+            right: 0,
+            zIndex: 20,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             padding: "6px 16px 7px",
-            background: "rgba(120,53,15,0.22)",
-            borderTop: "1px solid rgba(217,119,6,0.15)",
-            borderBottom: "1px solid rgba(217,119,6,0.15)",
-            flexShrink: 0,
+            background: "rgba(60,25,5,0.92)",
+            borderTop: "1px solid rgba(217,119,6,0.25)",
+            borderBottom: "1px solid rgba(217,119,6,0.25)",
+            backdropFilter: "blur(4px)",
           }}
         >
           <span

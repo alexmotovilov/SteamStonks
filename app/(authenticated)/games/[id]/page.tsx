@@ -105,7 +105,7 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
   const { data: seasonGames } = seasonId
     ? await supabase
         .from("games")
-        .select("id, name, header_image_url, is_released, release_date")
+        .select("id, name, header_image_url, header_image_position, is_released, release_date")
         .eq("season_id", seasonId)
         .order("release_date", { ascending: true })
     : { data: [] }

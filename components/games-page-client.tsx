@@ -6,7 +6,7 @@ import { GamePredictionPanel } from "@/components/game-prediction-panel"
 import type { PredictionData } from "@/components/game-card"
 
 interface GamesPageClientProps {
-  games: { id: string; name: string; header_image_url: string | null; release_date: string | null; release_time_override?: string | null; is_released: boolean }[]
+  games: { id: string; name: string; header_image_url: string | null; header_image_position?: string | null; release_date: string | null; release_time_override?: string | null; is_released: boolean }[]
   predMap: Record<string, PredictionData>
   currentSeasonId: string | null
 }

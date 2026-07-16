@@ -34,6 +34,7 @@ interface GameCardProps {
     steam_appid: number
     name: string
     header_image_url: string | null
+    header_image_position?: string | null
     release_date: string | null
     release_date_estimated: boolean
     genres: string[] | null
@@ -382,6 +383,7 @@ export function GameCard({ game, seasonId, prediction, dimmed }: GameCardProps) 
               alt={game.name}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
+              style={{ objectPosition: game.header_image_position ?? "50% 50%" }}
             />
           ) : (
             <div className="w-full h-full bg-secondary flex items-center justify-center">

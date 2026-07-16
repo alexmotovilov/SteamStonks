@@ -18,6 +18,7 @@ interface Game {
   name: string
   ticker_symbol: string | null
   header_image_url: string | null
+  header_image_position: string | null
   release_date: string | null
   release_time_override: string | null
   is_released: boolean
@@ -227,6 +228,14 @@ export default function AdminGamesPage() {
     }
   }
 
+  async function setImagePosition(gameId: string, value: string) {
+    setGames(prev => prev.map(g => g.id === gameId ? { ...g, header_image_position: value } : g))
+    await supabase
+      .from("games")
+      .update({ header_image_position: value })
+      .eq("id", gameId)
+  }
+
   async function setReleaseOverride(gameId: string, value: string | null) {
     const { error } = await supabase
       .from("games")
@@ -364,11 +373,39 @@ export default function AdminGamesPage() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           {game.header_image_url && (
-                            <img
-                              src={game.header_image_url}
-                              alt={game.name}
-                              className="w-16 h-8 object-cover rounded"
-                            />
+                            <div
+                              className="relative rounded overflow-hidden cursor-crosshair shrink-0"
+                              style={{ width: 96, height: 54 }}
+                              title="Click to set image crop position"
+                              onClick={e => {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                const x = Math.round(((e.clientX - rect.left) / rect.width) * 100)
+                                const y = Math.round(((e.clientY - rect.top) / rect.height) * 100)
+                                setImagePosition(game.id, `${x}% ${y}%`)
+                              }}
+                            >
+                              <img
+                                src={game.header_image_url}
+                                alt={game.name}
+                                className="w-full h-full"
+                                style={{ objectFit: "cover", objectPosition: game.header_image_position ?? "50% 50%" }}
+                              />
+                              {/* Crosshair showing current anchor */}
+                              {(() => {
+                                const parts = (game.header_image_position ?? "50% 50%").split(" ")
+                                return (
+                                  <div
+                                    className="absolute w-2.5 h-2.5 rounded-full border-2 border-white pointer-events-none"
+                                    style={{
+                                      left: `calc(${parts[0]} - 5px)`,
+                                      top: `calc(${parts[1] ?? "50%"} - 5px)`,
+                                      boxShadow: "0 0 0 1px rgba(0,0,0,0.6)",
+                                      background: "rgba(255,255,255,0.25)",
+                                    }}
+                                  />
+                                )
+                              })()}
+                            </div>
                           )}
                           <div>
                             <p className="font-medium">{game.name}</p>

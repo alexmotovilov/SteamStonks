@@ -39,9 +39,20 @@ export function PredictionTabletShell({
           src="/prediction-tablet.png"
           alt=""
           draggable={false}
-          style={{ height: "100vh", width: "auto", display: "block", userSelect: "none" }}
+          style={{ height: "100vh", width: "auto", display: "block", userSelect: "none", filter: "brightness(1.5) contrast(1.05)" }}
         />
       </div>
+
+      {/* Purple radial overlay — sits above tablet image, below content */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 1,
+          background: "radial-gradient(ellipse 80% 70% at center, rgba(80, 30, 140, 0.45) 0%, rgba(40, 10, 80, 0.2) 50%, transparent 75%)",
+          pointerEvents: "none",
+        }}
+      />
 
       {/* Content — above tablet, spans full viewport */}
       <div
@@ -50,7 +61,7 @@ export function PredictionTabletShell({
           inset: 0,
           display: "flex",
           flexDirection: "column",
-          zIndex: 2,
+          zIndex: 3,
         }}
       >
         {/* Top bar */}
