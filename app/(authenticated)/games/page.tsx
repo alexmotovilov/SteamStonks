@@ -171,7 +171,7 @@ export default async function GamesPage() {
     <>
       <NoScroll />
       <ScoringCountdownPanel games={enrichedGames} hasUnread={false} hasUnclaimed={false} />
-      <CrystalBulletinBoard />
+      <CrystalBulletinBoard left="55px" />
       <GamesPageClient
         games={games ?? []}
         predMap={predMap}

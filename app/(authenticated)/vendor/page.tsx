@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { VendorShop, type InventoryItem } from "@/components/vendor-shop"
 import { VendorCountdown } from "@/components/vendor-countdown"
 import { NoScroll } from "@/components/no-scroll"
+import { CrystalBulletinBoard } from "@/components/crystal-bulletin-board"
 
 const CYCLE_A_SLUGS = ["scrying_orb_polish", "blood_bargain", "infernal_patrons_pact"]
 const CYCLE_B_SLUGS = ["crystal_focus", "black_gem_accumulator", "tincture_of_divination"]
@@ -96,10 +97,11 @@ export default async function VendorPage() {
   return (
     <>
     <NoScroll />
+    <CrystalBulletinBoard tabletSrc="/crystal-tablet-2.png" top="100px" right="120px" width="518px" />
     <div className="relative w-full" style={{ minHeight: "calc(100vh - 120px)", paddingTop: "30px" }}>
       {/* Full-width shopkeeper interface */}
       <div className="flex flex-col items-center justify-end gap-4 pb-12 w-full">
-<div style={{ transform: "translateY(175px)" }}>
+<div style={{ transform: "translateY(175px)", position: "relative", zIndex: 10 }}>
 <VendorShop
           items={items ?? []}
           purchasedCounts={purchasedByItemId}

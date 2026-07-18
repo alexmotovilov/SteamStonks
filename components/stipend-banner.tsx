@@ -64,9 +64,20 @@ export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
       <div className="flex flex-col items-center gap-1.5">
         <div
           className="relative"
-          onMouseEnter={() => { if (!localClaimed) setHovering(true) }}
+          onMouseEnter={() => setHovering(true)}
           onMouseLeave={() => setHovering(false)}
         >
+          {/* Empty label on hover when claimed */}
+          {localClaimed && hovering && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              <span
+                className="font-display text-2xl text-amber-200/70"
+                style={{ textShadow: "0 0 2px rgba(0,0,0,1), 0 0 3px rgba(0,0,0,1), 1px 1px 0px rgba(0,0,0,1), -1px -1px 0px rgba(0,0,0,1), 1px -1px 0px rgba(0,0,0,1), -1px 1px 0px rgba(0,0,0,1), 0 0 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,1), 0 0 28px rgba(0,0,0,1), 0 0 40px rgba(0,0,0,0.9)", transform: "translateY(-36px)" }}
+              >
+                Empty.
+              </span>
+            </div>
+          )}
           {/* Hover label + click fly-up animation */}
           {!localClaimed && (hovering || animating) && (
             <div
@@ -101,7 +112,7 @@ export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
                 ? "cursor-pointer hover:scale-105 hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] active:scale-95"
                 : "",
               claiming ? "opacity-60 cursor-wait" : "",
-              localClaimed ? "brightness-[0.45]" : "",
+              localClaimed ? "" : "",
             ].join(" ")}
             draggable={false}
           />

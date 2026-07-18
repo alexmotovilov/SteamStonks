@@ -134,7 +134,7 @@ function BoosterBagCounter({ inventory }: { inventory: InventoryItem[] }) {
       <div
         className="absolute pointer-events-none chest-blur"
         style={{
-          right: "145px",
+          right: "175px",
           bottom: "338px",
           width: "170px",
           height: "13px",
@@ -146,7 +146,7 @@ function BoosterBagCounter({ inventory }: { inventory: InventoryItem[] }) {
       />
       <div
         className="absolute chest-blur"
-        style={{ right: "140px", bottom: "345px", zIndex: 5, cursor: hovering ? "none" : "default" }}
+        style={{ right: "170px", bottom: "345px", zIndex: 5, cursor: hovering ? "none" : "default" }}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         onMouseMove={e => setMousePos({ x: e.clientX, y: e.clientY })}
@@ -179,13 +179,19 @@ function BoosterBagCounter({ inventory }: { inventory: InventoryItem[] }) {
               draggable={false}
             />
             {/* Content inset to match the bag's dark interior */}
-            <div className="absolute flex items-center justify-center" style={{ inset: "8% 10% 12% 10%" }}>
+            <div className="absolute flex flex-col items-center" style={{ inset: "8% 10% 12% 10%" }}>
+              {/* "Your Stock" label */}
+              <div className="w-full flex items-center justify-center mb-1" style={{ paddingTop: "2px", transform: "translateX(-15px)" }}>
+                <div className="px-2 rounded border border-amber-500/30 bg-black/40" style={{ padding: "1px 8px" }}>
+                  <span className="font-display text-[11px] text-amber-300/80" style={{ display: "inline-block", letterSpacing: "0.2em" }}>Owned</span>
+                </div>
+              </div>
               {inventory.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground/70 font-body text-center w-32 leading-relaxed">
+                <p className="text-[11px] text-muted-foreground/70 font-body text-center w-32 leading-relaxed mt-6">
                   No boosters
                 </p>
               ) : (
-                <div className="grid grid-cols-2 gap-1.5" style={{ transform: "scale(0.85) translateX(-13px)" }}>
+                <div className="grid grid-cols-2 gap-1.5" style={{ transform: "scale(0.85) translateX(-13px)", marginTop: "-27px" }}>
                   {inventory.slice(0, 8).map(inv => (
                     <div key={inv.item_id}>
                       <BoosterDisplayTile inv={inv} />
@@ -303,22 +309,7 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
             draggable={false}
           />
         </div>
-        {/* Gargoyle speech bubble */}
-        <div
-          className="absolute pointer-events-none"
-          style={{ top: "-47px", left: "50%", transform: "translateX(calc(-50% + 60px))", width: "260px", zIndex: 6 }}
-        >
-          <div
-            className="relative rounded-xl border px-4 py-3 text-sm font-body text-white text-center"
-            style={{ backdropFilter: "blur(4px)", borderColor: "#C4A882", backgroundColor: "rgba(196,168,130,0.25)" }}
-          >
-            {gargoyleQuote}
-            <div
-              className="absolute bottom-0 translate-y-full"
-              style={{ left: "37.5%", width: 0, height: 0, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: "10px solid #C4A882" }}
-            />
-          </div>
-        </div>
+        {/* Gargoyle speech bubble — hidden */}
         {inventory && <BoosterBagCounter inventory={inventory} />}
         {stipendClaimable !== undefined && (
           <>

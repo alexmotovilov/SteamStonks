@@ -15,7 +15,7 @@ const SLIDES: Slide[] = [
     tag: "TIP",
     tagColor: "#f59e0b",
     title: "Scrying the Peak",
-    body: "Your week one player count prediction targets the highest concurrent player count in the 7 days after launch. Remember, the weekend spike will count!",
+    body: "Your week one player count prediction targets the highest concurrent player count in the 7 days after launch. Use obtained boosters to modify your predictive range as you see fit and remember, the weekend spike will count!",
   },
   {
     tag: "TIP",
@@ -52,7 +52,19 @@ const SLIDES: Slide[] = [
 const INTERVAL_MS = 15000
 const FADE_MS     = 500
 
-export function CrystalBulletinBoard() {
+export function CrystalBulletinBoard({
+  tabletSrc = "/crystal-tablet.png",
+  top = "calc(64px + 28vh + 60px)",
+  left,
+  right,
+  width = "576px",
+}: {
+  tabletSrc?: string
+  top?: string
+  left?: string
+  right?: string
+  width?: string
+}) {
   const [current, setCurrent]   = useState(0)
   const [visible, setVisible]   = useState(0)   // which slide is actually shown
   const [fading,  setFading]    = useState(false)
@@ -114,16 +126,17 @@ export function CrystalBulletinBoard() {
     <div
       style={{
         position: "fixed",
-        top: "calc(64px + 28vh + 60px)",
-        left: "55px",
-        width: "576px",
+        top,
+        left,
+        right,
+        width,
         zIndex: 15,
         pointerEvents: "none",
       }}
     >
       {/* Tablet background */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/crystal-tablet.png" alt="" style={{ width: "100%", display: "block", opacity: 0.72 }} />
+      <img src={tabletSrc} alt="" style={{ width: "100%", display: "block", opacity: 0.72 }} />
 
       {/* Content overlay — inset to the glowing inner panel */}
       <div

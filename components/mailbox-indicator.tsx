@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
@@ -15,6 +16,7 @@ interface Props {
 
 export function MailboxIndicator({ user, href, className, style, children }: Props) {
   const [unreadCount, setUnreadCount] = useState(0)
+  const pathname = usePathname()
 
   useEffect(() => {
     async function check() {
@@ -40,7 +42,7 @@ export function MailboxIndicator({ user, href, className, style, children }: Pro
       setUnreadCount(messageIds.filter(id => !readIds.has(id)).length)
     }
     check()
-  }, [user.id])
+  }, [user.id, pathname])
 
   if (unreadCount === 0) {
     return <Link href={href} className={className} style={style}>{children}</Link>

@@ -6,7 +6,6 @@ import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, Loader2, Trash2 } from "lucide-react"
-import Link from "next/link"
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -660,7 +659,7 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
               ) : (
                 <>
                   {((msg.mana_reward ?? 0) > 0 || mysteryDrop) && (() => {
-                    const allClaimed = manaClaimed && (!mysteryDrop || dropClaimed)
+                    const allClaimed = ((msg.mana_reward ?? 0) === 0 || manaClaimed) && (!mysteryDrop || dropClaimed)
                     return (
                       <span className={`font-display text-lg font-bold w-8 h-8 flex items-center justify-center rounded mr-3 ${allClaimed ? "text-foreground/30 border-[3px] border-foreground/30" : "text-amber-400 border-[3px] border-amber-400"}`} style={{ background: "rgba(0,0,0,0.58)", position: "relative", top: 7 }}>?</span>
                     )
@@ -746,15 +745,6 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
               ) : null}
               {mysteryDrop && (
                 <MysteryDropSection drop={mysteryDrop} messageId={msg.id} onDropClaimed={() => setDropClaimed(true)} />
-              )}
-              {scoreMeta.game_id && (
-                <Link
-                  href={`/games/${scoreMeta.game_id}`}
-                  className="inline-block font-display text-[10px] text-purple-400 border border-purple-500/30 rounded px-2.5 py-1 hover:bg-purple-950/30 transition-colors"
-                  onClick={e => e.stopPropagation()}
-                >
-                  View Prediction →
-                </Link>
               )}
             </div>
           )}
