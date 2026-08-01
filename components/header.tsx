@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense } from "react"
+import { Suspense, useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, LogOut, Settings, Coins, Gamepad2 } from "lucide-react"
+import { User, LogOut, Settings, Coins, Gamepad2, Menu, X } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import { SeasonPointsBadge } from "@/components/season-points-badge"
 
@@ -59,6 +59,36 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
   const PARCH_H   = "7.7vh"
   const BANNER_H  = "8.4vh"
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileScore, setMobileScore] = useState<number | null>(null)
+
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!user || !activeSeasonId) return
+    const supabase = createClient()
+    supabase
+      .from("season_entries")
+      .select("prediction_mana_earned")
+      .eq("user_id", user.id)
+      .eq("season_id", activeSeasonId)
+      .single()
+      .then(({ data }) => {
+        if (data) setMobileScore(data.prediction_mana_earned)
+      })
+  }, [user?.id, activeSeasonId])
+
+  const navItems = [
+    { href: "/games",    label: "Games" },
+    { href: "/vendor",   label: "Vendor" },
+    { href: "/archives", label: "Archives" },
+    { href: "/mailbox",  label: "Mailbox" },
+    { href: "/guide",    label: "Guide" },
+    ...(profile?.is_admin ? [{ href: "/admin", label: "Admin" }] : []),
+  ]
+
   return (
     <header
       className="sticky top-0 z-50 w-full"
@@ -73,8 +103,49 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
         }}
       />
 
+      {/* Mobile header banner — full width, replaces both desktop banners below sm */}
+      <div
+        className="sm:hidden absolute inset-0 pointer-events-none"
+        style={{
+          zIndex: 0,
+          backgroundImage: "url('/mobile-header.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "50% 100%",
+          WebkitMaskImage: "linear-gradient(to bottom, black 92%, transparent 100%)",
+          maskImage: "linear-gradient(to bottom, black 92%, transparent 100%)",
+        }}
+      />
+
+
+      {/* Mobile score overlay */}
+      {user && mobileScore !== null && (
+        <div
+          className="sm:hidden absolute flex items-center gap-1 pointer-events-none"
+          style={{ right: "calc(13.5vh + 185px)", top: "94px", zIndex: 2 }}
+        >
+          <img src="/icons/season-score-icon.png" alt="" style={{ width: "22px", height: "22px", opacity: 0.65, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }} />
+          <span className="font-display text-xl font-semibold text-red-900" style={{ textShadow: "0 0 6px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3)" }}>
+            {mobileScore.toLocaleString()}
+          </span>
+        </div>
+      )}
+
+      {/* Mobile mana overlay */}
+      {user && manaBalance !== null && (
+        <div
+          className="sm:hidden absolute flex items-center gap-1 pointer-events-none"
+          style={{ right: "calc(13.5vh - 60px)", top: "94px", zIndex: 2 }}
+        >
+          <img src="/icons/mana-icon.png" alt="" style={{ width: "22px", height: "22px" }} />
+          <span className="font-display text-xl text-cyan-200" style={{ textShadow: "0 0 8px rgba(0,0,0,1), 0 1px 4px rgba(0,0,0,1)" }}>
+            {manaBalance.toLocaleString()}
+          </span>
+        </div>
+      )}
+
       {/* Banner background left */}
       <div
+        className="hidden sm:block"
         style={{
           position: "absolute",
           left: 0,
@@ -97,7 +168,8 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
           style={{
             height: BANNER_H,
             width: "auto",
-            transform: "translate(4.8vh, 0px)",
+            maxWidth: "none",
+            transform: "translate(calc(4.8vh - 45px), 0px)",
             pointerEvents: "none",
           }}
         />
@@ -105,6 +177,7 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
 
       {/* Banner background right */}
       <div
+        className="hidden sm:flex"
         style={{
           position: "absolute",
           right: 0,
@@ -114,7 +187,6 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
           overflow: "hidden",
           pointerEvents: "none",
           zIndex: 0,
-          display: "flex",
           justifyContent: "flex-end",
           WebkitMaskImage: "linear-gradient(to left, black 75%, transparent 80%), linear-gradient(to bottom, black 80%, transparent 96%)",
           WebkitMaskComposite: "destination-in",
@@ -129,36 +201,48 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
           style={{
             height: BANNER_H,
             width: "auto",
+            maxWidth: "none",
             transform: "translate(-1.5vh, 0px)",
             pointerEvents: "none",
           }}
         />
       </div>
 
-      {/* Parchment behind logo */}
-      <img
-        src="/parchment.png"
-        alt=""
-        aria-hidden="true"
+      {/* Invisible dashboard link over logo area in left banner */}
+      <Link
+        href={user ? "/dashboard" : "/"}
+        aria-label="Home"
         style={{
           position: "absolute",
           left: 0,
-          top: "50%",
-          transform: "translateY(-50%)",
-          height: PARCH_H,
-          width: "auto",
-          pointerEvents: "none",
-          zIndex: 0,
-          WebkitMaskImage: "linear-gradient(to bottom, black 80%, transparent 90%)",
-          maskImage: "linear-gradient(to bottom, black 80%, transparent 90%)",
+          top: 0,
+          width: "10vh",
+          height: "100%",
+          zIndex: 3,
         }}
       />
+
+      {/* Candle glow on banner-background-2 */}
+      <div className="hidden sm:block" style={{
+        position: "fixed",
+        right: "calc(23.5vw - 70px)",
+        top: "calc(4.2vh - 60px)",
+        width: "110px",
+        height: "90px",
+        transform: "translate(50%, -50%)",
+        background: "radial-gradient(ellipse at center, rgba(255,200,60,0.60) 0%, rgba(255,140,20,0.32) 35%, rgba(200,80,10,0.10) 65%, transparent 80%)",
+        filter: "blur(14px)",
+        zIndex: 1,
+        pointerEvents: "none",
+        animation: "lanternFlicker 3.2s ease-in-out infinite",
+      }} />
+
 
       {/* Right group — absolutely anchored to header edge, immune to container max-width */}
       <div
         style={{
           position: "absolute",
-          right: "13.5vh",
+          right: "calc(13.5vh + 50px)",
           top: "50%",
           transform: "translateY(-50%)",
           zIndex: 2,
@@ -172,7 +256,7 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
             {user && <Suspense fallback={null}><SeasonScoreBadge user={user} activeSeasonId={activeSeasonId} /></Suspense>}
             {user && <Suspense fallback={null}><SeasonPointsBadge manaBalance={manaBalance} /></Suspense>}
 
-            <DropdownMenu modal={false}>
+            <div className="hidden"><DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
@@ -229,7 +313,19 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
                   Sign Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu></div>
+
+            <button
+              className="hidden sm:flex md:hidden items-center justify-center text-foreground/70 hover:text-foreground transition-colors"
+              style={{ width: "4vh", height: "4vh" }}
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            >
+              {mobileMenuOpen
+                ? <X style={{ width: "2.4vh", height: "2.4vh" }} />
+                : <Menu style={{ width: "2.4vh", height: "2.4vh" }} />
+              }
+            </button>
           </>
         ) : (
           <div className="flex items-center gap-2">
@@ -245,27 +341,9 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
 
       {/* Main content row */}
       <div
-        className="container relative flex items-center"
-        style={{ height: H }}
+        className="container relative flex items-center h-[136px] sm:h-[8vh]"
       >
         <div className="flex items-center" style={{ gap: "4.3vh" }}>
-          <div className="flex items-center">
-            <Link href={user ? "/dashboard" : "/"} className="flex items-center" style={{ paddingRight: "2.4vh", height: H }}>
-              <img
-                src="/icons/game-name-logo.png"
-                alt="Prognos"
-                style={{
-                  height: LOGO_H,
-                  width: "auto",
-                  marginLeft: "0.7vh",
-                  marginTop: "-1.5vh",
-                  position: "relative",
-                  zIndex: 1,
-                  filter: "drop-shadow(0 0 6px rgba(157,132,212,0.35)) drop-shadow(0 0 1px rgba(200,180,255,0.2)) drop-shadow(-4px 3px 3px rgba(0,0,0,1))",
-                }}
-              />
-            </Link>
-          </div>
 
           {user && (
             <nav
@@ -274,17 +352,10 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
                 gap: "2.4vh",
                 textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8), 0 2px 12px rgba(0,0,0,0.9)",
                 position: "relative",
-                left: "-1.1vh",
+                left: "calc(-1.1vh + 130px)",
               }}
             >
-              {[
-                { href: "/games",    label: "Games" },
-                { href: "/vendor",   label: "Vendor" },
-                { href: "/archives", label: "Archives" },
-                { href: "/mailbox",  label: "Mailbox" },
-                { href: "/guide",    label: "Guide" },
-                ...(profile?.is_admin ? [{ href: "/admin", label: "Admin" }] : []),
-              ].map(({ href, label }) => {
+              {navItems.map(({ href, label }) => {
                 const linkClass = `font-display transition-colors ${
                   isActive(href)
                     ? "text-amber-400 font-semibold"
@@ -328,7 +399,65 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
           </div>
         )}
 
+        {/* Mobile hamburger — center bottom */}
+        <button
+          className="flex sm:hidden items-center justify-center text-foreground/70 hover:text-foreground transition-colors absolute"
+          style={{ bottom: "10px", left: "50%", transform: "translateX(-50%)", zIndex: 3, width: "36px", height: "36px" }}
+          onClick={() => setMobileMenuOpen(prev => !prev)}
+          aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+        >
+          {mobileMenuOpen
+            ? <X style={{ width: "22px", height: "22px" }} />
+            : <Menu style={{ width: "22px", height: "22px" }} />
+          }
+        </button>
       </div>
+
+      {/* Mobile nav menu */}
+      {mobileMenuOpen && user && (
+        <nav
+          className="md:hidden absolute left-0 right-0 top-full z-40 flex flex-col py-2"
+          style={{
+            background: "rgba(8, 6, 18, 0.97)",
+            borderBottom: "1px solid rgba(217, 119, 6, 0.2)",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          {navItems.map(({ href, label }) => {
+            const linkClass = `flex items-center px-6 py-3.5 font-display transition-colors ${
+              isActive(href)
+                ? "text-amber-400 bg-amber-500/5"
+                : "text-foreground/70 hover:text-foreground hover:bg-white/5"
+            }`
+            const linkStyle = { fontSize: "15px", letterSpacing: "0.08em" }
+            if (href === "/games") {
+              return (
+                <PendingPredictionsIndicator key={href} user={user} href={href} className={linkClass} style={linkStyle}>
+                  {label}
+                </PendingPredictionsIndicator>
+              )
+            }
+            if (href === "/mailbox") {
+              return (
+                <MailboxIndicator key={href} user={user} href={href} className={linkClass} style={linkStyle}>
+                  {label}
+                </MailboxIndicator>
+              )
+            }
+            return (
+              <Link key={href} href={href} className={linkClass} style={linkStyle}>
+                {label}
+              </Link>
+            )
+          })}
+          {manaBalance !== null && (
+            <div className="flex items-center gap-2 px-6 py-3 mt-1 border-t border-white/8">
+              <img src="/icons/mana-icon.png" alt="" style={{ width: "14px", height: "14px" }} />
+              <span className="font-display text-sm text-cyan-300">{manaBalance.toLocaleString()} mana</span>
+            </div>
+          )}
+        </nav>
+      )}
     </header>
   )
 }

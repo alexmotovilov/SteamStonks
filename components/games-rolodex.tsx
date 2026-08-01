@@ -150,6 +150,8 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
                       : "0 8px 24px rgba(0,0,0,0.80)",
                     cursor: "pointer",
                     overflow: "hidden",
+                    WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 2%, black 98%, transparent 100%)",
+                    maskImage: "linear-gradient(to right, transparent 0%, black 2%, black 98%, transparent 100%)",
                   }}
                 >
                   {/* Letter parchment — drives card height via aspect ratio */}

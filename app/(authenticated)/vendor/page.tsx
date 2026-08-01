@@ -4,6 +4,7 @@ import { VendorShop, type InventoryItem } from "@/components/vendor-shop"
 import { VendorCountdown } from "@/components/vendor-countdown"
 import { NoScroll } from "@/components/no-scroll"
 import { CrystalBulletinBoard } from "@/components/crystal-bulletin-board"
+import { VendorScaler } from "@/components/vendor-scaler"
 
 const CYCLE_A_SLUGS = ["scrying_orb_polish", "blood_bargain", "infernal_patrons_pact"]
 const CYCLE_B_SLUGS = ["crystal_focus", "black_gem_accumulator", "tincture_of_divination"]
@@ -97,22 +98,22 @@ export default async function VendorPage() {
   return (
     <>
     <NoScroll />
-    <CrystalBulletinBoard tabletSrc="/crystal-tablet-2.png" top="100px" right="120px" width="518px" />
+    <CrystalBulletinBoard tabletSrc="/crystal-tablet-2.png" top="calc(9.3vh + 50px)" right="calc(6.25vw + 20px)" width="27vw" />
     <div className="relative w-full" style={{ minHeight: "calc(100vh - 120px)", paddingTop: "30px" }}>
       {/* Full-width shopkeeper interface */}
       <div className="flex flex-col items-center justify-end gap-4 pb-12 w-full">
-<div style={{ transform: "translateY(175px)", position: "relative", zIndex: 10 }}>
-<VendorShop
-          items={items ?? []}
-          purchasedCounts={purchasedByItemId}
-          manaBalance={profile?.mana_balance ?? 0}
-          seasonId={season.id}
-          vendorWeek={season.current_vendor_week ?? 1}
-          vendorCycle={cycle}
-          stipendClaimable={stipendClaimable}
-          inventory={(inventory ?? []) as unknown as InventoryItem[]}
-        />
-</div>
+<VendorScaler>
+          <VendorShop
+            items={items ?? []}
+            purchasedCounts={purchasedByItemId}
+            manaBalance={profile?.mana_balance ?? 0}
+            seasonId={season.id}
+            vendorWeek={season.current_vendor_week ?? 1}
+            vendorCycle={cycle}
+            stipendClaimable={stipendClaimable}
+            inventory={(inventory ?? []) as unknown as InventoryItem[]}
+          />
+        </VendorScaler>
       </div>
 
       {/* Restock sign — upper right */}
@@ -120,11 +121,11 @@ export default async function VendorPage() {
         src="/restock-sign.png"
         alt=""
         className="vendor-blur"
-        style={{ position: "fixed", top: "80px", right: "940px", width: "335px", height: "auto", zIndex: 10, pointerEvents: "none" }}
+        style={{ position: "fixed", top: "calc(7.4vh + 40px)", right: "calc(49vw + 170px)", width: "17.4vw", height: "auto", zIndex: 10, pointerEvents: "none" }}
         draggable={false}
       />
       {/* Countdown overlaid on the right blank portion of the sign */}
-      <div className="vendor-blur" style={{ position: "fixed", top: "175px", right: "948px", width: "160px", zIndex: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div className="vendor-blur" style={{ position: "fixed", top: "calc(16.2vh + 45px)", right: "calc(49.4vw + 172px)", width: "8.3vw", zIndex: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <VendorCountdown />
       </div>
 

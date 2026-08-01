@@ -146,7 +146,7 @@ function BoosterBagCounter({ inventory }: { inventory: InventoryItem[] }) {
       />
       <div
         className="absolute chest-blur"
-        style={{ right: "170px", bottom: "345px", zIndex: 5, cursor: hovering ? "none" : "default" }}
+        style={{ right: "170px", bottom: "352px", zIndex: 5, cursor: hovering ? "none" : "default" }}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         onMouseMove={e => setMousePos({ x: e.clientX, y: e.clientY })}
@@ -155,7 +155,7 @@ function BoosterBagCounter({ inventory }: { inventory: InventoryItem[] }) {
         <img
           src="/booster-bag-closed.png"
           alt="Booster inventory"
-          width={184}
+          width={202}
           className={[
             "select-none pointer-events-none transition-transform duration-200",
             hovering ? "scale-110" : "",
@@ -183,7 +183,7 @@ function BoosterBagCounter({ inventory }: { inventory: InventoryItem[] }) {
               {/* "Your Stock" label */}
               <div className="w-full flex items-center justify-center mb-1" style={{ paddingTop: "2px", transform: "translateX(-15px)" }}>
                 <div className="px-2 rounded border border-amber-500/30 bg-black/40" style={{ padding: "1px 8px" }}>
-                  <span className="font-display text-[11px] text-amber-300/80" style={{ display: "inline-block", letterSpacing: "0.2em" }}>Owned</span>
+                  <span className="font-display text-[11px] text-amber-300/80" style={{ display: "inline-block", letterSpacing: "0.2em" }}>Inventory</span>
                 </div>
               </div>
               {inventory.length === 0 ? (
@@ -305,7 +305,7 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
             src="/shopkeep.png"
             alt=""
             className="select-none"
-            style={{ width: "1173px", maxWidth: "100%", filter: "drop-shadow(0 6px 19px rgba(0,0,0,1)) drop-shadow(0 10px 24px rgba(0,0,0,0.6))", WebkitMaskImage: "linear-gradient(to bottom, black 75%, transparent 90%)", maskImage: "linear-gradient(to bottom, black 75%, transparent 90%)" }}
+            style={{ width: "1173px", maxWidth: "100%", WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 6%, black 83%, transparent 90%), linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)", WebkitMaskComposite: "destination-in", maskImage: "linear-gradient(to bottom, transparent 0%, black 6%, black 83%, transparent 90%), linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)", maskComposite: "intersect" }}
             draggable={false}
           />
         </div>
@@ -328,7 +328,7 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
               }}
             />
             <div
-              className="absolute left-[110px] bottom-[350px] bag-blur"
+              className="absolute left-[90px] bottom-[350px] bag-blur"
               style={{ zIndex: 5 }}
               onMouseEnter={() => setChestHovering(true)}
               onMouseLeave={() => setChestHovering(false)}

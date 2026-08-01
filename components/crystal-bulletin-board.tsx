@@ -144,7 +144,7 @@ export function CrystalBulletinBoard({
           position: "absolute",
           top: "17%", left: "9%", right: "9%", bottom: "13%",
           background: "rgba(0, 8, 20, 0.58)",
-          padding: "16px 36px 16px",
+          padding: "clamp(8px, 0.83vw, 16px) clamp(14px, 1.88vw, 36px) clamp(8px, 0.83vw, 16px)",
           display: "flex",
           flexDirection: "column",
           gap: "4px",
@@ -173,7 +173,7 @@ export function CrystalBulletinBoard({
             <span
               className="font-display"
               style={{
-                fontSize: "10px",
+                fontSize: "clamp(7px, 0.52vw, 10px)",
                 letterSpacing: "0.12em",
                 color: slide.tagColor,
                 border: `1px solid ${slide.tagColor}55`,
@@ -188,7 +188,7 @@ export function CrystalBulletinBoard({
             <span
               className="font-display"
               style={{
-                fontSize: "13px",
+                fontSize: "clamp(9px, 0.68vw, 13px)",
                 color: "rgba(200,240,255,0.90)",
                 letterSpacing: "0.04em",
                 lineHeight: 1.3,
@@ -204,7 +204,7 @@ export function CrystalBulletinBoard({
             className="font-body"
             style={{
               margin: 0,
-              fontSize: "13.5px",
+              fontSize: "clamp(10px, 0.70vw, 13.5px)",
               color: "rgba(180,225,240,0.78)",
               lineHeight: 1.55,
               textShadow: "0 1px 4px rgba(0,0,0,0.8)",
