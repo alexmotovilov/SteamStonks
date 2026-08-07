@@ -3,6 +3,7 @@ import { useEffect } from "react"
 
 export function NoScroll() {
   useEffect(() => {
+    if (window.innerWidth < 768) return
     const prevent = (e: Event) => e.preventDefault()
     window.addEventListener("wheel", prevent, { passive: false })
     window.addEventListener("touchmove", prevent, { passive: false })

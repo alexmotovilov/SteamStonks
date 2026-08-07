@@ -4,7 +4,6 @@ import { VendorShop, type InventoryItem } from "@/components/vendor-shop"
 import { VendorCountdown } from "@/components/vendor-countdown"
 import { NoScroll } from "@/components/no-scroll"
 import { CrystalBulletinBoard } from "@/components/crystal-bulletin-board"
-import { VendorScaler } from "@/components/vendor-scaler"
 
 const CYCLE_A_SLUGS = ["scrying_orb_polish", "blood_bargain", "infernal_patrons_pact"]
 const CYCLE_B_SLUGS = ["crystal_focus", "black_gem_accumulator", "tincture_of_divination"]
@@ -97,39 +96,45 @@ export default async function VendorPage() {
 
   return (
     <>
-    <NoScroll />
-    <CrystalBulletinBoard tabletSrc="/crystal-tablet-2.png" top="calc(9.3vh + 50px)" right="calc(6.25vw + 20px)" width="27vw" />
-    <div className="relative w-full" style={{ minHeight: "calc(100vh - 120px)", paddingTop: "30px" }}>
-      {/* Full-width shopkeeper interface */}
-      <div className="flex flex-col items-center justify-end gap-4 pb-12 w-full">
-<VendorScaler>
-          <VendorShop
-            items={items ?? []}
-            purchasedCounts={purchasedByItemId}
-            manaBalance={profile?.mana_balance ?? 0}
-            seasonId={season.id}
-            vendorWeek={season.current_vendor_week ?? 1}
-            vendorCycle={cycle}
-            stipendClaimable={stipendClaimable}
-            inventory={(inventory ?? []) as unknown as InventoryItem[]}
-          />
-        </VendorScaler>
+      <NoScroll />
+
+      {/* Desktop-only: bulletin board, restock sign, countdown */}
+      <div className="hidden md:block">
+        <CrystalBulletinBoard tabletSrc="/crystal-tablet-2.png" top="calc(9.3vh + 50px)" right="calc(6.25vw + 20px)" width="27vw" />
+        <img
+          src="/restock-sign.png"
+          alt=""
+          className="vendor-blur"
+          style={{ position: "fixed", top: "calc(7.4vh + 40px)", right: "calc(49vw + 170px)", width: "17.4vw", height: "auto", zIndex: 10, pointerEvents: "none" }}
+          draggable={false}
+        />
+        <div className="vendor-blur" style={{ position: "fixed", top: "calc(16.2vh + 45px)", right: "calc(49.4vw + 172px)", width: "8.3vw", zIndex: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <VendorCountdown />
+        </div>
       </div>
 
-      {/* Restock sign — upper right */}
-      <img
-        src="/restock-sign.png"
-        alt=""
-        className="vendor-blur"
-        style={{ position: "fixed", top: "calc(7.4vh + 40px)", right: "calc(49vw + 170px)", width: "17.4vw", height: "auto", zIndex: 10, pointerEvents: "none" }}
-        draggable={false}
+      {/* Mobile header */}
+      <div className="md:hidden px-4 pt-4 pb-3 flex items-center justify-between border-b border-white/5">
+        <div>
+          <h1 className="font-display text-base text-amber-300">The Arcane Vendor</h1>
+        </div>
+        <div className="text-right">
+          <div className="font-display text-[9px] text-muted-foreground/60 uppercase tracking-widest mb-1">Restock</div>
+          <VendorCountdown />
+        </div>
+      </div>
+
+      {/* VendorShop — renders desktop layout (with internal scaling) and mobile layout */}
+      <VendorShop
+        items={items ?? []}
+        purchasedCounts={purchasedByItemId}
+        manaBalance={profile?.mana_balance ?? 0}
+        seasonId={season.id}
+        vendorWeek={season.current_vendor_week ?? 1}
+        vendorCycle={cycle}
+        stipendClaimable={stipendClaimable}
+        inventory={(inventory ?? []) as unknown as InventoryItem[]}
       />
-      {/* Countdown overlaid on the right blank portion of the sign */}
-      <div className="vendor-blur" style={{ position: "fixed", top: "calc(16.2vh + 45px)", right: "calc(49.4vw + 172px)", width: "8.3vw", zIndex: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <VendorCountdown />
-      </div>
-
-    </div>
     </>
   )
 }

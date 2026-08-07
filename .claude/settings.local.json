@@ -7,7 +7,8 @@
       "Bash(xargs grep -l \"is_released\")",
       "Bash(xargs grep -l \"stipend\")",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Alex\\\\SteamStonks\" -Recurse -File -Name)",
-      "Bash(Select-Object -First 50)"
+      "Bash(Select-Object -First 50)",
+      "PowerShell(Set-Content *)"
     ]
   }
 }

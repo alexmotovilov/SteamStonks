@@ -107,13 +107,29 @@ export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
             height={317}
             onClick={handleCollect}
             className={[
-              "select-none transition-all duration-300",
+              "hidden md:block select-none transition-all duration-300",
               !localClaimed && !claiming
                 ? "cursor-pointer hover:scale-105 hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] active:scale-95"
                 : "",
               claiming ? "opacity-60 cursor-wait" : "",
-              localClaimed ? "" : "",
             ].join(" ")}
+            draggable={false}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={localClaimed ? "/free-mana-empty.png" : "/free-mana-full.png"}
+            alt={localClaimed ? "Stipend already collected" : "Collect weekly mana stipend"}
+            width={317}
+            height={317}
+            onClick={handleCollect}
+            className={[
+              "md:hidden select-none transition-all duration-300",
+              !localClaimed && !claiming
+                ? "cursor-pointer hover:scale-105 hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] active:scale-95"
+                : "",
+              claiming ? "opacity-60 cursor-wait" : "",
+            ].join(" ")}
+            style={{ width: "100%", height: "auto" }}
             draggable={false}
           />
         </div>

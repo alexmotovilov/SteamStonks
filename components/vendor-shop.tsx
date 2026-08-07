@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { ManaIcon } from "@/components/mana-icon"
 import { StipendBanner } from "@/components/stipend-banner"
+import { VendorCountdown } from "@/components/vendor-countdown"
 
 // ---------------------------------------------------------------------------
 // Gargoyle quote system
@@ -292,12 +293,90 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
     noItems: items.length === 0,
   }))
 
+  const [scale, setScale] = useState(1)
+  useEffect(() => {
+    function update() { setScale(Math.min(1, window.innerWidth / 1173)) }
+    update()
+    window.addEventListener("resize", update)
+    return () => window.removeEventListener("resize", update)
+  }, [])
+
+  const chestMotesRef = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    if (!stipendClaimable) return
+    const canvas = chestMotesRef.current
+    if (!canvas) return
+
+    const syncSize = () => {
+      canvas.width = canvas.offsetWidth
+      canvas.height = canvas.offsetHeight
+    }
+    syncSize()
+    const ro = new ResizeObserver(syncSize)
+    ro.observe(canvas)
+
+    type Mote = { x: number; y: number; vx: number; vy: number; alpha: number; alphaDir: number; alphaSpeed: number; holdFrames: number; size: number; hue: number; lightness: number }
+
+    const motes: Mote[] = Array.from({ length: 18 }, () => ({
+      x: Math.random() * canvas.offsetWidth,
+      y: Math.random() * canvas.offsetHeight,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: -(0.05 + Math.random() * 0.18),
+      alpha: Math.random(),
+      alphaDir: Math.random() > 0.5 ? 1 : -1,
+      alphaSpeed: 0.004 + Math.random() * 0.006,
+      holdFrames: 0,
+      size: 0.8 + Math.random() * 1.8,
+      hue: 180 + Math.random() * 20,
+      lightness: 65 + Math.random() * 25,
+    }))
+
+    let rafId: number
+    const draw = () => {
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      for (const m of motes) {
+        if (m.holdFrames > 0) { m.holdFrames--; }
+        else {
+          m.alpha += m.alphaDir * m.alphaSpeed
+          if (m.alpha >= 1) { m.alpha = 1; m.alphaDir = -1; m.holdFrames = 40 + Math.floor(Math.random() * 120) }
+          if (m.alpha <= 0) { m.alpha = 0; m.alphaDir = 1; m.holdFrames = 20 + Math.floor(Math.random() * 60) }
+        }
+        m.x += m.vx
+        m.y += m.vy
+        if (m.x < 0) m.x = canvas.width
+        if (m.x > canvas.width) m.x = 0
+        if (m.y < 0) { m.y = canvas.height; m.vy = -(0.05 + Math.random() * 0.18) }
+        ctx.save()
+        ctx.globalAlpha = m.alpha * 0.8
+        ctx.shadowBlur = m.size * 9
+        ctx.shadowColor = `hsl(${m.hue}, 90%, ${m.lightness}%)`
+        ctx.fillStyle = `hsl(${m.hue}, 100%, ${m.lightness + 12}%)`
+        ctx.beginPath()
+        ctx.arc(m.x, m.y, m.size, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
+      }
+      rafId = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => { cancelAnimationFrame(rafId); ro.disconnect() }
+  }, [stipendClaimable])
+
   return (
-    <div className="relative">
+    <div>
       <style>{`
         body.bag-hovered .bag-blur { filter: blur(3px); }
         body.chest-hovered .chest-blur { filter: blur(3px); }
       `}</style>
+
+      {/* Desktop layout */}
+      <div
+        className="hidden md:flex flex-col items-center justify-end gap-4 pb-12 w-full"
+        style={{ minHeight: "calc(100vh - 120px)", paddingTop: "30px" }}
+      >
+        <div style={{ transform: `translateY(175px) scale(${scale})`, transformOrigin: "top center", position: "relative", zIndex: 10 }}>
       {/* Vendor item grid */}
       <div className="relative flex justify-center">
         <div className="bag-blur chest-blur pointer-events-none" style={{ lineHeight: 0 }}>
@@ -445,6 +524,156 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
           </div>
         </div>
       )}
+        </div>{/* /scale wrapper */}
+      </div>{/* /desktop flex */}
+
+      {/* Mobile layout */}
+      <div className="md:hidden pb-8">
+
+        {/* Restock sign — centered above shopkeep */}
+        <div style={{ display: "flex", justifyContent: "center", marginTop: "0" }}>
+          <div style={{ position: "relative", width: "55%" }}>
+            <img src="/restock-sign.png" alt="" style={{ width: "100%", height: "auto", display: "block" }} draggable={false} />
+            <div style={{ position: "absolute", top: "58%", left: "50%", transform: "translate(-50%, -50%)" }}>
+              <VendorCountdown />
+            </div>
+          </div>
+        </div>
+
+        {/* Shopkeep illustration — aspect-ratio container, chest + items overlaid */}
+        <div style={{ width: "100%", overflowX: "clip", overflowY: "visible", marginTop: "75px" }}>
+        <div style={{ position: "relative", width: "110%", aspectRatio: "1351 / 742", marginLeft: "-5%" }}>
+          <img
+            src="/shopkeep.png"
+            alt=""
+            className="select-none"
+            style={{
+              position: "absolute", inset: 0, width: "100%", height: "100%",
+              WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%), linear-gradient(to bottom, black 0%, black 85%, transparent 100%)",
+              WebkitMaskComposite: "destination-in",
+              maskImage: "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%), linear-gradient(to bottom, black 0%, black 85%, transparent 100%)",
+              maskComposite: "intersect",
+            }}
+            draggable={false}
+          />
+
+          {/* Cyan motes confined to chest area — only when chest is full */}
+          {stipendClaimable && (
+            <canvas
+              ref={chestMotesRef}
+              style={{ position: "absolute", left: "0", bottom: "35%", width: "50%", height: "55%", zIndex: 3, pointerEvents: "none" }}
+            />
+          )}
+
+          {/* Chest contact shadow */}
+          {stipendClaimable !== undefined && (
+            <div style={{
+              position: "absolute",
+              left: "calc(6% + 45px)",
+              bottom: "calc(54% + 6px)",
+              width: "18.6%",
+              height: "6px",
+              background: "rgba(0,0,0,0.92)",
+              borderRadius: "50%",
+              filter: "blur(6px)",
+              zIndex: 4,
+              pointerEvents: "none",
+            }} />
+          )}
+
+          {/* Cyan glow behind chest when unclaimed */}
+          {stipendClaimable && (
+            <div style={{
+              position: "absolute",
+              left: "calc(7.7% + 5px - 10%)",
+              bottom: "calc(54% + 3px - 8%)",
+              width: "50%",
+              aspectRatio: "1",
+              background: "radial-gradient(ellipse at center, rgba(34,211,238,0.45) 0%, rgba(34,211,238,0.18) 35%, transparent 65%)",
+              filter: "blur(10px)",
+              zIndex: 1,
+              pointerEvents: "none",
+            }} />
+          )}
+
+          {/* Chest — on the counter, left side */}
+          {stipendClaimable !== undefined && (
+            <div style={{ position: "absolute", left: "calc(7.7% + 5px)", bottom: "calc(54% + 3px)", width: "29.3%", zIndex: 2 }}>
+              <StipendBanner claimable={stipendClaimable} seasonId={seasonId} />
+            </div>
+          )}
+
+          {/* Vendor item tiles — on the stone panels */}
+          {items.length > 0 && (
+            <div style={{ position: "absolute", bottom: "calc(10% - 5px)", left: 0, right: 0, display: "flex", justifyContent: "center", gap: "72px", zIndex: 2 }}>
+              {items.map(item => {
+                const bought = localPurchased[item.id] ?? 0
+                const exhausted = bought >= item.vendor_weekly_limit
+                const canAfford = localMana >= item.vendor_price
+                const isBuying = purchasing === item.slug
+                const remaining = item.vendor_weekly_limit - bought
+                const isConfirming = confirmingSlug === item.slug
+                return (
+                  <div key={item.id} style={{ position: "relative", width: "70px" }}>
+                    {isConfirming && (
+                      <div className="absolute z-50 bg-[rgba(10,10,25,0.98)] border border-amber-500/30 rounded-xl p-3 shadow-2xl flex flex-col items-center gap-2.5" style={{ bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", width: "160px" }}>
+                        <div className="absolute bottom-[-6px] left-1/2 w-3 h-3 bg-[rgba(10,10,25,0.98)] border-r border-b border-amber-500/30" style={{ transform: "translateX(-50%) rotate(45deg)" }} />
+                        <div className="font-display text-[10px] text-foreground text-center leading-snug">{item.name}</div>
+                        <div className="flex items-center gap-1">
+                          <img src="/icons/mana-icon.png" alt="mana" width={12} height={12} className="shrink-0" />
+                          <span className="font-display text-[11px] text-cyan-300">{item.vendor_price}</span>
+                        </div>
+                        <div className="flex gap-1.5 w-full">
+                          <button onClick={() => handlePurchase(item)} className="flex-1 py-1.5 rounded-lg font-display text-[10px] border border-amber-500/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 transition-colors cursor-pointer">Confirm</button>
+                          <button onClick={() => setConfirmingSlug(null)} className="flex-1 py-1.5 rounded-lg font-display text-[10px] border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 transition-colors cursor-pointer">Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ position: "relative", width: "70px", height: "70px" }}>
+                      <div
+                        style={{ width: "70px", height: "70px" }}
+                        className={`rounded-xl border overflow-hidden select-none transition-transform duration-150 ${exhausted ? "border-white/10 opacity-50 cursor-not-allowed" : !canAfford ? "border-white/10 opacity-60 cursor-not-allowed" : isBuying ? "border-amber-500/30 cursor-wait" : "border-amber-500/20 cursor-pointer active:scale-95"}`}
+                        onClick={!exhausted && !isBuying && purchasing === null && canAfford ? () => setConfirmingSlug(item.slug) : undefined}
+                      >
+                        {item.image_url
+                          ? <img src={item.image_url} alt={item.name} className={`w-full h-full object-cover ${exhausted ? "grayscale" : ""}`} />
+                          : <div className="w-full h-full bg-amber-950/30 flex items-center justify-center text-xl opacity-50">⚗</div>
+                        }
+                        <div className="absolute bottom-0 left-0 right-0 flex justify-center pb-0.5 pt-2" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%)" }}>
+                          <div className="flex items-center gap-0.5">
+                            <img src="/icons/mana-icon.png" alt="mana" width={10} height={10} className="shrink-0" />
+                            <span className="font-display text-[10px] text-cyan-300">{item.vendor_price}</span>
+                          </div>
+                        </div>
+                        {isBuying && <div className="absolute inset-0 flex items-center justify-center bg-black/40"><Loader2 className="h-3 w-3 animate-spin text-amber-400" /></div>}
+                      </div>
+                      {/* Stock badge — relative to image tile, not full card */}
+                      <div className={`absolute -bottom-2 -right-2 w-5 h-5 rounded-full bg-black/90 border flex items-center justify-center z-10 ${exhausted ? "border-red-500/60" : "border-cyan-500/60"}`}>
+                        <span className={`font-display text-[9px] leading-none ${exhausted ? "text-red-400" : "text-cyan-300"}`}>×{exhausted ? 0 : remaining}</span>
+                      </div>
+                    </div>
+                    <div className={`font-display text-[10px] text-center mt-1 leading-tight line-clamp-2 ${exhausted || !canAfford ? "text-muted-foreground" : "text-amber-300/80"}`}>{item.name}</div>
+                    {errors[item.slug] && <div className="text-[10px] text-red-400 text-center font-body mt-0.5">{errors[item.slug]}</div>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+        </div>{/* /overflow wrapper */}
+
+        {/* Inventory — fixed to bottom of viewport */}
+        {inventory && inventory.filter(i => i.quantity > 0).length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 px-4 pt-3 pb-10 space-y-2 z-20" style={{ background: "linear-gradient(to bottom, transparent 0%, rgba(5,3,14,0.95) 20%)" }}>
+            <div className="font-display text-[10px] text-amber-300/60 uppercase tracking-widest">Your Stock</div>
+            <div className="grid grid-cols-4 gap-2">
+              {inventory.filter(i => i.quantity > 0).map(inv => (
+                <BoosterDisplayTile key={inv.item_id} inv={inv} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
     </div>
   )
