@@ -121,7 +121,7 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
       {user && mobileScore !== null && (
         <div
           className="sm:hidden absolute flex items-center gap-1 pointer-events-none"
-          style={{ right: "calc(13.5vh + 185px)", top: "94px", zIndex: 2 }}
+          style={{ right: "calc(13.5vh + 185px)", top: "90px", zIndex: 2 }}
         >
           <img src="/icons/season-score-icon.png" alt="" style={{ width: "22px", height: "22px", opacity: 0.65, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }} />
           <span className="font-display text-xl font-semibold text-red-900" style={{ textShadow: "0 0 6px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3)" }}>
@@ -134,7 +134,7 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
       {user && manaBalance !== null && (
         <div
           className="sm:hidden absolute flex items-center gap-1 pointer-events-none"
-          style={{ right: "calc(13.5vh - 60px)", top: "94px", zIndex: 2 }}
+          style={{ right: "calc(13.5vh - 60px)", top: "90px", zIndex: 2 }}
         >
           <img src="/icons/mana-icon.png" alt="" style={{ width: "22px", height: "22px" }} />
           <span className="font-display text-xl text-cyan-200" style={{ textShadow: "0 0 8px rgba(0,0,0,1), 0 1px 4px rgba(0,0,0,1)" }}>
@@ -234,7 +234,7 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
         filter: "blur(14px)",
         zIndex: 1,
         pointerEvents: "none",
-        animation: "lanternFlicker 3.2s ease-in-out infinite",
+        animation: "lanternFlicker 7s ease-in-out infinite",
       }} />
 
 
@@ -402,7 +402,7 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
         {/* Mobile hamburger — center bottom */}
         <button
           className="flex sm:hidden items-center justify-center text-foreground/70 hover:text-foreground transition-colors absolute"
-          style={{ bottom: "10px", left: "50%", transform: "translateX(-50%)", zIndex: 3, width: "36px", height: "36px" }}
+          style={{ bottom: "15px", left: "50%", transform: "translateX(-50%)", zIndex: 3, width: "36px", height: "36px" }}
           onClick={() => setMobileMenuOpen(prev => !prev)}
           aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
         >
@@ -450,12 +450,6 @@ export function Header({ user, profile, manaBalance = null, hasJoinedActiveSeaso
               </Link>
             )
           })}
-          {manaBalance !== null && (
-            <div className="flex items-center gap-2 px-6 py-3 mt-1 border-t border-white/8">
-              <img src="/icons/mana-icon.png" alt="" style={{ width: "14px", height: "14px" }} />
-              <span className="font-display text-sm text-cyan-300">{manaBalance.toLocaleString()} mana</span>
-            </div>
-          )}
         </nav>
       )}
     </header>

@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { GamesRolodex } from "@/components/games-rolodex"
+import { MobileGamesRolodex } from "@/components/mobile-games-rolodex"
 import { GamePredictionPanel } from "@/components/game-prediction-panel"
 import type { PredictionData } from "@/components/game-card"
 
@@ -15,6 +16,14 @@ export function GamesPageClient({ games, predMap, currentSeasonId }: GamesPageCl
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null)
   const [isPanelDirty, setIsPanelDirty] = useState(false)
   const [pendingSwitch, setPendingSwitch] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
 
   const handleSelectGame = useCallback((gameId: string) => {
     if (selectedGameId === gameId) return
@@ -28,12 +37,20 @@ export function GamesPageClient({ games, predMap, currentSeasonId }: GamesPageCl
 
   return (
     <>
-      <GamesRolodex
-        games={games}
-        predMap={predMap}
-        currentSeasonId={currentSeasonId}
-        onSelect={handleSelectGame}
-      />
+      {isMobile ? (
+        <MobileGamesRolodex
+          games={games}
+          predMap={predMap}
+          onSelect={handleSelectGame}
+        />
+      ) : (
+        <GamesRolodex
+          games={games}
+          predMap={predMap}
+          currentSeasonId={currentSeasonId}
+          onSelect={handleSelectGame}
+        />
+      )}
       {selectedGameId && currentSeasonId && (
         <GamePredictionPanel
           gameId={selectedGameId}

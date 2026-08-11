@@ -302,34 +302,35 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
   }, [])
 
   const chestMotesRef = useRef<HTMLCanvasElement>(null)
-  useEffect(() => {
-    if (!stipendClaimable) return
-    const canvas = chestMotesRef.current
-    if (!canvas) return
+  const chestMotesDesktopRef = useRef<HTMLCanvasElement>(null)
 
-    const syncSize = () => {
-      canvas.width = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
-    }
+  function runChestMotes(canvas: HTMLCanvasElement) {
+    const syncSize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight }
     syncSize()
     const ro = new ResizeObserver(syncSize)
     ro.observe(canvas)
 
     type Mote = { x: number; y: number; vx: number; vy: number; alpha: number; alphaDir: number; alphaSpeed: number; holdFrames: number; size: number; hue: number; lightness: number }
 
-    const motes: Mote[] = Array.from({ length: 18 }, () => ({
-      x: Math.random() * canvas.offsetWidth,
-      y: Math.random() * canvas.offsetHeight,
-      vx: (Math.random() - 0.5) * 0.25,
-      vy: -(0.05 + Math.random() * 0.18),
-      alpha: Math.random(),
-      alphaDir: Math.random() > 0.5 ? 1 : -1,
-      alphaSpeed: 0.004 + Math.random() * 0.006,
-      holdFrames: 0,
-      size: 0.8 + Math.random() * 1.8,
-      hue: 180 + Math.random() * 20,
-      lightness: 65 + Math.random() * 25,
-    }))
+    const spawnMote = (w: number, h: number): Mote => {
+      const angle = Math.random() * Math.PI * 2
+      const speed = 0.15 + Math.random() * 0.35
+      return {
+        x: w / 2 + (Math.random() - 0.5) * w * 0.15,
+        y: h / 2 + (Math.random() - 0.5) * h * 0.15,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        alpha: 0,
+        alphaDir: 1,
+        alphaSpeed: 0.012 + Math.random() * 0.016,
+        holdFrames: Math.floor(Math.random() * 40),
+        size: 0.8 + Math.random() * 1.8,
+        hue: 188 + Math.random() * 4,
+        lightness: 80 + Math.random() * 15,
+      }
+    }
+
+    const motes: Mote[] = Array.from({ length: 18 }, () => spawnMote(canvas.offsetWidth, canvas.offsetHeight))
 
     let rafId: number
     const draw = () => {
@@ -345,14 +346,14 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
         }
         m.x += m.vx
         m.y += m.vy
-        if (m.x < 0) m.x = canvas.width
-        if (m.x > canvas.width) m.x = 0
-        if (m.y < 0) { m.y = canvas.height; m.vy = -(0.05 + Math.random() * 0.18) }
+        if (m.x < 0 || m.x > canvas.width || m.y < 0 || m.y > canvas.height) {
+          Object.assign(m, spawnMote(canvas.width, canvas.height))
+        }
         ctx.save()
         ctx.globalAlpha = m.alpha * 0.8
         ctx.shadowBlur = m.size * 9
-        ctx.shadowColor = `hsl(${m.hue}, 90%, ${m.lightness}%)`
-        ctx.fillStyle = `hsl(${m.hue}, 100%, ${m.lightness + 12}%)`
+        ctx.shadowColor = `hsl(${m.hue}, 100%, 75%)`
+        ctx.fillStyle = `hsl(${m.hue}, 100%, ${m.lightness}%)`
         ctx.beginPath()
         ctx.arc(m.x, m.y, m.size, 0, Math.PI * 2)
         ctx.fill()
@@ -362,6 +363,20 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
     }
     draw()
     return () => { cancelAnimationFrame(rafId); ro.disconnect() }
+  }
+
+  useEffect(() => {
+    if (!stipendClaimable) return
+    const canvas = chestMotesRef.current
+    if (!canvas) return
+    return runChestMotes(canvas)
+  }, [stipendClaimable])
+
+  useEffect(() => {
+    if (!stipendClaimable) return
+    const canvas = chestMotesDesktopRef.current
+    if (!canvas) return
+    return runChestMotes(canvas)
   }, [stipendClaimable])
 
   return (
@@ -374,9 +389,9 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
       {/* Desktop layout */}
       <div
         className="hidden md:flex flex-col items-center justify-end gap-4 pb-12 w-full"
-        style={{ minHeight: "calc(100vh - 120px)", paddingTop: "30px" }}
+        style={{ position: "fixed", top: "8vh", left: 0, right: 0, bottom: 0, zIndex: 6 }}
       >
-        <div style={{ transform: `translateY(175px) scale(${scale})`, transformOrigin: "top center", position: "relative", zIndex: 10 }}>
+        <div style={{ transform: `translateY(115px) scale(${scale})`, transformOrigin: "top center", position: "relative", zIndex: 10 }}>
       {/* Vendor item grid */}
       <div className="relative flex justify-center">
         <div className="bag-blur chest-blur pointer-events-none" style={{ lineHeight: 0 }}>
@@ -414,6 +429,12 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
             >
               <StipendBanner claimable={stipendClaimable} seasonId={seasonId} />
             </div>
+            {stipendClaimable && (
+              <canvas
+                ref={chestMotesDesktopRef}
+                style={{ position: "absolute", left: "60px", bottom: "340px", width: "350px", height: "300px", zIndex: 6, pointerEvents: "none" }}
+              />
+            )}
           </>
         )}
         <div className="bag-blur chest-blur absolute bottom-[110px] left-0 right-0 flex flex-wrap justify-center gap-[185px]">
@@ -528,20 +549,20 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
       </div>{/* /desktop flex */}
 
       {/* Mobile layout */}
-      <div className="md:hidden pb-8">
+      <div className="md:hidden" style={{ position: "fixed", inset: 0, overflow: "hidden", paddingTop: "140px", zIndex: 3 }}>
 
         {/* Restock sign — centered above shopkeep */}
-        <div style={{ display: "flex", justifyContent: "center", marginTop: "0" }}>
+        <div style={{ display: "flex", justifyContent: "center", marginTop: "8px" }}>
           <div style={{ position: "relative", width: "55%" }}>
             <img src="/restock-sign.png" alt="" style={{ width: "100%", height: "auto", display: "block" }} draggable={false} />
-            <div style={{ position: "absolute", top: "58%", left: "50%", transform: "translate(-50%, -50%)" }}>
+            <div style={{ position: "absolute", top: "calc(58% + 6px)", left: "calc(50% + 52px)", transform: "translate(-50%, -50%)" }}>
               <VendorCountdown />
             </div>
           </div>
         </div>
 
         {/* Shopkeep illustration — aspect-ratio container, chest + items overlaid */}
-        <div style={{ width: "100%", overflowX: "clip", overflowY: "visible", marginTop: "75px" }}>
+        <div style={{ width: "100%", overflowX: "clip", overflowY: "visible", marginTop: "125px", position: "relative", zIndex: 3 }}>
         <div style={{ position: "relative", width: "110%", aspectRatio: "1351 / 742", marginLeft: "-5%" }}>
           <img
             src="/shopkeep.png"
@@ -561,7 +582,7 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
           {stipendClaimable && (
             <canvas
               ref={chestMotesRef}
-              style={{ position: "absolute", left: "0", bottom: "35%", width: "50%", height: "55%", zIndex: 3, pointerEvents: "none" }}
+              style={{ position: "absolute", left: "20px", bottom: "calc(35% + 50px)", width: "37.5%", height: "55%", zIndex: 3, pointerEvents: "none" }}
             />
           )}
 
@@ -581,20 +602,6 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
             }} />
           )}
 
-          {/* Cyan glow behind chest when unclaimed */}
-          {stipendClaimable && (
-            <div style={{
-              position: "absolute",
-              left: "calc(7.7% + 5px - 10%)",
-              bottom: "calc(54% + 3px - 8%)",
-              width: "50%",
-              aspectRatio: "1",
-              background: "radial-gradient(ellipse at center, rgba(34,211,238,0.45) 0%, rgba(34,211,238,0.18) 35%, transparent 65%)",
-              filter: "blur(10px)",
-              zIndex: 1,
-              pointerEvents: "none",
-            }} />
-          )}
 
           {/* Chest — on the counter, left side */}
           {stipendClaimable !== undefined && (
@@ -615,20 +622,6 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
                 const isConfirming = confirmingSlug === item.slug
                 return (
                   <div key={item.id} style={{ position: "relative", width: "70px" }}>
-                    {isConfirming && (
-                      <div className="absolute z-50 bg-[rgba(10,10,25,0.98)] border border-amber-500/30 rounded-xl p-3 shadow-2xl flex flex-col items-center gap-2.5" style={{ bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", width: "160px" }}>
-                        <div className="absolute bottom-[-6px] left-1/2 w-3 h-3 bg-[rgba(10,10,25,0.98)] border-r border-b border-amber-500/30" style={{ transform: "translateX(-50%) rotate(45deg)" }} />
-                        <div className="font-display text-[10px] text-foreground text-center leading-snug">{item.name}</div>
-                        <div className="flex items-center gap-1">
-                          <img src="/icons/mana-icon.png" alt="mana" width={12} height={12} className="shrink-0" />
-                          <span className="font-display text-[11px] text-cyan-300">{item.vendor_price}</span>
-                        </div>
-                        <div className="flex gap-1.5 w-full">
-                          <button onClick={() => handlePurchase(item)} className="flex-1 py-1.5 rounded-lg font-display text-[10px] border border-amber-500/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 transition-colors cursor-pointer">Confirm</button>
-                          <button onClick={() => setConfirmingSlug(null)} className="flex-1 py-1.5 rounded-lg font-display text-[10px] border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 transition-colors cursor-pointer">Cancel</button>
-                        </div>
-                      </div>
-                    )}
                     <div style={{ position: "relative", width: "70px", height: "70px" }}>
                       <div
                         style={{ width: "70px", height: "70px" }}
@@ -661,6 +654,28 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
           )}
         </div>
         </div>{/* /overflow wrapper */}
+
+        {/* Mobile purchase confirmation — fixed centered overlay */}
+        {confirmingSlug && (() => {
+          const item = items.find(i => i.slug === confirmingSlug)
+          if (!item) return null
+          return (
+            <>
+              <div className="fixed inset-0 z-40" style={{ backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} onClick={() => setConfirmingSlug(null)} />
+              <div className="fixed z-50 bg-[rgba(10,10,25,0.98)] border border-amber-500/30 rounded-xl p-4 shadow-2xl flex flex-col items-center gap-3" style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "200px" }}>
+                <div className="font-display text-[11px] text-foreground text-center leading-snug">Purchase {item.name}?</div>
+                <div className="flex items-center gap-1">
+                  <img src="/icons/mana-icon.png" alt="mana" width={13} height={13} className="shrink-0" />
+                  <span className="font-display text-[12px] text-cyan-300">{item.vendor_price} mana</span>
+                </div>
+                <div className="flex gap-2 w-full">
+                  <button onClick={() => handlePurchase(item)} className="flex-1 py-2 rounded-lg font-display text-[11px] border border-amber-500/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 transition-colors cursor-pointer">Confirm</button>
+                  <button onClick={() => setConfirmingSlug(null)} className="flex-1 py-2 rounded-lg font-display text-[11px] border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 transition-colors cursor-pointer">Cancel</button>
+                </div>
+              </div>
+            </>
+          )
+        })()}
 
         {/* Inventory — fixed to bottom of viewport */}
         {inventory && inventory.filter(i => i.quantity > 0).length > 0 && (

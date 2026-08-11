@@ -177,23 +177,33 @@ export default async function MailboxPage() {
 
   return (
     <>
-    <ScoringCountdownPanel games={enrichedGames} hasUnread={hasUnread} hasUnclaimed={hasUnclaimed} />
-
-    <div style={{
-      position: "fixed",
-      top: "calc(64px + 5vh + 15px)",
-      bottom: "calc(5vh - 23px + 75px)",
-      right: "calc(4vw + 15px)",
-      left: "5vw",
-      padding: "1rem 1.5rem",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "flex-start",
-    }}>
-      <div style={{ width: "40vw", marginLeft: "auto", flexShrink: 0 }}>
-        <MailboxClient messages={visibleMessages as any} />
+      {/* Desktop layout */}
+      <div className="hidden md:block">
+        <ScoringCountdownPanel games={enrichedGames} hasUnread={hasUnread} hasUnclaimed={hasUnclaimed} />
+        <div style={{
+          position: "fixed",
+          top: "calc(64px + 5vh + 15px)",
+          bottom: "calc(5vh - 23px + 75px)",
+          right: "calc(4vw + 15px)",
+          left: "5vw",
+          padding: "1rem 1.5rem",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-start",
+        }}>
+          <div style={{ width: "40vw", marginLeft: 0, flexShrink: 0 }}>
+            <MailboxClient messages={visibleMessages as any} />
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Mobile layout — scrollable single-column list */}
+      <div className="md:hidden">
+        <ScoringCountdownPanel games={enrichedGames} hasUnread={hasUnread} hasUnclaimed={hasUnclaimed} mobile />
+        <div className="px-3 pt-4 pb-24">
+          <MailboxClient messages={visibleMessages as any} isMobile />
+        </div>
+      </div>
     </>
   )
 }

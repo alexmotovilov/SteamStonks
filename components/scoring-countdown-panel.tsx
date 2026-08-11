@@ -103,7 +103,7 @@ const BOARD_TOP  = "calc(64px + 20vh - 30px)"
 const BOARD_LEFT = "25vw"
 const BOARD_WIDTH = "calc(42vw * 1.19)"
 // Base CSS transform (centering) shared by board and goblin
-const BOARD_BASE_TRANSFORM = "translate(calc(-50% + 40px), calc(-50% + 75px))"
+const BOARD_BASE_TRANSFORM = "translate(calc(-50% - 5px), calc(-50% + 75px))"
 
 // ─── Debris sources and spawn points ──────────────────────────────
 const DEBRIS_SRCS = [
@@ -153,23 +153,23 @@ const DEBRIS_ROTATIONS = [
 ]
 
 const SPAWN_POINTS = [
-  { left: "3vw",  top: "calc(64px + 27vh)" },
-  { left: "8vw",  top: "calc(64px + 25vh)" },
-  { left: "13vw", top: "calc(64px + 28vh)" },
-  { left: "18vw", top: "calc(64px + 26vh)" },
-  { left: "22vw", top: "calc(64px + 27vh)" },
-  { left: "27vw", top: "calc(64px + 25vh)" },
-  { left: "31vw", top: "calc(64px + 28vh)" },
-  { left: "36vw", top: "calc(64px + 26vh)" },
-  { left: "40vw", top: "calc(64px + 27vh)" },
-  { left: "45vw", top: "calc(64px + 25vh)" },
+  { left: "1vw",  top: "calc(64px + 27vh)" },
+  { left: "6vw",  top: "calc(64px + 25vh)" },
+  { left: "11vw", top: "calc(64px + 28vh)" },
+  { left: "16vw", top: "calc(64px + 26vh)" },
+  { left: "20vw", top: "calc(64px + 27vh)" },
+  { left: "25vw", top: "calc(64px + 25vh)" },
+  { left: "29vw", top: "calc(64px + 28vh)" },
+  { left: "34vw", top: "calc(64px + 26vh)" },
+  { left: "38vw", top: "calc(64px + 27vh)" },
+  { left: "43vw", top: "calc(64px + 25vh)" },
 ]
 
 // ─── Independent row positions — adjust each freely ───────────────
 const ROW_POSITIONS: React.CSSProperties[] = [
-  { top: "calc(64px + 5vh + 17px)",   left: "175px" },  // Row 1 (nearest)
-  { top: "calc(64px + 13vh + 9.5px)", left: "175px" },  // Row 2
-  { top: "calc(64px + 21vh + 2px)",   left: "175px" },  // Row 3
+  { top: "calc(64px + 5vh + 17px)",   left: "50px" },  // Row 1 (nearest)
+  { top: "calc(64px + 13vh + 9.5px)", left: "50px" },  // Row 2
+  { top: "calc(64px + 21vh + 2px)",   left: "50px" },  // Row 3
 ]
 
 const ROW_PANEL_STYLE: React.CSSProperties = {
@@ -188,10 +188,12 @@ export function ScoringCountdownPanel({
   games,
   hasUnread = false,
   hasUnclaimed = false,
+  mobile = false,
 }: {
   games: CountdownGame[]
   hasUnread?: boolean
   hasUnclaimed?: boolean
+  mobile?: boolean
 }) {
   const [now, setNow] = useState<number | null>(null)
   const [active, setActive] = useState<CountdownGame[]>(games)
@@ -370,6 +372,75 @@ export function ScoringCountdownPanel({
   }
   const goblinQuote = pickGoblinQuote(goblinCtx)
 
+  if (mobile) {
+    return (
+      <div style={{
+        position: "fixed",
+        top: 156,
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "110vw",
+        zIndex: 19,
+        pointerEvents: "none",
+      }}>
+        <div style={{ position: "relative" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/scoring-countdown.png"
+            alt=""
+            style={{ width: "100%", height: "auto", display: "block", filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.7))", WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 10%)", maskImage: "linear-gradient(to bottom, transparent 0%, black 10%)" }}
+          />
+          <div style={{
+            position: "absolute",
+            top: "22%",
+            left: "8%",
+            right: "8%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 5,
+          }}>
+            {active.length === 0 ? (
+              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "Cinzel, serif" }}>
+                No pending scores
+              </div>
+            ) : active.slice(0, 3).map((game, i) => {
+              const ms = now != null ? new Date(game.scoring_at).getTime() - now : null
+              return (
+                <div key={i} style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  background: "rgba(0,0,0,0.52)",
+                  backdropFilter: "blur(6px)",
+                  WebkitBackdropFilter: "blur(6px)",
+                  borderRadius: 4,
+                  padding: "3px 7px",
+                }}>
+                  <span className="font-display tabular-nums" style={{ color: "#f59e0b", fontSize: 10, letterSpacing: 0 }}>
+                    {game.ticker.slice(0, 4).padEnd(4)}
+                  </span>
+                  <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 9 }}>|</span>
+                  <span style={{ color: trendColor(game.player_trend), fontSize: 9 }}>{trendIcon(game.player_trend)}</span>
+                  <span className="font-display tabular-nums" style={{ color: inPlayersRange(game) ? "#34d399" : playersExceededRange(game) ? "#f87171" : "rgba(255,255,255,0.82)", fontSize: 10, letterSpacing: 0 }}>
+                    {formatPeak(game.peak_players)}
+                  </span>
+                  <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 9 }}>|</span>
+                  <span style={{ color: trendColor(game.review_trend), fontSize: 9 }}>{trendIcon(game.review_trend)}</span>
+                  <span className="font-display tabular-nums" style={{ color: inReviewsRange(game) ? "#34d399" : "rgba(255,255,255,0.82)", fontSize: 10, letterSpacing: 0 }}>
+                    {formatReview(game.latest_review_pct)}
+                  </span>
+                  <span className="font-display tabular-nums text-cyan-300" style={{ fontSize: 10, marginLeft: "auto", letterSpacing: 0 }}>
+                    {ms != null ? formatCountdown(ms) : "——:——:——:——"}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       {/* Spark canvas — full viewport, pointer-events none, below debris (z:50) */}
@@ -400,8 +471,8 @@ export function ScoringCountdownPanel({
           zIndex: 51,
           pointerEvents: "none",
           transform: boardHovered
-            ? `translate(calc(-50% + 40px), calc(-50% + 85px))`
-            : `translate(calc(-50% + 40px), calc(-50% + 85px - 220px))`,
+            ? `translate(calc(-50% - 40px), calc(-50% + 85px))`
+            : `translate(calc(-50% - 40px), calc(-50% + 85px - 220px))`,
           opacity: boardHovered ? 1 : 0,
           transition: boardHovered
             ? "transform 0.5s cubic-bezier(0.34, 1.15, 0.64, 1), opacity 0.15s ease-out"
@@ -446,7 +517,7 @@ export function ScoringCountdownPanel({
       </div>
 
       {/* Outer div: fixed position + centering transform */}
-      <div style={{ position: "fixed", top: BOARD_TOP, left: BOARD_LEFT, transform: BOARD_BASE_TRANSFORM, zIndex: 52, pointerEvents: "none", lineHeight: 0 }}>
+      <div style={{ position: "fixed", top: BOARD_TOP, left: BOARD_LEFT, transform: BOARD_BASE_TRANSFORM, width: BOARD_WIDTH, zIndex: 52, pointerEvents: "none", lineHeight: 0 }}>
         {/* Inner div: shake animation (simple offsets, no base transform conflict) */}
         <div style={{ animation: boardHovered ? "boardShake 0.4s ease-out 0s" : "none" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -471,7 +542,7 @@ export function ScoringCountdownPanel({
         style={{
           position: "fixed",
           top: "calc(64px + 4vh)",
-          left: "40px",
+          left: "-5px",
           width: BOARD_WIDTH,
           height: "20vh",
           zIndex: 53,
@@ -532,7 +603,7 @@ export function ScoringCountdownPanel({
         style={{
           position: "fixed",
           top: "calc(64px + 26vh)",
-          left: "calc(25vw + 80px)",
+          left: "calc(25vw + 35px)",
           zIndex: 56,
           pointerEvents: "none",
           width: "230px",

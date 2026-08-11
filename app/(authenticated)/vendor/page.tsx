@@ -113,17 +113,6 @@ export default async function VendorPage() {
         </div>
       </div>
 
-      {/* Mobile header */}
-      <div className="md:hidden px-4 pt-4 pb-3 flex items-center justify-between border-b border-white/5">
-        <div>
-          <h1 className="font-display text-base text-amber-300">The Arcane Vendor</h1>
-        </div>
-        <div className="text-right">
-          <div className="font-display text-[9px] text-muted-foreground/60 uppercase tracking-widest mb-1">Restock</div>
-          <VendorCountdown />
-        </div>
-      </div>
-
       {/* VendorShop — renders desktop layout (with internal scaling) and mobile layout */}
       <VendorShop
         items={items ?? []}

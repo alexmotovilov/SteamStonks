@@ -40,6 +40,6 @@ export function VendorCountdown() {
   if (!label) return null
 
   return (
-    <span className="font-display text-white tracking-widest" style={{ display: "inline-block", fontSize: "clamp(11px, 1.0vw, 19px)", transform: "scaleY(1.5)", transformOrigin: "center center" }}>{label}</span>
+    <span className="font-display text-white tracking-widest" style={{ display: "inline-block", fontSize: "clamp(11px, 1.0vw, 19px)", transform: "scaleY(2.0)", transformOrigin: "center center" }}>{label}</span>
   )
 }

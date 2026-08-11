@@ -170,8 +170,15 @@ export default async function GamesPage() {
   return (
     <>
       <NoScroll />
-      <ScoringCountdownPanel games={enrichedGames} hasUnread={false} hasUnclaimed={false} />
-      <CrystalBulletinBoard left="55px" />
+      {/* Desktop */}
+      <div className="hidden md:block">
+        <ScoringCountdownPanel games={enrichedGames} hasUnread={false} hasUnclaimed={false} />
+        <CrystalBulletinBoard left="70px" />
+      </div>
+      {/* Mobile */}
+      <div className="md:hidden">
+        <ScoringCountdownPanel games={enrichedGames} hasUnread={false} hasUnclaimed={false} mobile />
+      </div>
       <GamesPageClient
         games={games ?? []}
         predMap={predMap}

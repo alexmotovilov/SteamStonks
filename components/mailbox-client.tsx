@@ -142,9 +142,13 @@ function ClaimManaButton({ messageId, manaAmount, onClaimed }: {
       >
         {claiming
           ? <Loader2 className="h-3 w-3 animate-spin" />
-          : <img src="/icons/mana-icon.png" alt="" width={14} height={14} />
+          : null
         }
-        Claim +{manaAmount.toLocaleString()} mana to spending balance
+        <span className="flex items-center flex-wrap justify-center gap-x-1">
+          <span>Claim</span>
+          <span className="inline-flex items-center gap-0.5 whitespace-nowrap">+<img src="/icons/mana-icon.png" alt="" width={13} height={13} />{manaAmount.toLocaleString()}</span>
+          <span>mana to spending balance</span>
+        </span>
       </button>
       {error && <p className="text-xs text-red-400 font-body text-center">{error}</p>}
     </div>
@@ -475,18 +479,63 @@ function MysteryDropSection({ drop, messageId, onDropClaimed }: { drop: MysteryD
 }
 
 // ─── ExpandedPanel ────────────────────────────────────────────
-// Rendered via portal into document.body — appears on left 50% of screen
+// Desktop: portal to left 50% of screen; Mobile: centered blur overlay
 
-function ExpandedPanel({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+function ExpandedPanel({ onClose, children, mobileFooter }: { onClose: () => void; children: React.ReactNode; mobileFooter?: React.ReactNode }) {
+  const [isMobile, setIsMobile] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768)
+  }, [])
+
+  // Prevent background scroll while mobile letter is open
+  useEffect(() => {
+    if (!isMobile) return
+    document.body.style.overflow = "hidden"
+    return () => { document.body.style.overflow = "" }
+  }, [isMobile])
+
+  if (isMobile) {
+    return createPortal(
+      <>
+        <div
+          className="fixed inset-0 z-40"
+          style={{ backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", background: "rgba(0,0,0,0.55)" }}
+          onClick={onClose}
+        />
+        <div className="fixed inset-0 z-50 pointer-events-none">
+          {/* Decorative letter background — scaled independently */}
+          <div className="pointer-events-none" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%) scale(2.2)", transformOrigin: "center", width: "92vw", maxWidth: "480px" }}>
+            <img src="/letter-background.png" alt="" className="w-full h-auto block" />
+          </div>
+          {/* Content — unscaled, constrained to viewport */}
+          <div className="pointer-events-auto" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: "98vw", maxHeight: "68vh", overflow: "auto", display: "flex", alignItems: "center", justifyContent: "center", zoom: 1.25, filter: "brightness(1.4)" }}>
+            {children}
+          </div>
+          <div className="pointer-events-auto" style={{ position: "absolute", left: 0, right: 0, bottom: "44px", display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }} onClick={e => e.stopPropagation()}>
+            {mobileFooter}
+            <button
+              onClick={onClose}
+              className="flex items-center gap-[9px] font-body text-lg text-white/60 hover:text-white/90 px-[18px] py-[9px] rounded-xl border border-white/20 hover:border-white/40 transition-colors"
+              style={{ background: "rgba(20,20,20,0.5)" }}
+            >
+              × Close letter
+            </button>
+          </div>
+        </div>
+      </>,
+      document.body
+    )
+  }
 
   return (
     <>
       {createPortal(
         <div
           style={{
-            position: "fixed", left: 0, top: 0,
+            position: "fixed", left: "calc(50vw - 80px)", top: 0,
             width: "50vw", height: "100vh",
             zIndex: 50,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -573,9 +622,10 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
   const scoreMeta = isScoreWeekOne ? meta as ScoringMetadata : null
   const isPerfect = scoreMeta?.result === "perfect"
   const isPartial = scoreMeta?.result === "partial"
+  const isFailed = scoreMeta?.result === "failed"
   const isLadder = msg.message_type === "score_ladder"
   const ladderMeta = isLadder ? meta as LadderMetadata : null
-  const subjectColor = isLadder ? "text-purple-300" : isPerfect ? "text-emerald-400" : isPartial ? "text-amber-300" : isRead ? "text-foreground/60" : "text-foreground"
+  const subjectColor = isLadder ? "text-purple-300" : isPerfect ? "text-emerald-400" : isPartial ? "text-amber-300" : isFailed ? (isRead ? "text-foreground/85" : "text-foreground") : isRead ? "text-foreground/60" : "text-foreground"
   const hasUnclaimed = ((msg.mana_reward ?? 0) > 0 && !manaClaimed) || (!!mysteryDrop && !dropClaimed)
 
   function handleDeleteClick(e: React.MouseEvent) {
@@ -631,19 +681,19 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
           }
         />
         <div className="absolute inset-0 flex items-center">
-          <div className="container mx-auto flex items-center gap-3 px-6" style={{ transform: "translateY(-15px)" }}>
+          <div className="container mx-auto flex items-center gap-3 px-3 md:px-6" style={{ transform: "translateY(-15px)" }}>
             <div className="flex-1 min-w-0" style={{ paddingLeft: 25 }}>
-              <div className={`font-display truncate inline-block max-w-full px-1 py-0.5 ${subjectColor}`} style={{ textShadow: LETTER_TEXT_SHADOW, fontSize: 13, position: "relative", top: 10 }}>
+              <div className={`font-display truncate inline-block max-w-full px-1 py-0.5 ${subjectColor}`} style={{ textShadow: LETTER_TEXT_SHADOW, fontSize: 13, position: "relative", top: 15 }}>
                 {msg.subject}
               </div>
             </div>
-            <div className="flex items-center shrink-0" style={{ marginRight: "28px", gap: "6px" }}>
+            <div className="flex items-center shrink-0 mr-0 md:mr-7" style={{ gap: "6px" }}>
               {showDeleteBlocked ? (
-                <span className="font-body text-xs text-red-400" style={{ textShadow: LETTER_TEXT_SHADOW }}>
+                <span className="hidden md:inline font-body text-xs text-red-400" style={{ textShadow: LETTER_TEXT_SHADOW }}>
                   Contents must be claimed before deleting.
                 </span>
               ) : showDeleteConfirm ? (
-                <div className="flex items-center gap-2" style={{ position: "relative", top: 5, left: -5 }} onClick={e => e.stopPropagation()}>
+                <div className="hidden md:flex items-center gap-2" style={{ position: "relative", top: 5, left: -5 }} onClick={e => e.stopPropagation()}>
                   <span className="font-body text-xs text-foreground/80" style={{ textShadow: LETTER_TEXT_SHADOW }}>Delete this message?</span>
                   <button onClick={handleDeleteConfirm} disabled={deleting}
                     className="font-display text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded border border-red-500/40"
@@ -661,13 +711,13 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
                   {((msg.mana_reward ?? 0) > 0 || mysteryDrop) && (() => {
                     const allClaimed = ((msg.mana_reward ?? 0) === 0 || manaClaimed) && (!mysteryDrop || dropClaimed)
                     return (
-                      <span className={`font-display text-lg font-bold w-8 h-8 flex items-center justify-center rounded mr-3 ${allClaimed ? "text-foreground/30 border-[3px] border-foreground/30" : "text-amber-400 border-[3px] border-amber-400"}`} style={{ background: "rgba(0,0,0,0.58)", position: "relative", top: 7 }}>?</span>
+                      <span className={`font-display text-sm font-bold w-6 h-6 flex items-center justify-center rounded mr-3 ${allClaimed ? "text-foreground/30 border-[2px] border-foreground/30" : "text-amber-400 border-[2px] border-amber-400"}`} style={{ background: "rgba(0,0,0,0.58)", position: "relative", top: 12, right: 5 }}>?</span>
                     )
                   })()}
-                  <span className="text-xs text-foreground/70 font-body" style={{ textShadow: LETTER_TEXT_SHADOW, position: "relative", top: 5, right: 10 }}>{date}</span>
+                  <span className="hidden md:inline text-xs text-foreground/70 font-body" style={{ textShadow: LETTER_TEXT_SHADOW, position: "relative", top: 5, right: 10 }}>{date}</span>
                   {isRead
-                    ? <button onClick={handleDeleteClick} className="text-red-300 hover:text-red-200 leading-none font-bold text-[10px] flex items-center justify-center rounded-full w-4 h-4 shrink-0" style={{ marginLeft: "20px", background: "rgba(100,60,60,0.45)", border: "1.5px solid rgba(180,180,180,0.4)", position: "relative", top: 5, right: 10 }}><Trash2 size={8} /></button>
-                    : <div className="w-4 h-4 shrink-0" style={{ marginLeft: "12px", position: "relative", top: 5, right: 10 }} />
+                    ? <button onClick={handleDeleteClick} className="hidden md:flex text-red-300 hover:text-red-200 leading-none font-bold text-[10px] items-center justify-center rounded-full w-4 h-4 shrink-0" style={{ marginLeft: "20px", background: "rgba(100,60,60,0.45)", border: "1.5px solid rgba(180,180,180,0.4)", position: "relative", top: 5, right: 10 }}><Trash2 size={8} /></button>
+                    : <div className="hidden md:block w-4 h-4 shrink-0" style={{ marginLeft: "12px", position: "relative", top: 5, right: 10 }} />
                   }
                 </>
               )}
@@ -678,9 +728,24 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
 
       {/* Expanded panel — portal to left 50% */}
       {isExpanded && (
-        <ExpandedPanel onClose={toggle}>
+        <ExpandedPanel onClose={toggle} mobileFooter={isRead ? (
+          showDeleteBlocked ? (
+            <span className="font-body text-xs text-red-400">Contents must be claimed before deleting.</span>
+          ) : showDeleteConfirm ? (
+            <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+              <span className="font-body text-xs text-foreground/80">Delete?</span>
+              <button onClick={handleDeleteConfirm} disabled={deleting} className="font-display text-xs text-red-400 px-2 py-1 rounded border border-red-500/40" style={{ background: "rgba(0,0,0,0.65)" }}>{deleting ? "…" : "Yes"}</button>
+              <button onClick={e => { e.stopPropagation(); setShowDeleteConfirm(false) }} className="font-display text-xs text-foreground/60 px-2 py-1 rounded border border-border/40" style={{ background: "rgba(0,0,0,0.65)" }}>No</button>
+            </div>
+          ) : (
+            <button onClick={handleDeleteClick} className="flex items-center gap-[9px] font-body text-lg text-red-400/70 hover:text-red-300 px-[18px] py-[9px] rounded-xl border border-red-500/20 hover:border-red-500/40 transition-colors" style={{ background: "rgba(40,10,10,0.5)" }}>
+              <Trash2 size={17} /> Delete letter
+            </button>
+          )
+        ) : undefined}>
           {scoreMeta && (
             <div className="w-[72%] space-y-2 rounded-xl px-6 py-3" style={{ background: "rgba(8,6,4,0.62)", backdropFilter: "blur(2px)" }}>
+              <div className="md:hidden text-[10px] font-body text-muted-foreground/50 text-right">{date}</div>
               <div>
                 <div className="font-display text-sm text-foreground">{scoreMeta.game_name}</div>
                 {scoreMeta.season_name && (
@@ -873,19 +938,19 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
           }
         />
         <div className="absolute inset-0 flex items-center">
-          <div className="container mx-auto flex items-center gap-3 px-6" style={{ transform: "translateY(-15px)" }}>
+          <div className="container mx-auto flex items-center gap-3 px-3 md:px-6" style={{ transform: "translateY(-15px)" }}>
             <div className="flex-1 min-w-0" style={{ paddingLeft: 25 }}>
-              <span className={`font-display truncate inline-block max-w-full px-1 py-0.5 ${isRead ? "text-foreground/60" : "text-foreground"}`} style={{ textShadow: LETTER_TEXT_SHADOW, fontSize: 13, position: "relative", top: 10 }}>
+              <span className={`font-display truncate inline-block max-w-full px-1 py-0.5 ${isRead ? "text-foreground/60" : "text-foreground"}`} style={{ textShadow: LETTER_TEXT_SHADOW, fontSize: 13, position: "relative", top: 15 }}>
                 {msg.subject}
               </span>
             </div>
-            <div className="flex items-center shrink-0" style={{ marginRight: "28px", gap: "6px" }}>
+            <div className="flex items-center shrink-0 mr-0 md:mr-7" style={{ gap: "6px" }}>
               {showDeleteBlocked ? (
-                <span className="font-body text-xs text-red-400" style={{ textShadow: LETTER_TEXT_SHADOW }}>
+                <span className="hidden md:inline font-body text-xs text-red-400" style={{ textShadow: LETTER_TEXT_SHADOW }}>
                   Contents must be claimed before deleting.
                 </span>
               ) : showDeleteConfirm ? (
-                <div className="flex items-center gap-2" style={{ position: "relative", top: 5, left: -5 }} onClick={e => e.stopPropagation()}>
+                <div className="hidden md:flex items-center gap-2" style={{ position: "relative", top: 5, left: -5 }} onClick={e => e.stopPropagation()}>
                   <span className="font-body text-xs text-foreground/80" style={{ textShadow: LETTER_TEXT_SHADOW }}>Delete this message?</span>
                   <button onClick={handleDeleteConfirm} disabled={deleting}
                     className="font-display text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded border border-red-500/40"
@@ -901,12 +966,12 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
               ) : (
                 <>
                   {msg.mail_attachments.length > 0 && (
-                    <span className={`font-display text-lg font-bold w-8 h-8 flex items-center justify-center rounded mr-3 ${isClaimed ? "text-foreground/30 border-[3px] border-foreground/30" : "text-amber-400 border-[3px] border-amber-400"}`} style={{ background: "rgba(0,0,0,0.58)", position: "relative", top: 7 }}>?</span>
+                    <span className={`font-display text-sm font-bold w-6 h-6 flex items-center justify-center rounded mr-3 ${isClaimed ? "text-foreground/30 border-[2px] border-foreground/30" : "text-amber-400 border-[2px] border-amber-400"}`} style={{ background: "rgba(0,0,0,0.58)", position: "relative", top: 12, right: 5 }}>?</span>
                   )}
-                  <span className="text-xs text-foreground/70 font-body" style={{ textShadow: LETTER_TEXT_SHADOW, position: "relative", top: 5, right: 10 }}>{date}</span>
+                  <span className="hidden md:inline text-xs text-foreground/70 font-body" style={{ textShadow: LETTER_TEXT_SHADOW, position: "relative", top: 5, right: 10 }}>{date}</span>
                   {isRead
-                    ? <button onClick={handleDeleteClick} className="text-red-300 hover:text-red-200 leading-none font-bold text-[10px] flex items-center justify-center rounded-full w-4 h-4 shrink-0" style={{ marginLeft: "20px", background: "rgba(100,60,60,0.45)", border: "1.5px solid rgba(180,180,180,0.4)", position: "relative", top: 5, right: 10 }}><Trash2 size={8} /></button>
-                    : <div className="w-4 h-4 shrink-0" style={{ marginLeft: "12px", position: "relative", top: 5, right: 10 }} />
+                    ? <button onClick={handleDeleteClick} className="hidden md:flex text-red-300 hover:text-red-200 leading-none font-bold text-[10px] items-center justify-center rounded-full w-4 h-4 shrink-0" style={{ marginLeft: "20px", background: "rgba(100,60,60,0.45)", border: "1.5px solid rgba(180,180,180,0.4)", position: "relative", top: 5, right: 10 }}><Trash2 size={8} /></button>
+                    : <div className="hidden md:block w-4 h-4 shrink-0" style={{ marginLeft: "12px", position: "relative", top: 5, right: 10 }} />
                   }
                 </>
               )}
@@ -917,8 +982,23 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
 
       {/* Expanded panel — portal to left 50% */}
       {isExpanded && (
-        <ExpandedPanel onClose={toggle}>
+        <ExpandedPanel onClose={toggle} mobileFooter={isRead ? (
+          showDeleteBlocked ? (
+            <span className="font-body text-xs text-red-400">Contents must be claimed before deleting.</span>
+          ) : showDeleteConfirm ? (
+            <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+              <span className="font-body text-xs text-foreground/80">Delete?</span>
+              <button onClick={handleDeleteConfirm} disabled={deleting} className="font-display text-xs text-red-400 px-2 py-1 rounded border border-red-500/40" style={{ background: "rgba(0,0,0,0.65)" }}>{deleting ? "…" : "Yes"}</button>
+              <button onClick={e => { e.stopPropagation(); setShowDeleteConfirm(false) }} className="font-display text-xs text-foreground/60 px-2 py-1 rounded border border-border/40" style={{ background: "rgba(0,0,0,0.65)" }}>No</button>
+            </div>
+          ) : (
+            <button onClick={handleDeleteClick} className="flex items-center gap-[9px] font-body text-lg text-red-400/70 hover:text-red-300 px-[18px] py-[9px] rounded-xl border border-red-500/20 hover:border-red-500/40 transition-colors" style={{ background: "rgba(40,10,10,0.5)" }}>
+              <Trash2 size={17} /> Delete letter
+            </button>
+          )
+        ) : undefined}>
           <div className="w-[72%] space-y-4 rounded-xl px-6 py-5" style={{ background: "rgba(8,6,4,0.62)", backdropFilter: "blur(2px)" }}>
+            <div className="md:hidden text-[10px] font-body text-muted-foreground/50 text-right">{date}</div>
             <p className="text-sm font-body text-foreground/85 leading-relaxed whitespace-pre-wrap">{msg.body}</p>
             {msg.mail_attachments.length > 0 && (
               <div className="space-y-2">
@@ -961,12 +1041,14 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
 
 interface MailboxClientProps {
   messages: MailMessage[]
+  isMobile?: boolean
 }
 
 const ITEMS_PER_PAGE = 6
 
-export function MailboxClient({ messages }: MailboxClientProps) {
+export function MailboxClient({ messages, isMobile = false }: MailboxClientProps) {
   useEffect(() => {
+    if (isMobile) return
     const prevent = (e: Event) => e.preventDefault()
     const preventKey = (e: KeyboardEvent) => {
       if (["ArrowUp","ArrowDown","PageUp","PageDown","Home","End"," "].includes(e.key)) e.preventDefault()
@@ -981,7 +1063,7 @@ export function MailboxClient({ messages }: MailboxClientProps) {
       document.removeEventListener("keydown", preventKey)
       document.documentElement.style.scrollbarWidth = ""
     }
-  }, [])
+  }, [isMobile])
 
   const [msgs, setMsgs] = useState(messages)
   const [read, setRead] = useState<Set<string>>(new Set(
@@ -1049,21 +1131,32 @@ export function MailboxClient({ messages }: MailboxClientProps) {
       onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
     >
-      <img src={`/icons/${icon}`} alt={alt} style={{ width: 94, height: 94, objectFit: "contain", display: "block" }} />
+      <img src={`/icons/${icon}`} alt={alt} style={{ width: isMobile ? 142 : 94, height: isMobile ? 142 : 94, objectFit: "contain", display: "block" }} />
     </button>
   )
 
   return (
-    <div className="space-y-3">
-<div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "0 4px", minHeight: 36, marginBottom: -8, transform: "translateY(-20px)" }}>
-        {navBtn(() => goToPage(0),               atFirst, "double-left.png",  "Newest")}
-        {navBtn(() => goToPage(currentPage - 1), atFirst, "left.png",         "Newer")}
-        <div style={{ width: 80 }} />
-        {navBtn(() => goToPage(currentPage + 1), atLast,  "right.png",        "Older")}
-        {navBtn(() => goToPage(totalPages - 1),  atLast,  "double-right.png", "Oldest")}
-      </div>
+    <div className={isMobile ? "" : "space-y-3"}>
+      {isMobile ? (
+        <div style={{ position: "fixed", top: "calc(166px + 53.4vw - 112px)", left: 0, right: 0, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "0 4px", pointerEvents: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, pointerEvents: "auto" }}>
+            {navBtn(() => goToPage(0),               atFirst, "double-left.png",  "Newest")}
+            {navBtn(() => goToPage(currentPage - 1), atFirst, "left.png",         "Newer")}
+            {navBtn(() => goToPage(currentPage + 1), atLast,  "right.png",        "Older")}
+            {navBtn(() => goToPage(totalPages - 1),  atLast,  "double-right.png", "Oldest")}
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "0 4px", minHeight: 36, marginBottom: -8, transform: "translateY(-20px)" }}>
+          {navBtn(() => goToPage(0),               atFirst, "double-left.png",  "Newest")}
+          {navBtn(() => goToPage(currentPage - 1), atFirst, "left.png",         "Newer")}
+          <div style={{ width: 80 }} />
+          {navBtn(() => goToPage(currentPage + 1), atLast,  "right.png",        "Older")}
+          {navBtn(() => goToPage(totalPages - 1),  atLast,  "double-right.png", "Oldest")}
+        </div>
+      )}
 
-      <div style={{ transform: "translateY(-25px) scale(1.03)", transformOrigin: "top center", display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={isMobile ? { display: "flex", flexDirection: "column", gap: "30px", marginTop: "calc(53.4vw + 13px)", transform: "scale(1.07)", transformOrigin: "center top" } : { transform: "translateY(-25px) scale(1.03)", transformOrigin: "top center", display: "flex", flexDirection: "column", gap: "20px" }}>
       {pagedMsgs.map(msg => {
         const isRead = read.has(msg.id)
 

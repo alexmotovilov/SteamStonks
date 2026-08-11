@@ -54,7 +54,7 @@ const FADE_MS     = 500
 
 export function CrystalBulletinBoard({
   tabletSrc = "/crystal-tablet.png",
-  top = "calc(64px + 28vh + 60px)",
+  top = "calc(64px + 28vh + 65px)",
   left,
   right,
   width = "576px",

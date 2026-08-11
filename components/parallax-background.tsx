@@ -119,19 +119,33 @@ export function ParallaxBackground() {
     return (
       <>
         <div style={{ position: "fixed", inset: 0, zIndex: -2, backgroundColor: "#000" }} />
-        {/* Lantern glow */}
-        <div style={{
+        {/* Lantern glow — desktop */}
+        <div className="hidden md:block" style={{
           position: "fixed",
-          left: "calc(63% - 75px)",
+          left: "calc(63% - 130px)",
           top: "calc(44% - 105px)",
           width: "300px",
           height: "190px",
           transform: "translate(-50%, -50%)",
           background: "radial-gradient(ellipse at center, rgba(100,200,255,0.55) 0%, rgba(40,140,255,0.28) 30%, rgba(10,80,200,0.12) 60%, transparent 80%)",
           filter: "blur(14px)",
+          zIndex: 7,
+          pointerEvents: "none",
+          animation: "lanternFlicker 7s ease-in-out infinite",
+        }} />
+        {/* Lantern glow — mobile */}
+        <div className="md:hidden" style={{
+          position: "fixed",
+          left: "calc(63% - 27px)",
+          top: "calc(44% - 70px)",
+          width: "180px",
+          height: "120px",
+          transform: "translate(-50%, -50%)",
+          background: "radial-gradient(ellipse at center, rgba(100,200,255,0.55) 0%, rgba(40,140,255,0.28) 30%, rgba(10,80,200,0.12) 60%, transparent 80%)",
+          filter: "blur(14px)",
           zIndex: 6,
           pointerEvents: "none",
-          animation: "lanternFlicker 3.2s ease-in-out infinite",
+          animation: "lanternFlicker 7s ease-in-out infinite",
         }} />
         {/* Fog layers — bottom half of screen (desktop only) */}
         <div className="hidden md:block" style={{ position: "fixed", left: 0, right: 0, top: "50%", bottom: 0, zIndex: 5, pointerEvents: "none", WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%)", maskImage: "linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%)" }}>
@@ -139,6 +153,13 @@ export function ParallaxBackground() {
           <div style={{ position: "absolute", width: "80%", height: "110%", top: "10%", right: "-5%", background: "radial-gradient(ellipse at center, rgba(170,195,230,0.70) 0%, transparent 65%)", animation: "fogDrift2 17s ease-in-out infinite" }} />
           <div style={{ position: "absolute", width: "100%", height: "80%", bottom: 0, left: 0, background: "radial-gradient(ellipse at center, rgba(150,180,220,0.80) 0%, transparent 60%)", animation: "fogDrift3 28s ease-in-out infinite" }} />
           <div style={{ position: "absolute", width: "70%", height: "90%", top: 0, left: "15%", background: "radial-gradient(ellipse at center, rgba(210,220,245,0.65) 0%, transparent 70%)", animation: "fogDrift4 13s ease-in-out infinite" }} />
+        </div>
+        {/* Fog layers — mobile */}
+        <div className="md:hidden" style={{ position: "fixed", left: 0, right: 0, top: "calc(40% - 20px)", bottom: "35%", zIndex: 2, pointerEvents: "none", WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 25%, black 70%, transparent 100%)", maskImage: "linear-gradient(to bottom, transparent 0%, black 25%, black 70%, transparent 100%)" }}>
+          <div style={{ position: "absolute", width: "90%", height: "120%", top: "-20%", left: "-5%", background: "radial-gradient(ellipse at center, rgba(190,210,240,0.30) 0%, transparent 65%)", animation: "fogDrift1 22s ease-in-out infinite" }} />
+          <div style={{ position: "absolute", width: "80%", height: "110%", top: "10%", right: "-5%", background: "radial-gradient(ellipse at center, rgba(170,195,230,0.28) 0%, transparent 65%)", animation: "fogDrift2 17s ease-in-out infinite" }} />
+          <div style={{ position: "absolute", width: "100%", height: "80%", bottom: 0, left: 0, background: "radial-gradient(ellipse at center, rgba(150,180,220,0.32) 0%, transparent 60%)", animation: "fogDrift3 28s ease-in-out infinite" }} />
+          <div style={{ position: "absolute", width: "70%", height: "90%", top: 0, left: "15%", background: "radial-gradient(ellipse at center, rgba(210,220,245,0.26) 0%, transparent 70%)", animation: "fogDrift4 13s ease-in-out infinite" }} />
         </div>
         {/* Desktop background */}
         <div
@@ -195,7 +216,9 @@ export function ParallaxBackground() {
     return (
       <>
         <div style={{ position: "fixed", inset: 0, zIndex: -2, backgroundColor: "#000" }} />
+        {/* Desktop postoffice background */}
         <div
+          className="hidden md:block"
           style={{
             position: "fixed",
             top: "calc(5% + 35px)",
@@ -209,6 +232,27 @@ export function ParallaxBackground() {
             backgroundImage: "url('/postoffice.png')",
             backgroundSize: "cover",
             backgroundPosition: "center center",
+            backgroundRepeat: "no-repeat",
+            WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%), linear-gradient(to bottom, transparent 3%, black 25%, black 80%, transparent 97%)",
+            WebkitMaskComposite: "destination-in",
+            maskImage: "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%), linear-gradient(to bottom, transparent 3%, black 25%, black 80%, transparent 97%)",
+            maskComposite: "intersect",
+          }}
+        />
+        {/* Mobile postoffice background */}
+        <div
+          className="md:hidden"
+          style={{
+            position: "fixed",
+            top: "calc(5% + 285px)",
+            right: "5%",
+            bottom: "5%",
+            left: "5%",
+            zIndex: -1,
+            opacity: 0.5,
+            backgroundImage: "url('/postoffice.png')",
+            backgroundSize: "350%",
+            backgroundPosition: "calc(100% + 115px) 0%",
             backgroundRepeat: "no-repeat",
             WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%), linear-gradient(to bottom, transparent 3%, black 25%, black 80%, transparent 97%)",
             WebkitMaskComposite: "destination-in",
@@ -247,7 +291,9 @@ export function ParallaxBackground() {
           <div style={{ position: "absolute", width: "100%", height: "80%", bottom: 0, left: 0, background: "radial-gradient(ellipse at center, rgba(150,180,220,0.13) 0%, transparent 60%)", animation: "fogDrift3 28s ease-in-out infinite" }} />
           <div style={{ position: "absolute", width: "70%", height: "90%", top: 0, left: "15%", background: "radial-gradient(ellipse at center, rgba(210,220,245,0.09) 0%, transparent 70%)", animation: "fogDrift4 13s ease-in-out infinite" }} />
         </div>
+        {/* Desktop tablet — height-driven, centered */}
         <div
+          className="hidden md:block"
           style={{
             position: "fixed",
             top: "50%",
@@ -265,6 +311,29 @@ export function ParallaxBackground() {
             src="/prediction-tablet.png"
             alt=""
             style={{ height: "100vh", width: "auto", display: "block", userSelect: "none" }}
+            draggable={false}
+          />
+        </div>
+        {/* Mobile tablet — width-driven, centered */}
+        <div
+          className="md:hidden"
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: -1,
+            pointerEvents: "none",
+            opacity: 0.55,
+            WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%)",
+            maskImage: "linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%)",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/prediction-tablet.png"
+            alt=""
+            style={{ width: "100vw", height: "auto", display: "block", userSelect: "none" }}
             draggable={false}
           />
         </div>
