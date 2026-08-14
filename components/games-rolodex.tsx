@@ -74,12 +74,6 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
 
   return (
     <>
-      <style>{`
-        @keyframes rolodex-shimmer {
-          0%   { background-position: -1200px 0; }
-          100% { background-position: 1200px 0; }
-        }
-      `}</style>
       <div
         style={{
           position: "fixed",
@@ -96,7 +90,6 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
           const isHov = hoveredId === game.id
           const pred  = predMap[game.id] ?? null
           const ranges = predDisplay(pred)
-          const hasPred = pred !== null
           const status = gameStatus(game)
 
           // Result display for scored predictions (expanded panel)
@@ -111,15 +104,6 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
             if (i < hoveredIdx) spreadX = -SPREAD_VW
             else if (i > hoveredIdx) spreadX = SPREAD_VW
           }
-
-          // No-prediction tiles get a shimmer sweep; tiles with a prediction are plain dark
-          const panelExtra: React.CSSProperties = hasPred
-            ? { background: "rgba(8,6,4,0.62)" }
-            : {
-                background: "linear-gradient(to right, rgba(8,6,4,0.62) 8%, rgba(196,168,80,0.10) 18%, rgba(8,6,4,0.62) 33%)",
-                backgroundSize: "1200px 100%",
-                animation: "rolodex-shimmer 2.8s linear infinite",
-              }
 
           return (
             <div
@@ -185,14 +169,11 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
                     />
                   )}
 
-                  {/* Collapsed: text panel fills the inset area */}
+                  {/* Collapsed: text projected directly onto parchment */}
                   <div
                     style={{
                       position: "absolute",
                       top: "9%", left: "8%", right: "8%", bottom: "7%",
-                      ...panelExtra,
-                      backdropFilter: "blur(2px)",
-                      WebkitBackdropFilter: "blur(2px)",
                       borderRadius: "4px",
                       padding: "6% 7%",
                       display: "flex",
@@ -209,29 +190,44 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
                       className="font-display"
                       style={{
                         fontSize: "1.0vw",
-                        color: "#f5e6c8",
+                        color: "#1c0e05",
                         lineHeight: 1.3,
                         minHeight: "2.6em",
                         display: "-webkit-box",
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: "vertical" as const,
                         overflow: "hidden",
-                        textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+                        textShadow: "0 1px 3px rgba(255,210,140,0.6), 0 0 8px rgba(255,200,100,0.25)",
                       }}
                     >
                       {game.name}
                     </div>
                     {/* Release Date */}
                     {fmtDate(game.release_date) && (
-                      <div className="font-body" style={{ fontSize: "0.68vw", color: "rgba(245,230,200,0.45)" }}>
+                      <div className="font-body" style={{ fontSize: "0.68vw", color: "#3d2010", textShadow: "0 1px 2px rgba(255,210,140,0.4)" }}>
                         {fmtDate(game.release_date)}
                       </div>
                     )}
-                    {/* Status */}
-                    <div>
-                      <span className="font-display" style={{ fontSize: "0.65vw", color: status.color }}>{status.label}</span>
-                    </div>
                   </div>
+
+                  {/* Stamps — bottom-right corner of letter */}
+                  {(status.label === "Released" || status.label === "Released · Awaiting Scores") && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={status.label === "Released" ? "/released-stamp.png" : "/launch-stamp.png"}
+                      alt={status.label === "Released" ? "Released" : "Launched"}
+                      style={{
+                        position: "absolute",
+                        bottom: "calc(9% - 15px)",
+                        right: "10%",
+                        width: "43.7%",
+                        opacity: isHov ? 0 : 0.88,
+                        transition: "opacity 0.2s ease",
+                        pointerEvents: "none",
+                        transform: "rotate(-8deg)",
+                      }}
+                    />
+                  )}
 
                   {/* Expanded: text overlay at bottom of image, fades in on hover */}
                   <div

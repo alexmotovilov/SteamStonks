@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useCallback, useLayoutEffect } from "react"
+import { useRef, useState, useCallback, useLayoutEffect, useEffect } from "react"
 import type { PredictionData } from "./game-card"
 
 type RolodexGame = {
@@ -51,6 +51,7 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
   const [spacer, setSpacer] = useState(0)
   const [centeredIdx, setCenteredIdx] = useState(0)
   const centeredRef = useRef(0)
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
 
   useLayoutEffect(() => {
     const el = containerRef.current
@@ -58,6 +59,11 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
     setSpacer(Math.max(0, (el.clientHeight - TILE_H) / 2))
     el.scrollTop = 0
   }, [])
+
+  // Collapse expansion whenever the centered tile changes (user scrolled manually)
+  useEffect(() => {
+    setExpandedIdx(null)
+  }, [centeredIdx])
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current
@@ -73,12 +79,23 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
     containerRef.current?.scrollTo({ top: idx * SLOT_H, behavior: "smooth" })
   }
 
-  function handleTileClick(idx: number) {
-    if (idx === centeredIdx) {
-      onSelect(games[idx].id)
-    } else {
+  function handleTileClick(e: React.MouseEvent, idx: number) {
+    e.stopPropagation()
+    if (idx !== centeredIdx) {
+      // Off-center: scroll to center, collapse any expanded tile
+      setExpandedIdx(null)
       scrollToIndex(idx)
+    } else if (expandedIdx !== idx) {
+      // Center tile, not expanded: expand it
+      setExpandedIdx(idx)
+    } else {
+      // Center tile, already expanded: open prediction sheet
+      onSelect(games[idx].id)
     }
+  }
+
+  function handleContainerClick() {
+    setExpandedIdx(null)
   }
 
   if (games.length === 0) {
@@ -101,6 +118,7 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
       <div
         ref={containerRef}
         onScroll={handleScroll}
+        onClick={handleContainerClick}
         className="mgr-scroll"
         style={{
           position: "fixed",
@@ -119,6 +137,7 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
 
         {games.map((game, idx) => {
           const isCenter = idx === centeredIdx
+          const isExpanded = idx === expandedIdx
           const pred = predMap[game.id] ?? null
           const result = pred?.result ?? null
           const hasPred = !!pred
@@ -138,18 +157,12 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
           else if (result === "partial") { resultColor = "#f59e0b"; resultLabel = "Partial" }
           else if (result === "failed") { resultColor = "#6b7280"; resultLabel = "Missed" }
 
-          const borderColor = isCenter
-            ? result === "perfect" ? "rgba(52,211,153,0.55)"
-            : result === "partial" ? "rgba(251,191,36,0.55)"
-            : result === "failed" ? "rgba(100,100,100,0.35)"
-            : hasPred ? "rgba(103,232,249,0.45)"
-            : "rgba(196,168,130,0.5)"
-            : "rgba(196,168,130,0.15)"
+          const borderColor = "transparent"
 
           return (
             <div
               key={game.id}
-              onClick={() => handleTileClick(idx)}
+              onClick={(e) => handleTileClick(e, idx)}
               style={{
                 scrollSnapAlign: "center",
                 height: TILE_H,
@@ -162,13 +175,10 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
                 zIndex: isCenter ? 10 : 1,
                 transition: "transform 0.22s ease, opacity 0.22s ease, box-shadow 0.22s ease",
                 transform: isCenter ? "scale(1.03)" : "scale(0.93)",
-                opacity: isCenter ? 1 : 0.5,
+                opacity: 1,
                 borderRadius: 6,
                 border: `1px solid ${borderColor}`,
                 overflow: "hidden",
-                boxShadow: isCenter
-                  ? "0 8px 32px rgba(0,0,0,0.80), 0 0 14px rgba(196,168,130,0.10)"
-                  : "0 4px 12px rgba(0,0,0,0.55)",
               } as React.CSSProperties}
             >
               {/* Letter parchment — fills tile at natural 988×660 ratio, no cropping */}
@@ -201,56 +211,73 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
                     borderRadius: 3,
                     border: "1px solid rgba(196,168,130,0.25)",
                     boxShadow: "0 2px 10px rgba(0,0,0,0.8)",
-                    opacity: isCenter ? 1 : 0,
+                    opacity: isExpanded ? 1 : 0,
                     transition: "opacity 0.28s ease",
                   }}
                 />
               )}
 
-              {/* Collapsed panel — dark inset with title/date/status, hides when centered */}
+              {/* Game title — upper portion of tile */}
               <div
                 style={{
                   position: "absolute",
-                  top: "9%", left: "8%", right: "8%", bottom: "7%",
-                  background: "rgba(6,4,16,0.75)",
-                  backdropFilter: "blur(3px)",
-                  WebkitBackdropFilter: "blur(3px)",
-                  borderRadius: 3,
-                  border: "1px solid rgba(196,168,130,0.10)",
-                  padding: "10px 12px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  gap: 4,
-                  opacity: isCenter ? 0 : 1,
-                  transition: "opacity 0.18s ease",
-                  pointerEvents: "none",
-                } as React.CSSProperties}
-              >
-                <div style={{
+                  top: "calc(18% + 17px)", left: "10%", right: "10%",
                   fontFamily: "Cinzel, serif",
-                  fontSize: 13,
-                  color: "#f5e6c8",
+                  fontSize: 20,
+                  color: "#1c0e05",
                   lineHeight: 1.3,
                   display: "-webkit-box",
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: "vertical" as const,
                   overflow: "hidden",
-                  textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-                }}>
-                  {game.name}
-                </div>
-                {fmtDate(game.release_date) && (
-                  <div style={{ fontFamily: "IM Fell English, serif", fontSize: 11, color: "rgba(245,230,200,0.5)" }}>
-                    {fmtDate(game.release_date)}
-                  </div>
-                )}
-                <div style={{ fontFamily: "Cinzel, serif", fontSize: 10, color: status.color }}>
-                  {status.label}
-                </div>
+                  textShadow: "0 1px 3px rgba(255,210,140,0.6), 0 0 8px rgba(255,200,100,0.25)",
+                  opacity: isExpanded ? 0 : 1,
+                  transition: "opacity 0.18s ease",
+                  pointerEvents: "none",
+                } as React.CSSProperties}
+              >
+                {game.name}
               </div>
 
-              {/* Expanded overlay — gradient + info at bottom, fades in when centered */}
+              {/* Release date — bottom left of tile */}
+              {fmtDate(game.release_date) && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "20%", left: "10%",
+                    fontFamily: "IM Fell English, serif",
+                    fontSize: 18,
+                    color: "#3d2010",
+                    textShadow: "0 1px 2px rgba(255,210,140,0.4)",
+                    opacity: isExpanded ? 0 : 1,
+                    transition: "opacity 0.18s ease",
+                    pointerEvents: "none",
+                  }}
+                >
+                  {fmtDate(game.release_date)}
+                </div>
+              )}
+
+              {/* Stamps — bottom-right corner of letter, hides when expanded */}
+              {(status.label === "Released" || status.label === "Awaiting Scores") && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={status.label === "Released" ? "/released-stamp.png" : "/launch-stamp.png"}
+                  alt={status.label === "Released" ? "Released" : "Launched"}
+                  style={{
+                    position: "absolute",
+                    bottom: "calc(9% - 15px)",
+                    right: "10%",
+                    width: "43.7%",
+                    opacity: isExpanded ? 0 : 0.88,
+                    transition: "opacity 0.18s ease",
+                    pointerEvents: "none",
+                    transform: "rotate(-8deg)",
+                  }}
+                />
+              )}
+
+              {/* Expanded overlay — gradient + info at bottom, fades in when expanded */}
               <div
                 style={{
                   position: "absolute",
@@ -262,7 +289,7 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
                   flexDirection: "column",
                   justifyContent: "flex-end",
                   gap: 3,
-                  opacity: isCenter ? 1 : 0,
+                  opacity: isExpanded ? 1 : 0,
                   transition: "opacity 0.28s ease",
                   pointerEvents: "none",
                 } as React.CSSProperties}
