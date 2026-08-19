@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { PredictionFormClient } from "@/components/prediction-form-client"
-import { X } from "lucide-react"
+import { ScoredResultsUpper, ScoredResultsMiddle, ScoredResultsLower } from "@/components/prediction-form"
+import type { ExistingPrediction } from "@/components/prediction-form"
 
 interface GamePredictionPanelProps {
   gameId: string
@@ -200,58 +201,85 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
     <div
       style={{
         position: "fixed",
-        top: "calc(9vh + 10px)",
-        left: "51%",
+        top: 0,
+        bottom: 0,
+        left: "48%",
         right: "1vw",
-        height: "calc(70vh - 25px)",
-        zIndex: 30,
-        background: "radial-gradient(ellipse at 50% 0%, rgba(24,8,40,0.78) 0%, rgba(14,6,28,0.82) 65%)",
-        border: "1px solid rgba(157,132,212,0.25)",
-        borderRadius: "8px",
-        display: "flex",
-        flexDirection: "column",
+        zIndex: 200,
         overflow: "hidden",
-        boxShadow: "0 24px 80px rgba(0,0,0,0.95), 0 0 40px rgba(80,30,140,0.15)",
+        pointerEvents: "auto",
       }}
     >
-      {/* Title row */}
+      {/* Parchment background — vertically centered, overflows top/bottom */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/prediction-parchment.png"
+        alt=""
+        draggable={false}
+        style={{
+          position: "absolute",
+          left: "50%",
+          width: "80%",
+          top: "50%",
+          transform: "translateX(-50%) translateY(-50%)",
+          height: "auto",
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+      />
+
+      {/* Shared title */}
       <div
         style={{
+          position: "absolute",
+          top: "8%",
+          left: "14%",
+          right: "14%",
+          zIndex: 2,
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: "center",
           padding: "3px 12px",
-          flexShrink: 0,
         }}
       >
         <div
-          className="font-display"
-          style={{ fontSize: "0.875rem", color: "#f5e6c8", textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}
+          style={{ fontFamily: "var(--font-typewriter)", fontSize: "0.875rem", color: "#1c0e05", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.06em", border: "1.5px solid #1c0e05", padding: "4px 16px", WebkitTextStroke: "0.4px #1c0e05" }}
         >
           {loading ? "Loading…" : (game?.name as string | undefined) ?? "Prediction"}
         </div>
+      </div>
+
+      {/* Close button — bottom of parchment */}
+      <div style={{ position: "absolute", bottom: "8%", left: 0, right: 0, zIndex: 2, display: "flex", justifyContent: "center" }}>
         <button
           onClick={handleRequestClose}
           style={{
-            background: "none", border: "none", cursor: "pointer",
-            color: "rgba(245,230,200,0.5)", padding: "4px", borderRadius: "4px",
-            display: "flex", alignItems: "center", transition: "color 0.15s ease",
+            background: "rgba(255,240,210,0.15)",
+            border: "1.5px solid rgba(100,60,20,0.35)",
+            cursor: "pointer",
+            color: "rgba(60,30,10,0.55)",
+            padding: "6px 0",
+            width: "40%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "color 0.15s ease, border-color 0.15s ease, background 0.15s ease",
           }}
-          onMouseEnter={e => (e.currentTarget.style.color = "#f5e6c8")}
-          onMouseLeave={e => (e.currentTarget.style.color = "rgba(245,230,200,0.5)")}
+          onMouseEnter={e => { e.currentTarget.style.color = "rgba(60,30,10,0.9)"; e.currentTarget.style.borderColor = "rgba(100,60,20,0.7)"; e.currentTarget.style.background = "rgba(255,240,210,0.35)" }}
+          onMouseLeave={e => { e.currentTarget.style.color = "rgba(60,30,10,0.55)"; e.currentTarget.style.borderColor = "rgba(100,60,20,0.35)"; e.currentTarget.style.background = "rgba(255,240,210,0.15)" }}
         >
-          <X size={18} />
+          <span style={{ fontFamily: "var(--font-typewriter)", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>Close</span>
         </button>
       </div>
 
-      {/* Unsaved-changes confirmation strip — absolute so it doesn't shift content */}
+      {/* Unsaved-changes confirmation strip */}
       {(showExitConfirm || !!pendingSwitchId) && (
         <div
           style={{
             position: "absolute",
-            top: 28,
-            left: 0,
-            right: 0,
+            top: "calc(14% + 32px)",
+            left: "14%",
+            right: "14%",
             zIndex: 20,
             display: "flex",
             alignItems: "center",
@@ -292,70 +320,113 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         </div>
       )}
 
-        {/* Scrollable content */}
-        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-          {loading && (
-            <div
-              style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(245,230,200,0.35)" }}
-              className="font-display"
-            >
-              <div style={{ fontSize: "0.9rem" }}>Consulting the arcane…</div>
-            </div>
-          )}
+      {/* Scored prediction: split into upper (active effects) and lower (4 boxes) */}
+      {!loading && !error && data && (() => {
+        const pred = data.existingPrediction as ExistingPrediction | null
+        if (pred?.scored_at && pred.result) {
+          return (
+            <>
+              {/* Upper section — active effects, bottom edge at ~48% */}
+              <div style={{ position: "absolute", top: "13%", bottom: "55%", left: "14%", right: "14%", zIndex: 1, overflowY: "auto", overflowX: "hidden" }}>
+                <ScoredResultsUpper
+                  existingPrediction={pred}
+                  equipmentSlug={seasonEntry?.equipment_id ?? null}
+                  equipmentTierScore={seasonEntry?.equipment_tier_score ?? 0}
+                  aoMarked={data.aoMarkedGameIds.includes(gameId)}
+                />
+              </div>
+              {/* Middle section — first prediction + combo bonus stamps */}
+              <div style={{ position: "absolute", top: "59%", left: 0, right: 0, transform: "translateY(-50%)", zIndex: 1 }}>
+                <ScoredResultsMiddle existingPrediction={pred} />
+              </div>
+              {/* Lower section — 4 boxes, top edge at ~62% */}
+              <div style={{ position: "absolute", top: "66%", left: "14%", right: "14%", zIndex: 1 }}>
+                <ScoredResultsLower
+                  existingPrediction={pred}
+                  snapshotPlayerCount={data.weekOneSnapshot?.player_count}
+                  snapshotReviewScore={data.weekOneSnapshot?.review_positive != null && data.weekOneSnapshot?.review_negative != null
+                    ? Math.round((data.weekOneSnapshot.review_positive / (data.weekOneSnapshot.review_positive + data.weekOneSnapshot.review_negative)) * 100)
+                    : null}
+                />
+              </div>
+            </>
+          )
+        }
+        return null
+      })()}
 
-          {!loading && error && (
-            <div
-              style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(239,68,68,0.7)", fontSize: "0.85rem" }}
-              className="font-body"
-            >
-              {error}
-            </div>
-          )}
+      {/* Non-scored: scrollable content layer */}
+      {!(() => {
+        const pred = data?.existingPrediction as ExistingPrediction | null
+        return !loading && !error && data && pred?.scored_at && pred.result
+      })() && (
+        <div style={{ position: "absolute", top: "40%", transform: "translateY(-50%)", left: "14%", right: "14%", maxHeight: "72vh", zIndex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {/* Scrollable content */}
+          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+            {loading && (
+              <div
+                style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(245,230,200,0.35)" }}
+                className="font-display"
+              >
+                <div style={{ fontSize: "0.9rem" }}>Consulting the arcane…</div>
+              </div>
+            )}
 
-          {!loading && !error && data && showForm && (
-            <PredictionFormClient
-              gameId={gameId}
-              gameName={game?.name as string}
-              seasonId={seasonId}
-              seasonStatus={seasonData?.status as string}
-              existingPrediction={data.existingPrediction as Parameters<typeof PredictionFormClient>[0]["existingPrediction"]}
-              isReleased={(game?.is_released as boolean) || (() => {
-                const t = game?.release_time_override
-                  ? new Date(game.release_time_override as string)
-                  : game?.release_date ? new Date(game.release_date as string) : null
-                return t !== null && t <= new Date()
-              })()}
-              releaseDate={(game?.release_date as string | null) ?? null}
-              predictionLockDate={(seasonData?.prediction_lock_date as string | null) ?? null}
-              snapshotPlayerCount={data.weekOneSnapshot?.player_count}
-              snapshotReviewPositive={data.weekOneSnapshot?.review_positive}
-              snapshotReviewNegative={data.weekOneSnapshot?.review_negative}
-              snapshotCapturedAt={data.weekOneSnapshot?.captured_at}
-              equipmentSlug={seasonEntry?.equipment_id ?? null}
-              equipmentTierScore={seasonEntry?.equipment_tier_score ?? 0}
-              ladderGames={data.seasonGames}
-              existingLadder={data.existingLadder}
-              lockedLadderGameIds={data.lockedLadderGameIds}
-              aoMarkCount={data.aoMarkCount}
-              aoMarkedGameIds={data.aoMarkedGameIds}
-              predictedGameIds={data.predictedGameIds}
-              inventory={data.inventory}
-              onSave={handleSave}
-              onDirtyChange={setIsFormDirty}
-            />
-          )}
+            {!loading && error && (
+              <div
+                style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(239,68,68,0.7)", fontSize: "0.85rem" }}
+                className="font-body"
+              >
+                {error}
+              </div>
+            )}
 
-          {!loading && !error && data && !showForm && (
-            <div
-              style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(245,230,200,0.35)", fontSize: "0.85rem" }}
-              className="font-body"
-            >
-              {seasonData?.status !== "active"
-                ? "Predictions are closed for this season."
-                : "Join the season to make predictions."}
-            </div>
-          )}
+            {!loading && !error && data && showForm && (
+              <PredictionFormClient
+                gameId={gameId}
+                gameName={game?.name as string}
+                seasonId={seasonId}
+                seasonStatus={seasonData?.status as string}
+                existingPrediction={data.existingPrediction as Parameters<typeof PredictionFormClient>[0]["existingPrediction"]}
+                isReleased={(game?.is_released as boolean) || (() => {
+                  const t = game?.release_time_override
+                    ? new Date(game.release_time_override as string)
+                    : game?.release_date ? new Date(game.release_date as string) : null
+                  return t !== null && t <= new Date()
+                })()}
+                releaseDate={(game?.release_date as string | null) ?? null}
+                predictionLockDate={(seasonData?.prediction_lock_date as string | null) ?? null}
+                snapshotPlayerCount={data.weekOneSnapshot?.player_count}
+                snapshotReviewPositive={data.weekOneSnapshot?.review_positive}
+                snapshotReviewNegative={data.weekOneSnapshot?.review_negative}
+                snapshotCapturedAt={data.weekOneSnapshot?.captured_at}
+                equipmentSlug={seasonEntry?.equipment_id ?? null}
+                equipmentTierScore={seasonEntry?.equipment_tier_score ?? 0}
+                ladderGames={data.seasonGames}
+                existingLadder={data.existingLadder}
+                lockedLadderGameIds={data.lockedLadderGameIds}
+                aoMarkCount={data.aoMarkCount}
+                aoMarkedGameIds={data.aoMarkedGameIds}
+                predictedGameIds={data.predictedGameIds}
+                inventory={data.inventory}
+                onSave={handleSave}
+                onDirtyChange={setIsFormDirty}
+              />
+            )}
+
+            {!loading && !error && data && !showForm && (
+              <div
+                style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(245,230,200,0.35)", fontSize: "0.85rem" }}
+                className="font-body"
+              >
+                {seasonData?.status !== "active"
+                  ? "Predictions are closed for this season."
+                  : "Join the season to make predictions."}
+              </div>
+            )}
+          </div>
         </div>
+      )}
     </div>
   )
 }

@@ -58,6 +58,7 @@ html {
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
   --font-display: var(--font-display), 'Cinzel', serif;
   --font-body: var(--font-body), 'IM Fell English', serif;
+  --font-typewriter: var(--font-typewriter), 'Special Elite', serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

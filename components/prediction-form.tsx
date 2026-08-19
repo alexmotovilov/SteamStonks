@@ -47,7 +47,7 @@ interface InventoryItem {
   }
 }
 
-interface ExistingPrediction {
+export interface ExistingPrediction {
   id: string
   players_midpoint: number | null
   reviews_midpoint: number | null
@@ -786,7 +786,7 @@ export function PredictionForm({
   }
 
   if (existingPrediction?.scored_at && existingPrediction.result) {
-    return <ScoredPredictionCard result={existingPrediction.result} gameName={gameName} existingPrediction={existingPrediction} snapshotPlayerCount={snapshotPlayerCount} snapshotReviewScore={snapshotReviewScore} aoMarked={aoMarked} />
+    return <ScoredPredictionCard existingPrediction={existingPrediction} snapshotPlayerCount={snapshotPlayerCount} snapshotReviewScore={snapshotReviewScore} aoMarked={aoMarked} equipmentSlug={equipmentSlug} equipmentTierScore={equipmentTierScore} />
   }
 
   const orbs = Array.from({ length: maxSlots }, (_, i) => i < appliedBoosters.length)
@@ -1053,64 +1053,245 @@ export function PredictionForm({
   )
 }
 
-function ScoredPredictionCard({ result, gameName, existingPrediction, snapshotPlayerCount, snapshotReviewScore, aoMarked }: { result: "perfect" | "partial" | "failed"; gameName: string; existingPrediction: ExistingPrediction; snapshotPlayerCount?: number | null; snapshotReviewScore?: number | null; aoMarked?: boolean }) {
-  const totalMana = existingPrediction.final_points ?? 0
-  const isPerfect = result === "perfect", isPartial = result === "partial"
+const STAMP_VW = 1.9
+const sh = (scale = 1) => `${STAMP_VW * scale}vw`
+
+function useJitter() {
+  const j = useRef({ dx: (Math.random() - 0.5) * 10, dy: (Math.random() - 0.5) * 10, rot: (Math.random() - 0.5) * 6 })
+  return j.current
+}
+
+function JitteredImg({ src, height }: { src: string; height: string }) {
+  const j = useJitter()
   return (
-    <Card className={`border ${isPerfect ? "border-emerald-500/40" : isPartial ? "border-yellow-500/40" : "border-border"}`}>
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-full ${isPerfect ? "bg-emerald-500/15" : isPartial ? "bg-yellow-500/15" : "bg-muted"}`}>
-            {isPerfect ? <Trophy className="h-5 w-5 text-emerald-400" /> : isPartial ? <CheckCircle2 className="h-5 w-5 text-yellow-400" /> : <XCircle className="h-5 w-5 text-muted-foreground" />}
-          </div>
-          <div>
-            <CardTitle className="text-foreground text-base">{gameName}</CardTitle>
-            <CardDescription className={isPerfect ? "text-emerald-400" : isPartial ? "text-yellow-400" : "text-muted-foreground"}>
-              {isPerfect ? "Perfect Prognos!" : isPartial ? "Partial Prognos" : "Missed"} · <span className="text-cyan-300 font-bold">+{totalMana} mana</span>
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className={`p-2 rounded-lg border ${existingPrediction.players_correct ? "border-emerald-500/25 bg-emerald-500/5" : "border-border bg-secondary/20"}`}>
-            <div className="text-xs text-muted-foreground mb-1">Peak Players</div>
-            <div className="font-mono font-bold text-foreground">{(snapshotPlayerCount ?? existingPrediction.actual_player_count)?.toLocaleString() ?? "—"}</div>
-            <div className="text-xs text-muted-foreground">Predicted: {existingPrediction.players_window_low?.toLocaleString()}–{existingPrediction.players_window_high?.toLocaleString()}</div>
-          </div>
-          <div className={`p-2 rounded-lg border ${existingPrediction.reviews_correct ? "border-emerald-500/25 bg-emerald-500/5" : "border-border bg-secondary/20"}`}>
-            <div className="text-xs text-muted-foreground mb-1">Review Score</div>
-            <div className="font-mono font-bold text-foreground">{(snapshotReviewScore ?? existingPrediction.actual_review_score)?.toFixed(1) ?? "—"}%</div>
-            <div className="text-xs text-muted-foreground">Predicted: {existingPrediction.reviews_window_low}%–{existingPrediction.reviews_window_high}%</div>
-          </div>
-        </div>
-        <div className="space-y-1 text-xs text-muted-foreground">
-          {(existingPrediction.mana_players ?? 0) > 0 && <div className="flex justify-between"><span>Players correct</span><span className="text-cyan-300">+{existingPrediction.mana_players}</span></div>}
-          {(existingPrediction.mana_reviews ?? 0) > 0 && <div className="flex justify-between"><span>Reviews correct</span><span className="text-cyan-300">+{existingPrediction.mana_reviews}</span></div>}
-          {(existingPrediction.mana_both_bonus ?? 0) > 0 && <div className="flex justify-between"><span>Both correct bonus</span><span className="text-cyan-300">+{existingPrediction.mana_both_bonus}</span></div>}
-          {(existingPrediction.mana_early_lock ?? 0) > 0 && <div className="flex justify-between"><span>Early lock bonus</span><span className="text-amber-400">+{existingPrediction.mana_early_lock}</span></div>}
-          {(existingPrediction.mana_boosters ?? 0) > 0 && <div className="flex justify-between"><span>Booster bonus</span><span className="text-cyan-300">+{existingPrediction.mana_boosters}</span></div>}
-          {(existingPrediction.mana_equipment ?? 0) > 0 && <div className="flex justify-between"><span>Equipment bonus</span><span className="text-cyan-300">+{existingPrediction.mana_equipment}</span></div>}
-          {(existingPrediction.mana_first_prediction ?? 0) > 0 && <div className="flex justify-between"><span>First prediction bonus</span><span className="text-cyan-300">+{existingPrediction.mana_first_prediction}</span></div>}
-          <div className="flex justify-between border-t border-border pt-1 font-medium text-foreground">
-            <div className="flex items-center gap-1"><ManaIcon size={12} /><span>Mana</span></div>
-            <span className="text-cyan-300 font-bold">+{totalMana}</span>
-          </div>
-          <div className="flex justify-between font-medium text-foreground">
-            <div className="flex items-center gap-1"><img src="/icons/season-score-icon.png" alt="" width={12} height={12} className="shrink-0" /><span>Season score</span></div>
-            <span className="text-amber-400 font-bold">+{totalMana} pts</span>
-          </div>
-          {(existingPrediction.drops_awarded ?? 0) > 0 && <div className="flex justify-between text-amber-400 font-medium"><span>Loot drops</span><span>+{existingPrediction.drops_awarded} item{(existingPrediction.drops_awarded ?? 0) !== 1 ? "s" : ""}</span></div>}
-          {aoMarked && (
-            <div className="flex items-center gap-1.5 pt-1 border-t border-border">
-              <div className="w-5 h-5 rounded-full bg-black/80 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_6px_rgba(251,191,36,0.5)]">
-                <span className="text-[10px] text-violet-400 leading-none">★</span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" style={{ height, transform: `translate(${j.dx}px, ${j.dy}px) rotate(${j.rot}deg)` }} />
+  )
+}
+
+function ScoredStampDigits({ value, scale = 1, prefix, suffix }: { value: number; scale?: number; prefix?: "plus"; suffix?: "pct" | "ss" }) {
+  const j = useJitter()
+  const h = sh(scale)
+  const digits = String(Math.round(Math.abs(value))).split("")
+  return (
+    <div style={{ display: "inline-flex", alignItems: "flex-end", transform: `translate(${j.dx}px, ${j.dy}px) rotate(${j.rot}deg)` }}>
+      {prefix === "plus" && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/text/plus-stamp.png" alt="" style={{ height: h, marginRight: "-0.75vw" }} />
+      )}
+      {digits.map((d, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={i} src={`/text/${d}-stamp.png`} alt="" style={{ height: h, marginRight: i < digits.length - 1 ? "-0.7vw" : 0 }} />
+      ))}
+      {suffix === "pct" && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/text/percentage-stamp.png" alt="" style={{ height: h, marginLeft: "-0.25vw" }} />
+      )}
+      {suffix === "ss" && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/text/ss-stamp.png" alt="" style={{ height: h, marginLeft: "-0.05vw" }} />
+      )}
+    </div>
+  )
+}
+
+function buildScoredEffectGroups(
+  existingPrediction: ExistingPrediction,
+  equipmentSlug: string | null,
+  equipmentTierScore: number,
+  aoMarked: boolean,
+): { source: string; effects: EffectLine[] }[] {
+  const groups: { source: string; effects: EffectLine[] }[] = []
+
+  if (equipmentSlug) {
+    const eq = resolveEquipmentEffects(equipmentSlug, equipmentTierScore)
+    const effects: EffectLine[] = []
+    if (eq.players_window_pct > 0)  effects.push({ text: `Players window +${eq.players_window_pct}%`, color: "green" })
+    if (eq.players_window_pct < 0)  effects.push({ text: `Players window −${Math.abs(eq.players_window_pct)}%`, color: "red" })
+    if (eq.reviews_window_flat > 0) effects.push({ text: `Reviews window +${eq.reviews_window_flat}`, color: "green" })
+    if (eq.reviews_window_flat < 0) effects.push({ text: `Reviews window −${Math.abs(eq.reviews_window_flat)}`, color: "red" })
+    if (eq.mana_players_bonus > 0)  effects.push({ text: `+${eq.mana_players_bonus} mana if players correct`, color: "cyan" })
+    if (eq.mana_reviews_bonus > 0)  effects.push({ text: `+${eq.mana_reviews_bonus} mana if reviews correct`, color: "cyan" })
+    if (eq.mana_both_bonus > 0)     effects.push({ text: `+${eq.mana_both_bonus} mana if both correct`, color: "cyan" })
+    if (eq.mana_total_reward > 0)   effects.push({ text: `+${eq.mana_total_reward} mana total reward`, color: "cyan" })
+    if (eq.extra_booster_slots > 0) effects.push({ text: `+${eq.extra_booster_slots} booster slot`, color: "amber" })
+    if (eq.drops_players_bonus > 0) effects.push({ text: `+${eq.drops_players_bonus} drop if players correct`, color: "amber" })
+    if (eq.drops_reviews_bonus > 0) effects.push({ text: `+${eq.drops_reviews_bonus} drop if reviews correct`, color: "amber" })
+    if (eq.drops_total_reward > 0)  effects.push({ text: `+${eq.drops_total_reward} drops total reward`, color: "amber" })
+    if (effects.length > 0) groups.push({ source: EQUIPMENT_NAMES[equipmentSlug] ?? equipmentSlug, effects })
+  }
+
+  for (const slug of existingPrediction.applied_boosters ?? []) {
+    const effects = BOOSTER_EFFECTS[slug]
+    if (effects) groups.push({ source: BOOSTER_NAMES[slug] ?? slug, effects })
+  }
+
+  for (const slug of Object.keys(existingPrediction.applied_rites ?? {})) {
+    if (slug === "ritual_of_augury") continue
+    if (slug === "auspicious_omens") {
+      if (aoMarked) groups.push({ source: "Auspicious Omens", effects: RITE_EFFECTS.auspicious_omens ?? [] })
+      continue
+    }
+    const effects = RITE_EFFECTS[slug]
+    if (effects) groups.push({ source: RITE_NAMES[slug] ?? slug, effects })
+  }
+
+  return groups
+}
+
+export function ScoredResultsUpper({ existingPrediction, equipmentSlug, equipmentTierScore, aoMarked = false }: {
+  existingPrediction: ExistingPrediction
+  equipmentSlug: string | null
+  equipmentTierScore: number
+  aoMarked?: boolean
+}) {
+  const ink = "#1c0e05"
+  const inkMuted = "#1c0e05"
+  const boxBorder = "1.5px solid #1c0e05"
+  const effectGroups = buildScoredEffectGroups(existingPrediction, equipmentSlug, equipmentTierScore, aoMarked)
+  const bonusMana = (existingPrediction.mana_boosters ?? 0) + (existingPrediction.mana_equipment ?? 0)
+  const earlyLock = existingPrediction.mana_early_lock ?? 0
+
+  return (
+    <div style={{ padding: "0 10%", display: "flex", flexDirection: "column", gap: 8, fontFamily: "var(--font-typewriter)" }}>
+      <div style={{ border: boxBorder, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ fontSize: "0.8rem", color: ink, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4, textAlign: "center", textDecoration: "underline" }}>ACTIVE EFFECTS</div>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+        {/* Effect groups list */}
+        <div style={{ flex: "0 1 auto", display: "flex", flexDirection: "column", gap: 7 }}>
+          {effectGroups.length === 0
+            ? <div style={{ fontSize: "0.68rem", color: inkMuted, fontWeight: 600, textTransform: "uppercase" }}>None</div>
+            : effectGroups.map((group, gi) => (
+              <div key={gi} style={{ paddingLeft: 8 }}>
+                <div style={{ fontSize: "0.65rem", color: ink, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>{group.source}</div>
+                {group.effects.map((fx, fi) => (
+                  <div key={fi} style={{ display: "flex", alignItems: "baseline", gap: 5, paddingLeft: 8 }}>
+                    <span style={{ fontSize: "0.68rem", color: inkMuted, fontWeight: 600, lineHeight: 1.45, textTransform: "uppercase" }}>{fx.text}</span>
+                  </div>
+                ))}
               </div>
-              <span className="font-display text-[10px] text-amber-600">Auspicious Omens marked</span>
-            </div>
-          )}
+            ))
+          }
         </div>
-      </CardContent>
-    </Card>
+        {/* Side boxes */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, marginLeft: "auto" }}>
+          {([ ["Bonus Mana", bonusMana], ["Early Lock", earlyLock] ] as [string, number][]).map(([label, val]) => (
+            <div key={label} style={{ padding: "8px 10px", border: boxBorder, display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ fontSize: "0.55rem", color: ink, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, whiteSpace: "nowrap", textDecoration: "underline" }}>{label}</div>
+              <ScoredStampDigits value={val} prefix="plus" />
+            </div>
+          ))}
+        </div>
+      </div>
+      </div>
+    </div>
+  )
+}
+
+export function ScoredResultsMiddle({ existingPrediction }: { existingPrediction: ExistingPrediction }) {
+  const hasFirst = (existingPrediction.mana_first_prediction ?? 0) > 0
+  const hasCombo = (existingPrediction.mana_both_bonus ?? 0) > 0
+  if (!hasFirst && !hasCombo) return null
+
+  const both = hasFirst && hasCombo
+
+  const firstStamp = hasFirst ? (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.4vw" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <JitteredImg src="/text/first-stamp.png" height={sh(1.0)} />
+      <ScoredStampDigits value={50} prefix="plus" />
+    </div>
+  ) : null
+
+  const comboStamp = hasCombo ? (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.4vw" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <JitteredImg src="/text/combo-stamp.png" height={sh(1.0)} />
+      <ScoredStampDigits value={50} prefix="plus" />
+    </div>
+  ) : null
+
+  if (both) {
+    return (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 14%", fontFamily: "var(--font-typewriter)" }}>
+        {firstStamp}
+        {comboStamp}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "0 14%", fontFamily: "var(--font-typewriter)" }}>
+      {firstStamp ?? comboStamp}
+    </div>
+  )
+}
+
+export function ScoredResultsLower({ existingPrediction, snapshotPlayerCount, snapshotReviewScore }: {
+  existingPrediction: ExistingPrediction
+  snapshotPlayerCount?: number | null
+  snapshotReviewScore?: number | null
+}) {
+  const ink = "#1c0e05"
+  const inkMuted = "#1c0e05"
+  const boxBorder = "1.5px solid #1c0e05"
+  const totalMana = existingPrediction.final_points ?? 0
+  const actualPlayers = snapshotPlayerCount ?? existingPrediction.actual_player_count
+  const actualReview = snapshotReviewScore ?? existingPrediction.actual_review_score
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "0 12px", fontFamily: "var(--font-typewriter)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div style={{ padding: "8px 10px", border: boxBorder, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+            <div style={{ fontSize: "0.6rem", color: ink, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "underline" }}>Peak Players</div>
+            <div style={{ fontSize: "0.6rem", color: ink, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "underline" }}>Reward</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+            {actualPlayers != null
+              ? <ScoredStampDigits value={actualPlayers} scale={0.9} />
+              : <span style={{ color: ink, fontWeight: 700 }}>—</span>}
+            <div style={{ marginRight: "-3px" }}><ScoredStampDigits value={existingPrediction.mana_players ?? 0} prefix="plus" /></div>
+          </div>
+          <div style={{ fontSize: "0.63rem", color: inkMuted, fontWeight: 600, marginTop: 5, textTransform: "uppercase", textAlign: "center" }}>
+            Predicted: {existingPrediction.players_window_low?.toLocaleString()}–{existingPrediction.players_window_high?.toLocaleString()}
+          </div>
+        </div>
+        <div style={{ padding: "8px 10px", border: boxBorder, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+            <div style={{ fontSize: "0.6rem", color: ink, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "underline" }}>Review Score</div>
+            <div style={{ fontSize: "0.6rem", color: ink, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "underline" }}>Reward</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+            {actualReview != null
+              ? <ScoredStampDigits value={Math.round(actualReview)} scale={0.9} suffix="pct" />
+              : <span style={{ color: ink, fontWeight: 700 }}>—</span>}
+            <div style={{ marginRight: "-3px" }}><ScoredStampDigits value={existingPrediction.mana_reviews ?? 0} prefix="plus" /></div>
+          </div>
+          <div style={{ fontSize: "0.63rem", color: inkMuted, fontWeight: 600, marginTop: 5, textTransform: "uppercase", textAlign: "center" }}>
+            Predicted: {existingPrediction.reviews_window_low}%–{existingPrediction.reviews_window_high}%
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div style={{ padding: "8px 10px", border: boxBorder, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ fontSize: "0.6rem", color: ink, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, textDecoration: "underline" }}>Mana Total Reward</div>
+          <ScoredStampDigits value={totalMana} prefix="plus" />
+        </div>
+        <div style={{ padding: "8px 10px", border: boxBorder, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ fontSize: "0.6rem", color: ink, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, textDecoration: "underline" }}>Season Score</div>
+          <ScoredStampDigits value={totalMana} prefix="plus" suffix="ss" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ScoredPredictionCard({ existingPrediction, snapshotPlayerCount, snapshotReviewScore, aoMarked, equipmentSlug, equipmentTierScore }: { existingPrediction: ExistingPrediction; snapshotPlayerCount?: number | null; snapshotReviewScore?: number | null; aoMarked?: boolean; equipmentSlug: string | null; equipmentTierScore: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "4px 0" }}>
+      <ScoredResultsUpper existingPrediction={existingPrediction} equipmentSlug={equipmentSlug} equipmentTierScore={equipmentTierScore} aoMarked={aoMarked} />
+      <ScoredResultsLower existingPrediction={existingPrediction} snapshotPlayerCount={snapshotPlayerCount} snapshotReviewScore={snapshotReviewScore} />
+    </div>
   )
 }
