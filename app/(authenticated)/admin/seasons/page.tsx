@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
-import { Calendar, Plus, Users, Gamepad2, Trophy } from "lucide-react"
+import { Calendar, Plus, Users, Trophy } from "lucide-react"
 
 const statusColors: Record<string, string> = {
   upcoming: "bg-blue-500/20 text-blue-400 border-blue-500/50",
@@ -99,17 +99,6 @@ export default async function AdminSeasonsPage() {
                     <div className="text-sm">
                       <span className="text-muted-foreground">Entry Fee (tokens): </span>
                       <span className="text-foreground">{season.entry_fee_tokens} tokens</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Gamepad2 className="h-4 w-4 text-muted-foreground" />
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Lock Date: </span>
-                      <span className="text-foreground">
-                        {season.prediction_lock_date 
-                          ? new Date(season.prediction_lock_date).toLocaleDateString()
-                          : "Not set"}
-                      </span>
                     </div>
                   </div>
                 </div>

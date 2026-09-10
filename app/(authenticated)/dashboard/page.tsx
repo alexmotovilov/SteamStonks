@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -211,16 +212,33 @@ export default async function DashboardPage() {
 
   const aoGameIds = new Set((aoMarkedPreds ?? []).map(p => p.game_id))
 
+  async function signOut() {
+    "use server"
+    const supabase = await createClient()
+    await supabase.auth.signOut()
+    redirect("/")
+  }
+
   return (
     <div className="container mx-auto space-y-8">
       {/* Welcome Section */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-foreground">
-          Welcome back to the circle, {profile?.display_name || "Player"}
-        </h1>
-        <p className="text-muted-foreground">
-          {"We await your omens."}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold text-foreground">
+            Welcome back to the circle, {profile?.display_name || "Player"}
+          </h1>
+          <p className="text-muted-foreground">
+            {"We await your omens."}
+          </p>
+        </div>
+        <form action={signOut}>
+          <button
+            type="submit"
+            className="shrink-0 font-display text-xs tracking-wide text-muted-foreground border border-border hover:border-border/60 hover:text-foreground transition-colors px-3 py-1.5 rounded-lg"
+          >
+            Sign Out
+          </button>
+        </form>
       </div>
 
       {/* Season Banner */}

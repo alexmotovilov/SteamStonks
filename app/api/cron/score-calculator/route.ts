@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     const { data: games } = await supabase
       .from("games")
       .select(`
-        id, name, release_date, is_released,
+        id, name, release_date, release_time_override, is_released,
         peak_24h_player_count, peak_player_count,
         review_score_positive, review_score_negative,
         seasons!inner(status, name)
@@ -49,7 +49,10 @@ export async function GET(request: Request) {
     for (const game of games || []) {
       if (!game.release_date) continue
 
-      const releaseDate = new Date(game.release_date)
+      const effectiveReleaseDate = game.release_time_override
+        ? new Date(game.release_time_override)
+        : new Date(game.release_date)
+      const releaseDate = effectiveReleaseDate
       const daysSinceRelease = Math.floor(
         (Date.now() - releaseDate.getTime()) / (1000 * 60 * 60 * 24)
       )
@@ -108,10 +111,10 @@ export async function GET(request: Request) {
 
       for (const pred of predictions || []) {
         try {
-          // Get player's season entry for equipment and tier score
+          // Get player's season entry for equipment, tier score, and f2p status
           const { data: entry } = await supabase
             .from("season_entries")
-            .select("equipment_id, equipment_tier_score, first_prediction_bonus_claimed")
+            .select("equipment_id, equipment_tier_score, is_free_entry, vested_at")
             .eq("user_id", pred.user_id)
             .eq("season_id", pred.season_id)
             .single()
@@ -120,9 +123,6 @@ export async function GET(request: Request) {
           const equipment = resolveEquipmentEffects(entry?.equipment_id ?? null, entry?.equipment_tier_score ?? 0)
           const rites     = resolveRiteEffects(pred.applied_rites ?? {})
 
-          // Check if this is the player's first prediction this season
-          const isFirst = !entry?.first_prediction_bonus_claimed
-
           const scoreResult = scoreWeekOnePrediction(
             pred as WeekOnePrediction,
             actual,
@@ -130,8 +130,12 @@ export async function GET(request: Request) {
             equipment,
             rites,
             releaseDate,
-            isFirst
           )
+
+          // Free/unvested players don't earn season score unless they vested before the game released
+          const isEligibleForSeasonScore =
+            !entry?.is_free_entry ||
+            (entry.vested_at != null && new Date(entry.vested_at) < effectiveReleaseDate)
 
           // Update prediction with scoring results
           await supabase
@@ -164,15 +168,17 @@ export async function GET(request: Request) {
             await awardDrops(pred.user_id, pred.id, pred.season_id, scoreResult.drops_awarded)
           }
 
-          // Update season entry atomically via RPC
-          const isCorrect = scoreResult.result !== 'failed'
-          await supabase.rpc("increment_season_mana", {
-            p_user_id:        pred.user_id,
-            p_season_id:      pred.season_id,
-            p_mana:           scoreResult.final_mana,
-            p_tier_increment: isCorrect ? 1 : 0,
-            p_claim_first:    isFirst,
-          })
+          // Credit season score and equipment tier only for eligible players
+          if (isEligibleForSeasonScore) {
+            const isCorrect = scoreResult.result !== 'failed'
+            await supabase.rpc("increment_season_mana", {
+              p_user_id:        pred.user_id,
+              p_season_id:      pred.season_id,
+              p_mana:           scoreResult.final_mana,
+              p_tier_increment: isCorrect ? 1 : 0,
+              p_claim_first:    false,
+            })
+          }
 
           // Send scoring result to player's mailbox
           const seasonName = (game.seasons as any)?.name ?? ""
@@ -325,8 +331,6 @@ async function generateScoringMessage(
       breakdown.push({ label: "Booster bonus", amount: scoreResult.mana_boosters, color: "cyan" })
     if ((scoreResult.mana_equipment ?? 0) > 0)
       breakdown.push({ label: "Equipment bonus", amount: scoreResult.mana_equipment, color: "cyan" })
-    if ((scoreResult.mana_first_prediction ?? 0) > 0)
-      breakdown.push({ label: "First prediction bonus", amount: scoreResult.mana_first_prediction, color: "cyan" })
 
     const totalMana = scoreResult.final_mana ?? 0
     const resultLabel = scoreResult.result === "perfect" ? "Perfect Prognos"

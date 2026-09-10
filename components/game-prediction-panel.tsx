@@ -21,7 +21,7 @@ type PanelData = {
   seasonData: Record<string, unknown>
   existingPrediction: Record<string, unknown> | null
   weekOneSnapshot: { player_count: number | null; review_positive: number | null; review_negative: number | null; captured_at: string | null } | null
-  seasonEntry: { equipment_id: string | null; equipment_tier_score: number } | null
+  seasonEntry: { equipment_id: string | null; equipment_tier_score: number; is_free_entry: boolean | null; vested_at: string | null } | null
   inventory: { item_id: string; quantity: number; items: { slug: string; name: string; image_url: string | null; effects: Record<string, number>; description: string } }[]
   seasonGames: { id: string; name: string; header_image_url: string | null; header_image_position: string | null; is_released: boolean; release_date: string | null }[]
   aoMarkCount: number
@@ -37,6 +37,14 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
   const [error, setError] = useState<string | null>(null)
   const [isFormDirty, setIsFormDirty] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
 
   useEffect(() => { onDirtyChange?.(isFormDirty) }, [isFormDirty, onDirtyChange])
   useEffect(() => { if (!isFormDirty) setShowExitConfirm(false) }, [isFormDirty])
@@ -83,7 +91,7 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
           : Promise.resolve({ data: null }),
         supabase.from("game_snapshots").select("player_count, review_positive, review_negative, captured_at").eq("game_id", gameId).eq("snapshot_type", "week_after_release").order("captured_at", { ascending: false }).limit(1).single(),
         user
-          ? supabase.from("season_entries").select("equipment_id, equipment_tier_score").eq("user_id", user.id).eq("season_id", seasonId).single()
+          ? supabase.from("season_entries").select("equipment_id, equipment_tier_score, is_free_entry, vested_at").eq("user_id", user.id).eq("season_id", seasonId).single()
           : Promise.resolve({ data: null }),
         supabase.from("items").select("id, slug, name, image_url, effects, description").eq("item_type", "booster"),
         user
@@ -194,6 +202,8 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
   const seasonData = data?.seasonData
   const seasonEntry = data?.seasonEntry
   const hasJoinedSeason = !!seasonEntry
+  const isUnvested = !!(seasonEntry?.is_free_entry && !seasonEntry?.vested_at)
+  const inset = isMobile ? "10%" : "14%"
   const canPredict = hasJoinedSeason && seasonData?.status === "active"
   const showForm = canPredict || !!data?.existingPrediction
 
@@ -203,8 +213,8 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         position: "fixed",
         top: 0,
         bottom: 0,
-        left: "48%",
-        right: "1vw",
+        left: isMobile ? 0 : "48%",
+        right: isMobile ? 0 : "1vw",
         zIndex: 200,
         overflow: "hidden",
         pointerEvents: "auto",
@@ -219,7 +229,7 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         style={{
           position: "absolute",
           left: "50%",
-          width: "80%",
+          width: isMobile ? "95%" : "80%",
           top: "50%",
           transform: "translateX(-50%) translateY(-50%)",
           height: "auto",
@@ -232,9 +242,9 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
       <div
         style={{
           position: "absolute",
-          top: "8%",
-          left: "14%",
-          right: "14%",
+          top: isMobile ? "5%" : "8%",
+          left: inset,
+          right: inset,
           zIndex: 2,
           display: "flex",
           alignItems: "center",
@@ -243,7 +253,7 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         }}
       >
         <div
-          style={{ fontFamily: "var(--font-typewriter)", fontSize: "0.875rem", color: "#1c0e05", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.06em", border: "1.5px solid #1c0e05", padding: "4px 16px", WebkitTextStroke: "0.4px #1c0e05" }}
+          style={{ fontFamily: "var(--font-typewriter)", fontSize: "0.875rem", color: "#1c0e05", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.06em", WebkitTextStroke: "0.4px #1c0e05" }}
         >
           {loading ? "Loading…" : (game?.name as string | undefined) ?? "Prediction"}
         </div>
@@ -278,8 +288,8 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
           style={{
             position: "absolute",
             top: "calc(14% + 32px)",
-            left: "14%",
-            right: "14%",
+            left: inset,
+            right: inset,
             zIndex: 20,
             display: "flex",
             alignItems: "center",
@@ -327,26 +337,30 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
           return (
             <>
               {/* Upper section — active effects, bottom edge at ~48% */}
-              <div style={{ position: "absolute", top: "13%", bottom: "55%", left: "14%", right: "14%", zIndex: 1, overflowY: "auto", overflowX: "hidden" }}>
+              <div style={{ position: "absolute", top: isMobile ? "10%" : "13%", bottom: isMobile ? "48%" : "55%", left: inset, right: inset, zIndex: 1, overflowY: "auto", overflowX: "hidden" }}>
                 <ScoredResultsUpper
                   existingPrediction={pred}
                   equipmentSlug={seasonEntry?.equipment_id ?? null}
                   equipmentTierScore={seasonEntry?.equipment_tier_score ?? 0}
                   aoMarked={data.aoMarkedGameIds.includes(gameId)}
+                  stampScale={isMobile ? 2.5 : 1}
+                  stampBaseDelay={0}
                 />
               </div>
               {/* Middle section — first prediction + combo bonus stamps */}
               <div style={{ position: "absolute", top: "59%", left: 0, right: 0, transform: "translateY(-50%)", zIndex: 1 }}>
-                <ScoredResultsMiddle existingPrediction={pred} />
+                <ScoredResultsMiddle existingPrediction={pred} stampScale={isMobile ? 2.5 : 1} stampBaseDelay={2 * 130} />
               </div>
               {/* Lower section — 4 boxes, top edge at ~62% */}
-              <div style={{ position: "absolute", top: "66%", left: "14%", right: "14%", zIndex: 1 }}>
+              <div style={{ position: "absolute", top: "66%", left: inset, right: inset, zIndex: 1 }}>
                 <ScoredResultsLower
                   existingPrediction={pred}
                   snapshotPlayerCount={data.weekOneSnapshot?.player_count}
                   snapshotReviewScore={data.weekOneSnapshot?.review_positive != null && data.weekOneSnapshot?.review_negative != null
                     ? Math.round((data.weekOneSnapshot.review_positive / (data.weekOneSnapshot.review_positive + data.weekOneSnapshot.review_negative)) * 100)
                     : null}
+                  stampScale={isMobile ? 2.5 : 1}
+                  stampBaseDelay={4 * 130}
                 />
               </div>
             </>
@@ -360,7 +374,7 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         const pred = data?.existingPrediction as ExistingPrediction | null
         return !loading && !error && data && pred?.scored_at && pred.result
       })() && (
-        <div style={{ position: "absolute", top: "40%", transform: "translateY(-50%)", left: "14%", right: "14%", maxHeight: "72vh", zIndex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "40%", transform: "translateY(-50%)", left: inset, right: inset, maxHeight: "72vh", zIndex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {/* Scrollable content */}
           <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
             {loading && (
@@ -395,7 +409,6 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
                   return t !== null && t <= new Date()
                 })()}
                 releaseDate={(game?.release_date as string | null) ?? null}
-                predictionLockDate={(seasonData?.prediction_lock_date as string | null) ?? null}
                 snapshotPlayerCount={data.weekOneSnapshot?.player_count}
                 snapshotReviewPositive={data.weekOneSnapshot?.review_positive}
                 snapshotReviewNegative={data.weekOneSnapshot?.review_negative}
@@ -409,6 +422,7 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
                 aoMarkedGameIds={data.aoMarkedGameIds}
                 predictedGameIds={data.predictedGameIds}
                 inventory={data.inventory}
+                isUnvested={isUnvested}
                 onSave={handleSave}
                 onDirtyChange={setIsFormDirty}
               />

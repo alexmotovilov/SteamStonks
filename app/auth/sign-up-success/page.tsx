@@ -1,40 +1,42 @@
 import Link from "next/link"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { AlertTriangle } from "lucide-react"
 
-export default function AuthErrorPage() {
+export default function SignUpSuccessPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md border-border bg-card text-center">
-        <CardHeader className="space-y-4">
-          <div className="flex justify-center mb-2">
-            <img src="/icons/game-name-logo.png" alt="Prognos" style={{ height: "80px", width: "auto", filter: "drop-shadow(0 0 8px rgba(157,132,212,0.5))" }} />
-          </div>
-          <div className="flex justify-center">
-            <div className="rounded-full bg-destructive/10 p-4">
-              <AlertTriangle className="h-8 w-8 text-destructive" />
-            </div>
-          </div>
-          <CardTitle className="text-xl text-foreground">Authentication Error</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Something went wrong during authentication. This could be due to an expired link or invalid credentials.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Please try again or contact support if the problem persists.
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
+
+      {/* Gargoyle with success text overlaid on slate */}
+      <div className="relative w-full max-w-[360px] select-none">
+        <img
+          src="/gargoyle.png"
+          alt=""
+          className="w-full pointer-events-none"
+          draggable={false}
+        />
+
+        {/* Text positioned over the stone slate */}
+        <div
+          className="absolute flex flex-col items-center justify-center gap-2 text-center px-1"
+          style={{ top: "30%", left: "19%", width: "62%", bottom: "17%" }}
+        >
+          <p className="font-display text-[13px] tracking-wide text-stone-200 leading-tight" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)" }}>
+            Check Your Email
           </p>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-2">
-          <Button asChild className="w-full">
-            <Link href="/auth/login">Try Again</Link>
-          </Button>
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/">Back to Home</Link>
-          </Button>
-        </CardFooter>
-      </Card>
+          <p className="font-body text-[11px] text-stone-400 leading-snug" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7)" }}>
+            A confirmation link has been sent. Click it to complete your registration and enter the circle.
+          </p>
+        </div>
+      </div>
+
+      {/* Button below the gargoyle */}
+      <div className="flex flex-col gap-2 w-full max-w-[224px] -mt-1">
+        <Link
+          href="/auth/login"
+          className="w-full text-center bg-stone-900/70 hover:bg-stone-800/80 border border-stone-500/50 rounded font-display text-[11px] tracking-wide text-stone-200 py-1.5 transition-colors"
+        >
+          Back to Sign In
+        </Link>
+      </div>
+
     </div>
   )
 }

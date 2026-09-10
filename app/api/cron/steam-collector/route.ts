@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getPlayerCount, getReviewSummary, calculateReviewPercentage } from "@/lib/steam"
-import { get24hPeakFromSnapshots, takeSeasonEndSnapshots } from "@/lib/season-snapshot"
+import { get24hPeakFromSnapshots } from "@/lib/season-snapshot"
 
 // Use service role for cron jobs (bypasses RLS)
 const supabase = createClient(
@@ -18,7 +18,10 @@ export const maxDuration = 60
  *
  * Also handles:
  * - Deriving true 24h peak from hourly snapshots
- * - Auto-triggering season_end snapshots when a season's end_date passes
+ *
+ * Season-end snapshots and the active→scoring transition are triggered
+ * manually by an admin (see SeasonStatusActions "End Season") — this cron
+ * no longer acts on season end_date.
  *
  * Configure in vercel.json:
  * {
@@ -40,7 +43,6 @@ export async function GET(request: Request) {
       processed: 0,
       errors: 0,
       snapshots: [] as Array<{ game: string; players: number | null; peak24h: number | null; reviews: number | null }>,
-      seasonsSnapshotted: [] as string[],
     }
 
     // ─── 1. Collect hourly snapshots for all games ───────────────────────
@@ -161,37 +163,8 @@ export async function GET(request: Request) {
       }
     }
 
-    // ─── 2. Auto-trigger season_end snapshots for expired seasons ────────
-    //
-    // Find seasons whose end_date has passed but are still "active".
-    // We only do this once — takeSeasonEndSnapshots flips them to "scoring"
-    // on success, so they won't be picked up on subsequent cron runs.
-
-    const { data: expiredSeasons } = await supabase
-      .from("seasons")
-      .select("id, name")
-      .eq("status", "active")
-      .lte("end_date", new Date().toISOString())
-
-    for (const season of expiredSeasons || []) {
-      try {
-        console.log(`[Steam Collector] Season "${season.name}" has ended — taking season_end snapshots`)
-        const snapshotResult = await takeSeasonEndSnapshots(supabase, season.id)
-
-        if (snapshotResult.gamesSnapshotted > 0 || snapshotResult.alreadySnapshotted.length > 0) {
-          results.seasonsSnapshotted.push(season.name)
-        }
-
-        console.log(`[Steam Collector] Season "${season.name}" snapshot result:`, snapshotResult)
-      } catch (err) {
-        console.error(`[Steam Collector] Error snapshotting season "${season.name}":`, err)
-        results.errors++
-      }
-    }
-
     console.log(
       `[Steam Collector] Completed: ${results.processed} games processed, ` +
-      `${results.seasonsSnapshotted.length} seasons snapshotted, ` +
       `${results.errors} errors`
     )
 

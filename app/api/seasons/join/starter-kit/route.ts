@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   const { season_id } = await request.json()
 
-  // Verify the player has actually joined this season
+  // Verify the player has joined this season
   const { data: entry } = await supabase
     .from("season_entries")
     .select("id, starter_kit_claimed")
@@ -43,27 +43,45 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Starter kit items not found" }, { status: 500 })
   }
 
-  // Award one of each starter kit item
-  for (const item of items) {
-    await supabaseAdmin.rpc("increment_inventory", {
-      p_user_id: user.id,
-      p_item_id: item.id,
-    })
-
-    await supabaseAdmin.from("drop_history").insert({
-      user_id:   user.id,
+  // Insert starter-kit mail message (idempotent via unique partial index on migration 020)
+  const { data: mailMsg, error: mailError } = await supabaseAdmin
+    .from("mail_messages")
+    .insert({
+      message_type: "starter_kit",
+      subject: "Starter Kit",
+      body: "Your starter items are ready to claim. Three boosters to get your first predictions off to a strong start.",
+      target_user_id: user.id,
+      target: "user",
+      is_published: true,
       season_id,
-      item_id:   item.id,
-      source:    "starter_kit",
+    })
+    .select("id")
+    .single()
+
+  if (mailError) {
+    // '23505' = unique constraint violation (mail already dispatched by a concurrent request)
+    if (mailError.code === "23505") {
+      return NextResponse.json({ message: "Already dispatched" })
+    }
+    console.error("[starter-kit] Failed to create mail:", mailError)
+    return NextResponse.json({ error: "Failed to create starter kit mail" }, { status: 500 })
+  }
+
+  // Insert one attachment per starter kit item
+  for (const item of items) {
+    await supabaseAdmin.from("mail_attachments").insert({
+      message_id: mailMsg.id,
+      item_id: item.id,
+      quantity: 1,
     })
   }
 
-  // Mark starter kit as claimed
+  // Mark starter kit as claimed (mail dispatched marker)
   await supabaseAdmin
     .from("season_entries")
     .update({ starter_kit_claimed: true })
     .eq("user_id", user.id)
     .eq("season_id", season_id)
 
-  return NextResponse.json({ success: true, items_awarded: items.length })
+  return NextResponse.json({ success: true })
 }

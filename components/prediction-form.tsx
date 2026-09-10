@@ -96,7 +96,6 @@ interface PredictionFormProps {
   existingPrediction: ExistingPrediction | null
   isReleased: boolean
   releaseDate: string | null
-  predictionLockDate: string | null
   snapshotPlayerCount?: number | null
   snapshotReviewPositive?: number | null
   snapshotReviewNegative?: number | null
@@ -111,6 +110,7 @@ interface PredictionFormProps {
   aoMarkedGameIds?: string[]  // game IDs where this player has applied AO this season
   predictedGameIds?: string[]  // game IDs where this player has made a prediction this season
   firstPredictionBonusEligible?: boolean
+  isUnvested?: boolean
   onSave?: () => void
   onDirtyChange?: (dirty: boolean) => void
 }
@@ -509,9 +509,7 @@ function LadderTile({ game, rank, isLocked, isExcluded, isOverflow, isCurrentGam
         {isOverflow && <div className="absolute inset-0 bg-red-950/60" />}
         {!isExcluded && <div className={`absolute top-1 left-1.5 font-display text-[9px] px-1.5 py-0.5 rounded bg-black/70 ${isCurrentGame ? "text-emerald-400" : isOverflow ? "text-red-400" : "text-muted-foreground"}`}>{isOverflow ? "—" : rank}</div>}
         {isAoMarked && (
-          <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_6px_rgba(251,191,36,0.5)]">
-            <span className="text-[10px] text-violet-400 leading-none">★</span>
-          </div>
+          <img src="/icons/AO-flag.png" alt="AO" className="absolute top-1 right-1 pointer-events-none" style={{ width: 64, height: 35 }} />
         )}
         {isLocked && !isExcluded && <div className="absolute bottom-1 right-1.5"><Lock className="h-2.5 w-2.5 text-muted-foreground/50" /></div>}
       </div>
@@ -550,6 +548,7 @@ export function PredictionForm({
   aoMarkedGameIds = [],
   predictedGameIds = [],
   firstPredictionBonusEligible = false,
+  isUnvested = false,
   onSave,
   onDirtyChange,
 }: PredictionFormProps) {
@@ -759,7 +758,7 @@ export function PredictionForm({
         const data = await res.json(); if (!res.ok) throw new Error(data.error || "Failed to apply boosters")
       }
       const rankedGames = ladder.slice(0, 8).filter((id): id is string => id !== null)
-      if (rankedGames.length > 0) await supabase.from("ladder_rankings").upsert({ user_id: user.id, season_id: seasonId, ranked_games: rankedGames, updated_at: new Date().toISOString() }, { onConflict: "user_id,season_id" })
+      if (rankedGames.length > 0 && !isUnvested) await supabase.from("ladder_rankings").upsert({ user_id: user.id, season_id: seasonId, ranked_games: rankedGames, updated_at: new Date().toISOString() }, { onConflict: "user_id,season_id" })
       router.refresh(); onSave?.()
     } catch (err) { setError(err instanceof Error ? err.message : "Failed to save") }
     finally { setSaving(false) }
@@ -840,6 +839,7 @@ export function PredictionForm({
                   isPerformed={rite.slug === "ritual_of_augury" ? auguryActive : performedRites.has(rite.slug)}
                   disabled={
                     isFullyLocked ||
+                    (rite.slug === "auspicious_omens" && isUnvested) ||
                     (rite.slug === "temporal_translocation" && !isEarlyLocked) ||
                     (rite.slug === "ritual_of_augury" && (auguryRunning || auguryActive))
                   }
@@ -1025,25 +1025,32 @@ export function PredictionForm({
                 <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase">Ladder</span>
                 <GuideLink section="ladder-scoring" label="How ladder scoring works" />
               </div>
-              <div className="flex flex-col gap-1.5">
-                {ladder.slice(0, 9).map((gId, index) => {
-                  const isOverflow = index === 8
-                  if (gId === null) {
+              {isUnvested ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-6 rounded-xl border border-dashed border-white/10 bg-black/20 text-center flex-1">
+                  <Lock className="h-5 w-5 text-muted-foreground/20" />
+                  <span className="font-display text-[8px] text-muted-foreground/35 tracking-widest leading-tight px-2">Vest to unlock Season Ladder</span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {ladder.slice(0, 9).map((gId, index) => {
+                    const isOverflow = index === 8
+                    if (gId === null) {
+                      return (
+                        <EmptyLadderSlot key={`empty-${index}`} rank={index + 1} isOverflow={isOverflow} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
+                      )
+                    }
+                    const game = ladderGames.find(g => g.id === gId)
+                    if (!game) return null
+                    const gameReleased = game.is_released || (!!game.release_date && new Date(game.release_date) <= new Date())
+                    const isLockedPos = lockedLadderGameIds.includes(gId) || gameReleased
+                    const isExcluded = gameReleased && !predictedSet.has(gId)
+                    const isCurrentGame = gId === gameId
                     return (
-                      <EmptyLadderSlot key={`empty-${index}`} rank={index + 1} isOverflow={isOverflow} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
+                      <LadderTile key={gId} game={game} rank={index + 1} isLocked={isLockedPos} isExcluded={isExcluded} isOverflow={isOverflow} isCurrentGame={isCurrentGame} isAoMarked={(isCurrentGame && aoMarked) || new Set(aoMarkedGameIds).has(gId)} totalGames={isFullyLocked ? ladder.filter(id => id !== null).length : 9} onDragStart={() => handleDragStart(index)} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
                     )
-                  }
-                  const game = ladderGames.find(g => g.id === gId)
-                  if (!game) return null
-                  const gameReleased = game.is_released || (!!game.release_date && new Date(game.release_date) <= new Date())
-                  const isLockedPos = lockedLadderGameIds.includes(gId) || gameReleased
-                  const isExcluded = gameReleased && !predictedSet.has(gId)
-                  const isCurrentGame = gId === gameId
-                  return (
-                    <LadderTile key={gId} game={game} rank={index + 1} isLocked={isLockedPos} isExcluded={isExcluded} isOverflow={isOverflow} isCurrentGame={isCurrentGame} isAoMarked={(isCurrentGame && aoMarked) || new Set(aoMarkedGameIds).has(gId)} totalGames={isFullyLocked ? ladder.filter(id => id !== null).length : 9} onDragStart={() => handleDragStart(index)} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
-                  )
-                })}
-              </div>
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1055,42 +1062,49 @@ export function PredictionForm({
 
 const STAMP_VW = 1.9
 const sh = (scale = 1) => `${STAMP_VW * scale}vw`
+const STAMP_INTERVAL = 130 // ms between successive stamp animations
 
 function useJitter() {
   const j = useRef({ dx: (Math.random() - 0.5) * 10, dy: (Math.random() - 0.5) * 10, rot: (Math.random() - 0.5) * 6 })
   return j.current
 }
 
-function JitteredImg({ src, height }: { src: string; height: string }) {
+const STAMP_SHADOW = "drop-shadow(0px 1px 1px rgba(0,0,0,0.12))"
+
+function JitteredImg({ src, height, stampDelay = 0 }: { src: string; height: string; stampDelay?: number }) {
   const j = useJitter()
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" style={{ height, transform: `translate(${j.dx}px, ${j.dy}px) rotate(${j.rot}deg)` }} />
+    <div style={{ display: "inline-block", animation: `stamp-in 0.28s ease-out ${stampDelay}ms both` }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" style={{ height, display: "block", transform: `translate(${j.dx}px, ${j.dy}px) rotate(${j.rot}deg)`, filter: STAMP_SHADOW }} />
+    </div>
   )
 }
 
-function ScoredStampDigits({ value, scale = 1, prefix, suffix }: { value: number; scale?: number; prefix?: "plus"; suffix?: "pct" | "ss" }) {
+function ScoredStampDigits({ value, scale = 1, prefix, suffix, stampDelay = 0 }: { value: number; scale?: number; prefix?: "plus"; suffix?: "pct" | "ss"; stampDelay?: number }) {
   const j = useJitter()
   const h = sh(scale)
   const digits = String(Math.round(Math.abs(value))).split("")
   return (
-    <div style={{ display: "inline-flex", alignItems: "flex-end", transform: `translate(${j.dx}px, ${j.dy}px) rotate(${j.rot}deg)` }}>
-      {prefix === "plus" && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/text/plus-stamp.png" alt="" style={{ height: h, marginRight: "-0.75vw" }} />
-      )}
-      {digits.map((d, i) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={i} src={`/text/${d}-stamp.png`} alt="" style={{ height: h, marginRight: i < digits.length - 1 ? "-0.7vw" : 0 }} />
-      ))}
-      {suffix === "pct" && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/text/percentage-stamp.png" alt="" style={{ height: h, marginLeft: "-0.25vw" }} />
-      )}
-      {suffix === "ss" && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/text/ss-stamp.png" alt="" style={{ height: h, marginLeft: "-0.05vw" }} />
-      )}
+    <div style={{ display: "inline-flex", animation: `stamp-in 0.28s ease-out ${stampDelay}ms both` }}>
+      <div style={{ display: "inline-flex", alignItems: "flex-end", transform: `translate(${j.dx}px, ${j.dy}px) rotate(${j.rot}deg)`, filter: STAMP_SHADOW }}>
+        {prefix === "plus" && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src="/text/plus-stamp.png" alt="" style={{ height: h, marginRight: "-0.75vw" }} />
+        )}
+        {digits.map((d, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={i} src={`/text/${d}-stamp.png`} alt="" style={{ height: h, marginRight: i < digits.length - 1 ? "-0.7vw" : 0 }} />
+        ))}
+        {suffix === "pct" && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src="/text/percentage-stamp.png" alt="" style={{ height: h, marginLeft: "-0.25vw" }} />
+        )}
+        {suffix === "ss" && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src="/text/ss-stamp.png" alt="" style={{ height: h, marginLeft: "-0.05vw" }} />
+        )}
+      </div>
     </div>
   )
 }
@@ -1139,11 +1153,13 @@ function buildScoredEffectGroups(
   return groups
 }
 
-export function ScoredResultsUpper({ existingPrediction, equipmentSlug, equipmentTierScore, aoMarked = false }: {
+export function ScoredResultsUpper({ existingPrediction, equipmentSlug, equipmentTierScore, aoMarked = false, stampScale = 1, stampBaseDelay = 0 }: {
   existingPrediction: ExistingPrediction
   equipmentSlug: string | null
   equipmentTierScore: number
   aoMarked?: boolean
+  stampScale?: number
+  stampBaseDelay?: number
 }) {
   const ink = "#1c0e05"
   const inkMuted = "#1c0e05"
@@ -1154,6 +1170,14 @@ export function ScoredResultsUpper({ existingPrediction, equipmentSlug, equipmen
 
   return (
     <div style={{ padding: "0 10%", display: "flex", flexDirection: "column", gap: 8, fontFamily: "var(--font-typewriter)" }}>
+      <style>{`
+        @keyframes stamp-in {
+          0%   { opacity: 0; transform: translate(20px, -18px) scale(1.4); }
+          55%  { opacity: 1; transform: translate(0, 0) scale(0.90); }
+          78%  { transform: translate(0, 0) scale(1.05); }
+          100% { transform: translate(0, 0) scale(1.0); }
+        }
+      `}</style>
       <div style={{ border: boxBorder, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ fontSize: "0.8rem", color: ink, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4, textAlign: "center", textDecoration: "underline" }}>ACTIVE EFFECTS</div>
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
@@ -1175,10 +1199,10 @@ export function ScoredResultsUpper({ existingPrediction, equipmentSlug, equipmen
         </div>
         {/* Side boxes */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, marginLeft: "auto" }}>
-          {([ ["Bonus Mana", bonusMana], ["Early Lock", earlyLock] ] as [string, number][]).map(([label, val]) => (
+          {([ ["Bonus Mana", bonusMana], ["Early Lock", earlyLock] ] as [string, number][]).map(([label, val], idx) => (
             <div key={label} style={{ padding: "8px 10px", border: boxBorder, display: "flex", flexDirection: "column", alignItems: "center" }}>
               <div style={{ fontSize: "0.55rem", color: ink, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, whiteSpace: "nowrap", textDecoration: "underline" }}>{label}</div>
-              <ScoredStampDigits value={val} prefix="plus" />
+              <ScoredStampDigits value={val} scale={stampScale} prefix="plus" stampDelay={stampBaseDelay + idx * STAMP_INTERVAL} />
             </div>
           ))}
         </div>
@@ -1188,7 +1212,7 @@ export function ScoredResultsUpper({ existingPrediction, equipmentSlug, equipmen
   )
 }
 
-export function ScoredResultsMiddle({ existingPrediction }: { existingPrediction: ExistingPrediction }) {
+export function ScoredResultsMiddle({ existingPrediction, stampScale = 1, stampBaseDelay = 0 }: { existingPrediction: ExistingPrediction; stampScale?: number; stampBaseDelay?: number }) {
   const hasFirst = (existingPrediction.mana_first_prediction ?? 0) > 0
   const hasCombo = (existingPrediction.mana_both_bonus ?? 0) > 0
   if (!hasFirst && !hasCombo) return null
@@ -1197,17 +1221,15 @@ export function ScoredResultsMiddle({ existingPrediction }: { existingPrediction
 
   const firstStamp = hasFirst ? (
     <div style={{ display: "flex", alignItems: "center", gap: "0.4vw" }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <JitteredImg src="/text/first-stamp.png" height={sh(1.0)} />
-      <ScoredStampDigits value={50} prefix="plus" />
+      <JitteredImg src="/text/first-stamp.png" height={sh(1.0 * stampScale)} stampDelay={stampBaseDelay} />
+      <ScoredStampDigits value={50} scale={stampScale} prefix="plus" stampDelay={stampBaseDelay} />
     </div>
   ) : null
 
   const comboStamp = hasCombo ? (
     <div style={{ display: "flex", alignItems: "center", gap: "0.4vw" }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <JitteredImg src="/text/combo-stamp.png" height={sh(1.0)} />
-      <ScoredStampDigits value={50} prefix="plus" />
+      <JitteredImg src="/text/combo-stamp.png" height={sh(1.0 * stampScale)} stampDelay={stampBaseDelay + STAMP_INTERVAL} />
+      <ScoredStampDigits value={50} scale={stampScale} prefix="plus" stampDelay={stampBaseDelay + STAMP_INTERVAL} />
     </div>
   ) : null
 
@@ -1227,10 +1249,12 @@ export function ScoredResultsMiddle({ existingPrediction }: { existingPrediction
   )
 }
 
-export function ScoredResultsLower({ existingPrediction, snapshotPlayerCount, snapshotReviewScore }: {
+export function ScoredResultsLower({ existingPrediction, snapshotPlayerCount, snapshotReviewScore, stampScale = 1, stampBaseDelay = 0 }: {
   existingPrediction: ExistingPrediction
   snapshotPlayerCount?: number | null
   snapshotReviewScore?: number | null
+  stampScale?: number
+  stampBaseDelay?: number
 }) {
   const ink = "#1c0e05"
   const inkMuted = "#1c0e05"
@@ -1249,11 +1273,11 @@ export function ScoredResultsLower({ existingPrediction, snapshotPlayerCount, sn
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
             {actualPlayers != null
-              ? <ScoredStampDigits value={actualPlayers} scale={0.9} />
+              ? <ScoredStampDigits value={actualPlayers} scale={0.9 * stampScale} stampDelay={stampBaseDelay + 0 * STAMP_INTERVAL} />
               : <span style={{ color: ink, fontWeight: 700 }}>—</span>}
-            <div style={{ marginRight: "-3px" }}><ScoredStampDigits value={existingPrediction.mana_players ?? 0} prefix="plus" /></div>
+            <div style={{ marginRight: "-3px" }}><ScoredStampDigits value={existingPrediction.mana_players ?? 0} scale={stampScale} prefix="plus" stampDelay={stampBaseDelay + 1 * STAMP_INTERVAL} /></div>
           </div>
-          <div style={{ fontSize: "0.63rem", color: inkMuted, fontWeight: 600, marginTop: 5, textTransform: "uppercase", textAlign: "center" }}>
+          <div style={{ fontSize: "0.63rem", color: inkMuted, fontWeight: 600, marginTop: "auto", paddingTop: 4, textTransform: "uppercase", textAlign: "center" }}>
             Predicted: {existingPrediction.players_window_low?.toLocaleString()}–{existingPrediction.players_window_high?.toLocaleString()}
           </div>
         </div>
@@ -1264,11 +1288,11 @@ export function ScoredResultsLower({ existingPrediction, snapshotPlayerCount, sn
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
             {actualReview != null
-              ? <ScoredStampDigits value={Math.round(actualReview)} scale={0.9} suffix="pct" />
+              ? <ScoredStampDigits value={Math.round(actualReview)} scale={0.9 * stampScale} suffix="pct" stampDelay={stampBaseDelay + 2 * STAMP_INTERVAL} />
               : <span style={{ color: ink, fontWeight: 700 }}>—</span>}
-            <div style={{ marginRight: "-3px" }}><ScoredStampDigits value={existingPrediction.mana_reviews ?? 0} prefix="plus" /></div>
+            <div style={{ marginRight: "-3px" }}><ScoredStampDigits value={existingPrediction.mana_reviews ?? 0} scale={stampScale} prefix="plus" stampDelay={stampBaseDelay + 3 * STAMP_INTERVAL} /></div>
           </div>
-          <div style={{ fontSize: "0.63rem", color: inkMuted, fontWeight: 600, marginTop: 5, textTransform: "uppercase", textAlign: "center" }}>
+          <div style={{ fontSize: "0.63rem", color: inkMuted, fontWeight: 600, marginTop: "auto", paddingTop: 4, textTransform: "uppercase", textAlign: "center" }}>
             Predicted: {existingPrediction.reviews_window_low}%–{existingPrediction.reviews_window_high}%
           </div>
         </div>
@@ -1276,11 +1300,11 @@ export function ScoredResultsLower({ existingPrediction, snapshotPlayerCount, sn
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <div style={{ padding: "8px 10px", border: boxBorder, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ fontSize: "0.6rem", color: ink, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, textDecoration: "underline" }}>Mana Total Reward</div>
-          <ScoredStampDigits value={totalMana} prefix="plus" />
+          <ScoredStampDigits value={totalMana} scale={stampScale} prefix="plus" stampDelay={stampBaseDelay + 4 * STAMP_INTERVAL} />
         </div>
         <div style={{ padding: "8px 10px", border: boxBorder, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ fontSize: "0.6rem", color: ink, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, textDecoration: "underline" }}>Season Score</div>
-          <ScoredStampDigits value={totalMana} prefix="plus" suffix="ss" />
+          <ScoredStampDigits value={totalMana} scale={stampScale} prefix="plus" suffix="ss" stampDelay={stampBaseDelay + 5 * STAMP_INTERVAL} />
         </div>
       </div>
     </div>

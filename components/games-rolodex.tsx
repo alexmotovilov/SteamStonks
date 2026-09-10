@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import type { PredictionData } from "./game-card"
+import { PerfectMoteOverlay } from "./perfect-mote-overlay"
 
 type RolodexGame = {
   id: string
@@ -19,13 +20,15 @@ interface Props {
   predMap: Record<string, PredictionData>
   currentSeasonId: string | null
   onSelect?: (gameId: string) => void
+  isPanelOpen?: boolean
 }
 
-// Card widths in vw units — drives height naturally via letter image aspect ratio
-const CARD_VW     = 14   // default card width (vw)
-const CARD_HOV_VW = 20   // expanded card width (vw)
-const RISE_VH     = 5    // how far hovered card rises (vh)
-const SPREAD_VW   = 1.2  // how far adjacent cards spread (vw)
+// Card widths in vw units
+const CARD_VW     = 14   // default
+const CARD_HOV_VW = 15.5 // hover — subtle enlarge
+const CARD_EXP_VW = 20   // clicked/expanded — full
+const RISE_VH     = 5
+const SPREAD_VW   = 1.2
 
 function fmtDate(d: string | null) {
   if (!d) return null
@@ -59,21 +62,60 @@ function predDisplay(pred: PredictionData | null): string | null {
   return `${playerRange} / ${reviewRange}`
 }
 
-export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Props) {
+export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPanelOpen = false }: Props) {
   const router = useRouter()
-  const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const hoveredIdx = games.findIndex(g => g.id === hoveredId)
+  const [hoveredId, setHoveredId]   = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const [stampJitter, setStampJitter] = useState<Record<string, { status: { dx: number; dy: number; rot: number }; result: { dx: number; dy: number; rot: number }; score: { dx: number; dy: number; rot: number } }>>({})
+  useEffect(() => {
+    const rand = (n: number) => (Math.random() * 2 - 1) * n
+    setStampJitter(Object.fromEntries(games.map(g => [
+      g.id,
+      {
+        status: { dx: rand(5), dy: rand(5), rot: rand(5) },
+        result: { dx: rand(5), dy: rand(5), rot: rand(5) },
+        score:  { dx: Math.random() * 5, dy: Math.random() * 5, rot: rand(7) },
+      }
+    ])))
+  }, [])
+
+  // When panel opens, collapse any expanded tile
+  useEffect(() => {
+    if (isPanelOpen) setExpandedId(null)
+  }, [isPanelOpen])
+
+  const expandedIdx = games.findIndex(g => g.id === expandedId)
+  const hoveredIdx  = games.findIndex(g => g.id === hoveredId)
+  // Spread is driven by whichever is active
+  const activeIdx = expandedIdx >= 0 ? expandedIdx : hoveredIdx
 
   const N = games.length
 
-  // Fit all cards in 92vw; cap step so cards always fit without overflow
   const stepVw = N > 1
-    ? Math.min(CARD_VW - 1, (92 - CARD_HOV_VW) / (N - 1))
-    : CARD_HOV_VW
-  const totalVw = N > 1 ? (N - 1) * stepVw + CARD_HOV_VW : CARD_HOV_VW
+    ? Math.min(CARD_VW - 1, (92 - CARD_EXP_VW) / (N - 1))
+    : CARD_EXP_VW
+  const totalVw = N > 1 ? (N - 1) * stepVw + CARD_EXP_VW : CARD_EXP_VW
 
   return (
     <>
+      <style>{`
+        @keyframes shimmer-partial {
+          0%   { background-position: -150% 50%; }
+          50%  { background-position: 200% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+        @keyframes shimmer-perfect {
+          0%   { background-position: -150% 50%; }
+          50%  { background-position: 200% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+      `}</style>
+      {/* Backdrop — click off to collapse */}
+      <div
+        style={{ position: "fixed", inset: 0, zIndex: 34, pointerEvents: expandedId ? "auto" : "none" }}
+        onClick={() => setExpandedId(null)}
+      />
       <div
         style={{
           position: "fixed",
@@ -88,22 +130,30 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
       >
         {games.map((game, i) => {
           const isHov = hoveredId === game.id
+          const isExp = expandedId === game.id
           const pred  = predMap[game.id] ?? null
           const ranges = predDisplay(pred)
           const status = gameStatus(game)
 
-          // Result display for scored predictions (expanded panel)
           let resultColor = "#67e8f9"
           let resultLabel: string | null = null
           if (pred?.result === "perfect") { resultColor = "#34d399"; resultLabel = "Perfect" }
           else if (pred?.result === "partial") { resultColor = "#f59e0b"; resultLabel = "Partial" }
           else if (pred?.result === "failed") { resultColor = "#6b7280"; resultLabel = "Missed" }
 
+          const extraVw = isExp ? CARD_EXP_VW - CARD_VW : isHov ? CARD_HOV_VW - CARD_VW : 0
+          // Shift tile left by half its extra width so it grows symmetrically
+          const centerOffset = -(extraVw / 2)
+          // Neighbors each move by half the active card's extra width
+          const activeExtraVw = expandedIdx >= 0 ? CARD_EXP_VW - CARD_VW : CARD_HOV_VW - CARD_VW
           let spreadX = 0
-          if (hoveredIdx >= 0) {
-            if (i < hoveredIdx) spreadX = -SPREAD_VW
-            else if (i > hoveredIdx) spreadX = SPREAD_VW
+          if (activeIdx >= 0) {
+            if (i < activeIdx) spreadX = -(activeExtraVw / 2)
+            else if (i > activeIdx) spreadX = activeExtraVw / 2
           }
+
+          const cardWidth = isExp ? CARD_EXP_VW : isHov ? CARD_HOV_VW : CARD_VW
+          const riseY = isExp ? -RISE_VH : 0
 
           return (
             <div
@@ -112,25 +162,39 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
                 position: "absolute",
                 left: `${i * stepVw}vw`,
                 bottom: 0,
-                zIndex: isHov ? 100 : N - i,
-                transform: `translateX(${spreadX}vw) translateY(${isHov ? -RISE_VH : 0}vh)`,
+                zIndex: isExp ? 100 : isHov ? 50 : N - i,
+                transform: `translateX(${spreadX + centerOffset}vw) translateY(${riseY}vh)`,
                 transition: "transform 0.32s ease",
-                pointerEvents: "auto",
+                pointerEvents: isPanelOpen ? "none" : "auto",
+                filter: isPanelOpen ? "grayscale(1) blur(2px)" : "none",
               }}
             >
               <div
                 style={{ display: "block" }}
-                onClick={() => onSelect ? onSelect(game.id) : router.push(`/games/${game.id}${currentSeasonId ? `?season=${currentSeasonId}` : ""}`)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (isPanelOpen) return
+                  if (isExp) {
+                    onSelect ? onSelect(game.id) : router.push(`/games/${game.id}${currentSeasonId ? `?season=${currentSeasonId}` : ""}`)
+                  } else {
+                    setExpandedId(game.id)
+                  }
+                }}
               >
                 <div
-                  onMouseEnter={() => setHoveredId(game.id)}
+                  onMouseEnter={() => {
+                    setHoveredId(game.id)
+                    if (expandedId && expandedId !== game.id) setExpandedId(null)
+                  }}
                   onMouseLeave={() => setHoveredId(null)}
                   style={{
                     position: "relative",
-                    width: `${isHov ? CARD_HOV_VW : CARD_VW}vw`,
-                    transition: "width 0.32s ease, box-shadow 0.32s ease",
-                    boxShadow: isHov
+                    width: `${cardWidth}vw`,
+                    transition: "width 0.32s ease, box-shadow 0.32s ease, filter 0.3s ease",
+                    boxShadow: isExp
                       ? "0 24px 56px rgba(0,0,0,0.95), 0 0 20px rgba(196,168,130,0.10)"
+                      : isHov
+                      ? "0 16px 40px rgba(0,0,0,0.90)"
                       : "0 8px 24px rgba(0,0,0,0.80)",
                     cursor: "pointer",
                     overflow: "hidden",
@@ -138,7 +202,7 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
                     maskImage: "linear-gradient(to right, transparent 0%, black 2%, black 98%, transparent 100%)",
                   }}
                 >
-                  {/* Letter parchment — drives card height via aspect ratio */}
+                  {/* Letter parchment */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/letter-background.png"
@@ -147,7 +211,7 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
                     draggable={false}
                   />
 
-                  {/* Game image — inset to same footprint as text panel, fades in on hover */}
+                  {/* Game image — fades in when expanded */}
                   {game.header_image_url && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -155,92 +219,184 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
                       alt=""
                       style={{
                         position: "absolute",
-                        top: "9%", left: "8%", right: "8%", bottom: "7%",
-                        width: "84%",
-                        height: "84%",
+                        top: "12%", left: "12%", right: "12%", bottom: "10%",
+                        width: "76%",
+                        height: "78%",
                         objectFit: "cover",
                         objectPosition: game.header_image_position ?? "50% 50%",
                         borderRadius: "4px",
-                        border: "1px solid rgba(196,168,130,0.3)",
+                        border: "2px solid rgba(200,210,225,0.75)",
                         boxShadow: "0 2px 12px rgba(0,0,0,0.8)",
-                        opacity: isHov ? 1 : 0,
+                        opacity: isExp ? 1 : 0,
                         transition: "opacity 0.32s ease",
                       }}
                     />
                   )}
 
-                  {/* Collapsed: text projected directly onto parchment */}
+                  {/* Shimmer overlay — partial or perfect, hides when expanded */}
+                  {(pred?.result === "partial" || pred?.result === "perfect") && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        background: pred.result === "perfect"
+                          ? "linear-gradient(110deg, transparent 30%, rgba(168,85,247,0.55) 45%, rgba(232,210,255,0.35) 52%, rgba(168,85,247,0.55) 59%, transparent 74%)"
+                          : "linear-gradient(110deg, transparent 30%, rgba(52,211,153,0.45) 45%, rgba(200,255,230,0.30) 52%, rgba(52,211,153,0.45) 59%, transparent 74%)",
+                        backgroundSize: "300% 100%",
+                        animation: `${pred.result === "perfect" ? "shimmer-perfect" : "shimmer-partial"} 3.5s ease-in-out ${i * 0.4}s 1 forwards`,
+                        opacity: isExp ? 0 : 1,
+                        transition: "opacity 0.2s ease",
+                        pointerEvents: "none",
+                        mixBlendMode: "screen",
+                        WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)",
+                        WebkitMaskComposite: "destination-in",
+                        maskImage: "linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)",
+                        maskComposite: "intersect",
+                      } as React.CSSProperties}
+                    />
+                  )}
+
+                  {/* Game title */}
                   <div
+                    className="font-display"
                     style={{
                       position: "absolute",
-                      top: "9%", left: "8%", right: "8%", bottom: "7%",
-                      borderRadius: "4px",
-                      padding: "6% 7%",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "4px",
+                      top: "calc(18% + 17px)", left: "10%", right: "10%",
+                      fontSize: "1.0vw",
+                      color: "#1c0e05",
+                      lineHeight: 1.3,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical" as const,
                       overflow: "hidden",
-                      opacity: isHov ? 0 : 1,
+                      textShadow: "0 1px 3px rgba(255,210,140,0.6), 0 0 8px rgba(255,200,100,0.25)",
+                      opacity: isExp ? 0 : 1,
                       transition: "opacity 0.2s ease",
                       pointerEvents: "none",
                     }}
                   >
-                    {/* Title — always 2 lines tall for visual parity */}
-                    <div
-                      className="font-display"
-                      style={{
-                        fontSize: "1.0vw",
-                        color: "#1c0e05",
-                        lineHeight: 1.3,
-                        minHeight: "2.6em",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical" as const,
-                        overflow: "hidden",
-                        textShadow: "0 1px 3px rgba(255,210,140,0.6), 0 0 8px rgba(255,200,100,0.25)",
-                      }}
-                    >
-                      {game.name}
-                    </div>
-                    {/* Release Date */}
-                    {fmtDate(game.release_date) && (
-                      <div className="font-body" style={{ fontSize: "0.68vw", color: "#3d2010", textShadow: "0 1px 2px rgba(255,210,140,0.4)" }}>
-                        {fmtDate(game.release_date)}
-                      </div>
-                    )}
+                    {game.name}
                   </div>
 
-                  {/* Stamps — bottom-right corner of letter */}
-                  {(status.label === "Released" || status.label === "Released · Awaiting Scores") && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={status.label === "Released" ? "/released-stamp.png" : "/launch-stamp.png"}
-                      alt={status.label === "Released" ? "Released" : "Launched"}
+                  {/* Score stamp */}
+                  {pred?.final_points != null && (() => {
+                    const j = stampJitter[game.id]?.score ?? { dx: 0, dy: 0, rot: 0 }
+                    const digits = String(pred.final_points).split("")
+                    return (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: `calc(11% + 20px + ${j.dy}px)`,
+                          left: `calc(10% + 10px + ${j.dx}px)`,
+                          transform: `translateY(-50%) rotate(${j.rot}deg)`,
+                          display: "flex",
+                          alignItems: "center",
+                          opacity: isExp ? 0 : 0.88,
+                          transition: "opacity 0.2s ease",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/text/plus-stamp.png" style={{ height: "1.41vw", display: "block", marginRight: "-0.4vw" }} alt="+" />
+                        {digits.map((d, di) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={di} src={`/text/${d}-stamp.png`} style={{ height: "1.41vw", display: "block", marginRight: "-0.5vw" }} alt={d} />
+                        ))}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/text/ss-stamp.png" style={{ height: "1.41vw", display: "block", marginLeft: "0.4vw" }} alt="ss" />
+                      </div>
+                    )
+                  })()}
+
+                  {/* Release date */}
+                  {fmtDate(game.release_date) && (
+                    <div
+                      className="font-body"
                       style={{
                         position: "absolute",
-                        bottom: "calc(9% - 15px)",
-                        right: "10%",
-                        width: "43.7%",
-                        opacity: isHov ? 0 : 0.88,
+                        bottom: "20%", left: "10%",
+                        fontSize: "0.68vw",
+                        color: "#3d2010",
+                        textShadow: "0 1px 2px rgba(255,210,140,0.4)",
+                        opacity: isExp ? 0 : 1,
                         transition: "opacity 0.2s ease",
                         pointerEvents: "none",
-                        transform: "rotate(-8deg)",
                       }}
-                    />
+                    >
+                      {fmtDate(game.release_date)}
+                    </div>
                   )}
 
-                  {/* Expanded: text overlay at bottom of image, fades in on hover */}
+                  {/* Status stamp */}
+                  {(status.label === "Released" || status.label === "Released · Awaiting Scores") && (() => {
+                    const j = stampJitter[game.id]?.status ?? { dx: 0, dy: 0, rot: 0 }
+                    return (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={status.label === "Released" ? "/released-stamp.png" : "/launch-stamp.png"}
+                        alt={status.label === "Released" ? "Released" : "Launched"}
+                        style={{
+                          position: "absolute",
+                          bottom: `calc(9% - 15px + ${j.dy}px)`,
+                          right: `calc(10% - ${j.dx}px)`,
+                          width: "43.7%",
+                          opacity: isExp ? 0 : 0.88,
+                          transition: "opacity 0.2s ease",
+                          pointerEvents: "none",
+                          transform: `rotate(${-8 + j.rot}deg)`,
+                        }}
+                      />
+                    )
+                  })()}
+
+                  {/* Result stamp — perfect wraps mote overlay */}
+                  {pred?.result && (() => {
+                    const j = stampJitter[game.id]?.result ?? { dx: 0, dy: 0, rot: 0 }
+                    const baseLeft = pred.result === "failed" ? 70 : pred.result === "partial" ? 66 : 58
+                    const baseRot = pred.result === "perfect" ? -1 : pred.result === "partial" ? 12 : 23
+                    return (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: `calc(50% - ${pred.result === "perfect" ? 27 : 30}px + ${j.dy}px)`,
+                          left: `calc(50% + ${baseLeft + j.dx}px)`,
+                          width: pred.result === "partial" ? "59.9%" : pred.result === "failed" ? "52.9%" : "70.5%",
+                          transform: `translate(-50%, -50%) rotate(${baseRot + j.rot}deg)`,
+                          opacity: isExp ? 0 : 0.88,
+                          transition: "opacity 0.2s ease",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={
+                            pred.result === "perfect" ? "/perfect-stamp.png"
+                            : pred.result === "partial" ? "/partial-stamp.png"
+                            : "/miss-stamp.png"
+                          }
+                          alt={pred.result}
+                          style={{ width: "100%", display: "block" }}
+                        />
+                        {pred.result === "perfect" && (
+                          <PerfectMoteOverlay delay={i * 0.4} visible />
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* Expanded info panel — fades in on click */}
                   <div
                     style={{
                       position: "absolute",
-                      left: "8%", right: "8%", bottom: "7%",
+                      left: "12%", right: "12%", bottom: "10%",
                       borderRadius: "0 0 4px 4px",
                       background: "linear-gradient(to bottom, transparent 0%, rgba(4,3,2,0.88) 35%, rgba(4,3,2,0.97) 100%)",
-                      padding: "14% 7% 6%",
+                      padding: "18% 7% 5%",
                       display: "flex",
                       flexDirection: "column",
-                      gap: "4px",
-                      opacity: isHov ? 1 : 0,
+                      justifyContent: "flex-end",
+                      gap: "1px",
+                      opacity: isExp ? 1 : 0,
                       transition: "opacity 0.32s ease",
                       pointerEvents: "none",
                     }}
@@ -248,9 +404,9 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
                     <div
                       className="font-display"
                       style={{
-                        fontSize: "1.1vw",
+                        fontSize: "0.88vw",
                         color: "#f5e6c8",
-                        lineHeight: 1.3,
+                        lineHeight: 1.1,
                         display: "-webkit-box",
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: "vertical" as const,
@@ -260,36 +416,33 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect }: Prop
                     >
                       {game.name}
                     </div>
-                    {fmtDate(game.release_date) && (
-                      <div className="font-body" style={{ fontSize: "0.68vw", color: "rgba(245,230,200,0.5)" }}>
-                        {fmtDate(game.release_date)}
-                      </div>
-                    )}
-                    <div>
-                      <span className="font-display" style={{ fontSize: "0.68vw", color: status.color }}>{status.label}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      {fmtDate(game.release_date) && (
+                        <span className="font-body" style={{ fontSize: "0.56vw", color: "rgba(245,230,200,0.5)" }}>
+                          {fmtDate(game.release_date)}
+                        </span>
+                      )}
+                      <span className="font-display" style={{ fontSize: "0.56vw", color: status.color }}>{status.label}</span>
                     </div>
-                    <div style={{ marginTop: "5px", paddingTop: "5px", borderTop: "1px solid rgba(196,168,130,0.18)" }}>
+                    <div style={{ marginTop: "2px", paddingTop: "2px", borderTop: "1px solid rgba(196,168,130,0.18)" }}>
                       {resultLabel ? (
-                        <div className="font-display" style={{ fontSize: "0.85vw", color: resultColor }}>
+                        <div className="font-display" style={{ fontSize: "0.7vw", color: resultColor }}>
                           {resultLabel}
                           {pred?.final_points ? (
-                            <span className="font-body" style={{ fontSize: "0.72vw", marginLeft: "4px", color: "#67e8f9" }}>
+                            <span className="font-body" style={{ fontSize: "0.6vw", marginLeft: "3px", color: "#67e8f9" }}>
                               +{pred.final_points}
                             </span>
                           ) : null}
                         </div>
                       ) : ranges ? (
-                        <div className="font-body" style={{ fontSize: "0.72vw", color: "rgba(103,232,249,0.70)" }}>
+                        <div className="font-body" style={{ fontSize: "0.6vw", color: "rgba(103,232,249,0.70)" }}>
                           <span style={{ color: "rgba(245,230,200,0.45)" }}>Your Prognos: </span>{ranges}
                         </div>
                       ) : (
-                        <div className="font-body" style={{ fontSize: "0.62vw", color: "rgba(245,230,200,0.35)" }}>
+                        <div className="font-body" style={{ fontSize: "0.54vw", color: "rgba(245,230,200,0.35)" }}>
                           No prediction yet
                         </div>
                       )}
-                      <div className="font-body" style={{ fontSize: "0.62vw", marginTop: "3px", color: "rgba(245,230,200,0.28)" }}>
-                        Click to open →
-                      </div>
                     </div>
                   </div>
                 </div>

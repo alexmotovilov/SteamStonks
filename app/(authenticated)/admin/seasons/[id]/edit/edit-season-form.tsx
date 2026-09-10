@@ -20,7 +20,6 @@ interface Season {
   description: string | null
   start_date: string
   end_date: string
-  prediction_lock_date: string | null
   entry_fee_tokens: number
   status: string
 }
@@ -30,16 +29,6 @@ const statusColors: Record<string, string> = {
   active: "bg-success/20 text-success border-success/50",
   scoring: "bg-warning/20 text-warning border-warning/50",
   completed: "bg-muted text-muted-foreground border-border",
-}
-
-// Format a UTC date string to local datetime-local input value (YYYY-MM-DDTHH:MM)
-function toDatetimeLocal(value: string | null): string {
-  if (!value) return ""
-  const d = new Date(value)
-  if (isNaN(d.getTime())) return ""
-  // datetime-local needs YYYY-MM-DDTHH:MM in local time
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 // Format a UTC date string to date input value (YYYY-MM-DD)
@@ -60,7 +49,6 @@ export function EditSeasonForm({ season }: { season: Season }) {
     description: season.description ?? "",
     start_date: toDateInput(season.start_date),
     end_date: toDateInput(season.end_date),
-    prediction_lock_date: toDatetimeLocal(season.prediction_lock_date),
     entry_fee_tokens: season.entry_fee_tokens,
   })
 
@@ -81,13 +69,6 @@ export function EditSeasonForm({ season }: { season: Season }) {
         throw new Error("End date must be after start date")
       }
 
-      if (
-        formData.prediction_lock_date &&
-        new Date(formData.prediction_lock_date) >= new Date(formData.end_date)
-      ) {
-        throw new Error("Prediction lock date must be before the end date")
-      }
-
       const supabase = createClient()
 
       const { error: updateError } = await supabase
@@ -98,7 +79,6 @@ export function EditSeasonForm({ season }: { season: Season }) {
           description: formData.description || null,
           start_date: formData.start_date,
           end_date: formData.end_date,
-          prediction_lock_date: formData.prediction_lock_date || null,
           entry_fee_tokens: formData.entry_fee_tokens,
           updated_at: new Date().toISOString(),
         })
@@ -221,7 +201,7 @@ export function EditSeasonForm({ season }: { season: Season }) {
             <CardHeader>
               <CardTitle className="text-foreground">Dates & Settings</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Configure timing and entry requirements
+                Informational run dates and entry requirements. Activation, ending, and scoring are all triggered manually.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -249,24 +229,9 @@ export function EditSeasonForm({ season }: { season: Season }) {
                   />
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="prediction_lock_date" className="text-foreground">
-                  Prediction Lock Date
-                </Label>
-                <Input
-                  id="prediction_lock_date"
-                  type="datetime-local"
-                  value={formData.prediction_lock_date}
-                  onChange={(e) =>
-                    setFormData({ ...formData, prediction_lock_date: e.target.value })
-                  }
-                  className="bg-input border-border text-foreground"
-                />
-                <p className="text-xs text-muted-foreground">
-                  After this date, players cannot modify their season_end predictions
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Dates are shown to players for reference only — communicate the exact schedule (and scoring time) via the bulletin board / mailbox.
+              </p>
 
               <div className="space-y-2">
                 <Label htmlFor="entry_fee" className="text-foreground flex items-center gap-2">

@@ -40,18 +40,18 @@ export function SeasonScoreBadge({ user, activeSeasonId }: SeasonScoreBadgeProps
     >
       {score !== null && (
         <div
-          className="absolute inset-0 flex flex-col items-center justify-end font-display"
+          className="absolute inset-0 flex flex-col items-center justify-end font-body"
           style={{ paddingBottom: "2.5vh", transform: "translate(-15px, -7px)" }}
         >
           <span className="flex items-center leading-none" style={{ gap: "0.3vh" }}>
             <img
               src="/icons/season-score-icon.png"
               alt=""
-              style={{ width: "1.2vh", height: "1.2vh", opacity: 0.6, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.85)) drop-shadow(0 1px 2px rgba(0,0,0,0.9))" }}
+              style={{ width: "1.7vh", height: "1.7vh", opacity: 0.6, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.85)) drop-shadow(0 1px 2px rgba(0,0,0,0.9))" }}
             />
             <span
               className="text-red-900 font-semibold leading-none"
-              style={{ fontSize: "1.25vh", textShadow: "0 0 6px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.3)" }}
+              style={{ fontSize: "1.9vh", textShadow: "0 0 6px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.3)" }}
             >
               {score.toLocaleString()}
             </span>

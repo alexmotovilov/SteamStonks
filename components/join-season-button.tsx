@@ -55,6 +55,7 @@ interface JoinSeasonButtonProps {
   seasonName: string
   entryFee: number
   currentBalance: number
+  freeEntry?: boolean
 }
 
 // ─── Sub-components ───────────────────────────────────────────
@@ -122,8 +123,8 @@ function EquipmentCard({ item, isSelected, onSelect }: {
 
 // ─── Main component ───────────────────────────────────────────
 
-export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalance }: JoinSeasonButtonProps) {
-  const [phase, setPhase] = useState<"idle" | "selecting">("idle")
+export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalance, freeEntry }: JoinSeasonButtonProps) {
+  const [phase, setPhase] = useState<"idle" | "selecting" | "confirming-free">("idle")
   const [equipment, setEquipment] = useState<EquipmentItem[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
@@ -155,6 +156,49 @@ export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalanc
     setError(null)
   }
 
+  async function handleConfirmFreeJoin() {
+    setJoining(true)
+    setError(null)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("You must be logged in")
+
+      const { error: entryError } = await supabase
+        .from("season_entries")
+        .insert({
+          season_id:                      seasonId,
+          user_id:                        user.id,
+          tokens_paid:                    0,
+          equipment_id:                   null,
+          is_free_entry:                  true,
+          season_score:                   0,
+          equipment_tier_score:           0,
+          stipend_week_number:            0,
+          starter_kit_claimed:            false,
+          first_prediction_bonus_claimed: false,
+        })
+      if (entryError) throw entryError
+
+      // Dispatch starter kit as mail (non-fatal if it fails)
+      const kitRes = await fetch("/api/seasons/join/starter-kit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ season_id: seasonId }),
+      })
+      if (!kitRes.ok) {
+        console.error("[Join Season Free] Failed to dispatch starter kit:", await kitRes.text())
+      }
+
+      setPhase("idle")
+      router.push("/games")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to join season")
+    } finally {
+      setJoining(false)
+    }
+  }
+
   async function handleConfirmJoin() {
     if (!selectedSlug) return
     setJoining(true)
@@ -176,14 +220,15 @@ export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalanc
       const { error: entryError } = await supabase
         .from("season_entries")
         .insert({
-          season_id:                    seasonId,
-          user_id:                      user.id,
-          tokens_paid:                  entryFee,
-          equipment_id:                 selectedSlug,
-          season_score:                 0,
-          equipment_tier_score:         0,
-          stipend_week_number:          0,
-          starter_kit_claimed:          false,
+          season_id:                      seasonId,
+          user_id:                        user.id,
+          tokens_paid:                    entryFee,
+          equipment_id:                   selectedSlug,
+          is_free_entry:                  false,
+          season_score:                   0,
+          equipment_tier_score:           0,
+          stipend_week_number:            0,
+          starter_kit_claimed:            false,
           first_prediction_bonus_claimed: false,
         })
 
@@ -193,14 +238,14 @@ export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalanc
         throw entryError
       }
 
-      // 3. Award starter kit (non-fatal if it fails)
+      // 3. Dispatch starter kit as mail (non-fatal if it fails)
       const kitRes = await fetch("/api/seasons/join/starter-kit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ season_id: seasonId }),
       })
       if (!kitRes.ok) {
-        console.error("[Join Season] Failed to award starter kit:", await kitRes.text())
+        console.error("[Join Season] Failed to dispatch starter kit:", await kitRes.text())
       }
 
       setPhase("idle")
@@ -210,6 +255,67 @@ export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalanc
     } finally {
       setJoining(false)
     }
+  }
+
+  if (freeEntry) {
+    return (
+      <>
+        <Button variant="outline" onClick={() => { setPhase("confirming-free"); setError(null) }}>
+          Join for Free
+        </Button>
+
+        {phase === "confirming-free" && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(4px)" }}
+          >
+            <div className="bg-[rgba(10,10,20,0.98)] border border-purple-500/20 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+              <div className="text-center mb-6">
+                <h2 className="font-display text-xl text-foreground tracking-wide mb-3">
+                  Join for Free
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  You can make predictions, earn mana and drops, and use most rites — all without paying the entry fee.
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-2 leading-relaxed">
+                  The Season Ladder, Auspicious Omens, equipment, and weekly stipend are locked until you vest
+                  by paying the {entryFee}-token entry fee.
+                </p>
+              </div>
+
+              {error && <p className="text-sm text-destructive text-center mb-4">{error}</p>}
+
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <button
+                  onClick={handleCancel}
+                  className="font-display text-sm text-muted-foreground hover:text-foreground transition-colors px-4 py-2"
+                >
+                  ← Cancel
+                </button>
+                <button
+                  onClick={handleConfirmFreeJoin}
+                  disabled={joining}
+                  className={`font-display text-sm px-5 py-2 rounded-xl border transition-colors ${
+                    !joining
+                      ? "bg-purple-500/12 text-purple-300 border-purple-500/25 hover:bg-purple-500/20"
+                      : "bg-white/5 text-muted-foreground border-white/10 cursor-not-allowed"
+                  }`}
+                >
+                  {joining ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Joining…
+                    </span>
+                  ) : (
+                    "Confirm Free Join →"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    )
   }
 
   if (!canAfford) {

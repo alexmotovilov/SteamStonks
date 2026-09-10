@@ -18,12 +18,21 @@ export async function POST(request: NextRequest) {
   // Verify message is published, not expired, and targets this player
   const { data: message } = await supabase
     .from("mail_messages")
-    .select("id, expires_at")
+    .select("id, expires_at, target, target_user_id, created_at")
     .eq("id", message_id)
     .eq("is_published", true)
     .single()
 
   if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
+
+  // Enforce the same visibility rule as the inbox: a broadcast is only
+  // claimable if it was sent after the account was created, and a targeted
+  // message must be addressed to this player.
+  const isVisible =
+    message.target === "all"
+      ? new Date(message.created_at) >= new Date(user.created_at)
+      : message.target_user_id === user.id
+  if (!isVisible) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
   if (message.expires_at && new Date(message.expires_at) < new Date()) {
     return NextResponse.json({ error: "This offer has expired" }, { status: 400 })

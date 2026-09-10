@@ -30,6 +30,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Use /api/rites/augury for this rite" }, { status: 400 })
   }
 
+  if (rite_slug === "auspicious_omens") {
+    const { data: entry } = await supabase
+      .from("season_entries")
+      .select("is_free_entry, vested_at")
+      .eq("user_id", user.id)
+      .eq("season_id", season_id)
+      .single()
+
+    if (entry?.is_free_entry && !entry.vested_at) {
+      return NextResponse.json({ error: "Vest into the season to use Auspicious Omens" }, { status: 403 })
+    }
+  }
+
   if (!(rite_slug in RITE_COSTS)) {
     return NextResponse.json({ error: "Unknown rite" }, { status: 400 })
   }

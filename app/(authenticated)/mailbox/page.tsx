@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { MailboxClient } from "@/components/mailbox-client"
-import { ScoringCountdownPanel } from "@/components/scoring-countdown-panel"
+import { ScoringCountdownPanelMailbox } from "@/components/scoring-countdown-panel"
 
 function deriveTicker(name: string): string {
   const clean = name.replace(/[™®©]/g, "").trim()
@@ -154,7 +154,11 @@ export default async function MailboxPage() {
       mail_mystery_drops(id, drop_count, revealed_at, revealed_items)
     `)
     .eq("is_published", true)
-    .or(`target.eq.all,target_user_id.eq.${user.id}`)
+    // Broadcast ("all") mail is only visible if it was sent after the account
+    // was created — a new user should not inherit the entire history of
+    // announcements. User-targeted mail is always created post-signup, so it
+    // has no creation cutoff.
+    .or(`and(target.eq.all,created_at.gte.${user.created_at}),target_user_id.eq.${user.id}`)
     .order("created_at", { ascending: false })
 
   const visibleMessages = (messages ?? []).filter((m: any) => {
@@ -179,7 +183,7 @@ export default async function MailboxPage() {
     <>
       {/* Desktop layout */}
       <div className="hidden md:block">
-        <ScoringCountdownPanel games={enrichedGames} hasUnread={hasUnread} hasUnclaimed={hasUnclaimed} />
+        <ScoringCountdownPanelMailbox games={enrichedGames} hasUnread={hasUnread} hasUnclaimed={hasUnclaimed} />
         <div style={{
           position: "fixed",
           top: "calc(64px + 5vh + 15px)",
@@ -199,7 +203,7 @@ export default async function MailboxPage() {
 
       {/* Mobile layout — scrollable single-column list */}
       <div className="md:hidden">
-        <ScoringCountdownPanel games={enrichedGames} hasUnread={hasUnread} hasUnclaimed={hasUnclaimed} mobile />
+        <ScoringCountdownPanelMailbox games={enrichedGames} hasUnread={hasUnread} hasUnclaimed={hasUnclaimed} mobile />
         <div className="px-3 pt-4 pb-24">
           <MailboxClient messages={visibleMessages as any} isMobile />
         </div>

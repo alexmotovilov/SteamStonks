@@ -26,7 +26,10 @@ export function MailboxIndicator({ user, href, className, style, children }: Pro
         .from("mail_messages")
         .select("id")
         .eq("is_published", true)
-        .or(`target.eq.all,target_user_id.eq.${user.id}`)
+        // Broadcast mail only counts if sent after the account was created —
+        // mirrors the filter in mailbox/page.tsx so the unread badge matches
+        // what the inbox actually shows.
+        .or(`and(target.eq.all,created_at.gte.${user.created_at}),target_user_id.eq.${user.id}`)
 
       const messageIds = (messages ?? []).map(m => m.id)
       if (!messageIds.length) return

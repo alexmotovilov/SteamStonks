@@ -16,14 +16,13 @@ export default function NewSeasonPage() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
     description: "",
     start_date: "",
     end_date: "",
-    prediction_lock_date: "",
     entry_fee_tokens: 100,
   })
 
@@ -52,14 +51,13 @@ export default function NewSeasonPage() {
       }
 
       const supabase = createClient()
-      
+
       const { error: insertError } = await supabase.from("seasons").insert({
         name: formData.name,
         slug: formData.slug || formData.name.toLowerCase().replace(/\s+/g, "-"),
         description: formData.description || null,
         start_date: formData.start_date,
         end_date: formData.end_date,
-        prediction_lock_date: formData.prediction_lock_date || null,
         entry_fee_tokens: formData.entry_fee_tokens,
         status: "upcoming",
       })
@@ -161,7 +159,7 @@ export default function NewSeasonPage() {
             <CardHeader>
               <CardTitle className="text-foreground">Dates & Settings</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Configure timing and entry requirements
+                Informational run dates and entry requirements. Season activation, ending, and scoring are all triggered manually.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -189,22 +187,9 @@ export default function NewSeasonPage() {
                   />
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="prediction_lock_date" className="text-foreground">
-                  Prediction Lock Date
-                </Label>
-                <Input
-                  id="prediction_lock_date"
-                  type="datetime-local"
-                  value={formData.prediction_lock_date}
-                  onChange={(e) => setFormData({ ...formData, prediction_lock_date: e.target.value })}
-                  className="bg-input border-border text-foreground"
-                />
-                <p className="text-xs text-muted-foreground">
-                  After this date, players cannot modify their predictions
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Dates are shown to players for reference only — communicate the exact schedule (and scoring time) via the bulletin board / mailbox.
+              </p>
 
               <div className="space-y-2">
                 <Label htmlFor="entry_fee" className="text-foreground flex items-center gap-2">

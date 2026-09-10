@@ -27,12 +27,16 @@ export async function POST(request: NextRequest) {
 
   const { data: entry } = await supabase
     .from("season_entries")
-    .select("stipend_week_number")
+    .select("stipend_week_number, is_free_entry, vested_at")
     .eq("user_id", user.id)
     .eq("season_id", season_id)
     .single()
 
   if (!entry) return NextResponse.json({ error: "Not in this season" }, { status: 403 })
+
+  if (entry?.is_free_entry && !entry.vested_at) {
+    return NextResponse.json({ error: "Free players cannot claim the weekly stipend" }, { status: 403 })
+  }
 
   const currentWeek = season.current_vendor_week ?? 1
   if ((entry.stipend_week_number ?? 0) >= currentWeek) {

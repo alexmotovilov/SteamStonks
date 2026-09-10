@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
-import { Calendar, Trophy, Users, Gamepad2, ArrowLeft, Target, Clock } from "lucide-react"
+import { Calendar, Trophy, Users, Gamepad2, ArrowLeft, Target } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { JoinSeasonButton } from "@/components/join-season-button"
 
@@ -86,6 +86,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
     .limit(10)
 
   const canJoin = season.status === "active" && !isJoined && (profile?.token_balance || 0) >= season.entry_fee_tokens
+  const canJoinActive = season.status === "active" && !isJoined
 
   return (
     <div className="container mx-auto space-y-8">
@@ -110,13 +111,22 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
           </div>
           <p className="text-muted-foreground">{season.description}</p>
         </div>
-        {canJoin && (
-          <JoinSeasonButton
-            seasonId={season.id}
-            seasonName={season.name}
-            entryFee={season.entry_fee_tokens}
-            currentBalance={profile?.token_balance || 0}
-          />
+        {canJoinActive && (
+          <div className="flex flex-col items-end gap-2">
+            <JoinSeasonButton
+              seasonId={season.id}
+              seasonName={season.name}
+              entryFee={season.entry_fee_tokens}
+              currentBalance={profile?.token_balance || 0}
+            />
+            <JoinSeasonButton
+              seasonId={season.id}
+              seasonName={season.name}
+              entryFee={season.entry_fee_tokens}
+              currentBalance={profile?.token_balance || 0}
+              freeEntry
+            />
+          </div>
         )}
       </div>
 
@@ -154,19 +164,6 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
           </CardContent>
         </Card>
 
-        <Card className="border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Prediction Lock</CardTitle>
-            <Clock className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold text-foreground">
-              {season.prediction_lock_date 
-                ? new Date(season.prediction_lock_date).toLocaleDateString()
-                : "End of season"}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -190,15 +187,24 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
                 <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">Join to make predictions</h3>
                 <p className="text-muted-foreground mb-4">
-                  Spend tokens to unlock predictions and compete for prizes
+                  Join for free to start predicting, or pay the entry fee to unlock the full season experience.
                 </p>
-                {canJoin && (
-                  <JoinSeasonButton
-                    seasonId={season.id}
-                    seasonName={season.name}
-                    entryFee={season.entry_fee_tokens}
-                    currentBalance={profile?.token_balance || 0}
-                  />
+                {canJoinActive && (
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <JoinSeasonButton
+                      seasonId={season.id}
+                      seasonName={season.name}
+                      entryFee={season.entry_fee_tokens}
+                      currentBalance={profile?.token_balance || 0}
+                    />
+                    <JoinSeasonButton
+                      seasonId={season.id}
+                      seasonName={season.name}
+                      entryFee={season.entry_fee_tokens}
+                      currentBalance={profile?.token_balance || 0}
+                      freeEntry
+                    />
+                  </div>
                 )}
               </CardContent>
             </Card>

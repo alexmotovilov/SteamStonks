@@ -7,6 +7,7 @@ import Link from "next/link"
 import { Calendar, ArrowLeft, Users, Trophy, Gamepad2, Play, CheckCircle, Clock } from "lucide-react"
 import { SeasonStatusActions } from "@/components/admin/season-status-actions"
 import { ManualSnapshotButton } from "@/components/admin/manual-snapshot-button"
+import { RunScoreCalculatorButton } from "@/components/admin/run-score-calculator-button"
 
 const statusColors: Record<string, string> = {
   upcoming: "bg-blue-500/20 text-blue-400 border-blue-500/50",
@@ -153,19 +154,9 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Prediction Lock</p>
-                <p className="font-medium text-foreground">
-                  {season.prediction_lock_date
-                    ? new Date(season.prediction_lock_date).toLocaleString()
-                    : "Not set"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Entry Fee (tokens)</p>
-                <p className="font-medium text-foreground">{season.entry_fee_tokens} tokens</p>
-              </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Entry Fee (tokens)</p>
+              <p className="font-medium text-foreground">{season.entry_fee_tokens} tokens</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Slug</p>
@@ -187,15 +178,23 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ i
           </CardHeader>
           <CardContent>
             <SeasonStatusActions seasonId={season.id} currentStatus={season.status} />
-            <div className="mt-4 pt-4 border-t border-border">
-              <p className="text-sm text-muted-foreground mb-3">
-                Manual recovery — use if the automatic snapshot failed or needs to be re-taken.
-              </p>
-              <ManualSnapshotButton
-                seasonId={season.id}
-                seasonName={season.name}
-                currentStatus={season.status}
-              />
+            <div className="mt-4 pt-4 border-t border-border space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Re-take season-end snapshots — use if the End Season step reported failed games, or to refresh final numbers before scoring.
+                </p>
+                <ManualSnapshotButton
+                  seasonId={season.id}
+                  seasonName={season.name}
+                  currentStatus={season.status}
+                />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Manually run the score calculator — scores predictions and ladder rankings for all seasons in <strong>scoring</strong> status and sends mailbox results.
+                </p>
+                <RunScoreCalculatorButton />
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -188,7 +188,6 @@ export default async function GamePage({ params, searchParams }: GamePageProps) 
             return t !== null && t <= new Date()
           })()}
           releaseDate={game.release_date}
-          predictionLockDate={seasonData.prediction_lock_date}
           snapshotPlayerCount={weekOneSnapshot?.player_count}
           snapshotReviewPositive={weekOneSnapshot?.review_positive}
           snapshotReviewNegative={weekOneSnapshot?.review_negative}

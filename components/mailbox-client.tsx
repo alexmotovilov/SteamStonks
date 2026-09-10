@@ -348,7 +348,7 @@ function DropRevealModal({ items, onClose }: { items: RevealedItem[]; onClose: (
       {phase === "roulette" && (
         <div className="flex flex-col items-center gap-6">
           <div className="font-display text-xl text-amber-400 tracking-widest">
-            {items.length > 1 ? `Revealing ${reelIdx + 1} of ${items.length}…` : "Revealing Drop…"}
+            {items.length > 1 ? `${reelIdx + 1} of ${items.length}` : ""}
           </div>
           <RouletteReel
             key={reelIdx}
@@ -864,12 +864,14 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
 }) {
   const [claiming, setClaiming] = useState(false)
   const [claimError, setClaimError] = useState("")
+  const [manaClaimed, setManaClaimed] = useState(!!msg.mana_claimed_at)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showDeleteBlocked, setShowDeleteBlocked] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const isExpired = msg.expires_at ? new Date(msg.expires_at) < new Date() : false
   const date = new Date(msg.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })
-  const hasUnclaimed = msg.mail_attachments.length > 0 && !isClaimed && !isExpired
+  const hasUnclaimed = (msg.mail_attachments.length > 0 && !isClaimed && !isExpired) ||
+    ((msg.mana_reward ?? 0) > 0 && !manaClaimed)
 
   function handleDeleteClick(e: React.MouseEvent) {
     e.stopPropagation()
@@ -1000,6 +1002,20 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
           <div className="w-[72%] space-y-4 rounded-xl px-6 py-5" style={{ background: "rgba(8,6,4,0.62)", backdropFilter: "blur(2px)" }}>
             <div className="md:hidden text-[10px] font-body text-muted-foreground/50 text-right">{date}</div>
             <p className="text-sm font-body text-foreground/85 leading-relaxed whitespace-pre-wrap">{msg.body}</p>
+            {(msg.mana_reward ?? 0) > 0 && (
+              manaClaimed ? (
+                <div className="flex items-center gap-2 text-xs text-emerald-400">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span className="font-display">+{(msg.mana_reward ?? 0).toLocaleString()} mana added to spending balance</span>
+                </div>
+              ) : (
+                <ClaimManaButton
+                  messageId={msg.id}
+                  manaAmount={msg.mana_reward ?? 0}
+                  onClaimed={() => setManaClaimed(true)}
+                />
+              )
+            )}
             {msg.mail_attachments.length > 0 && (
               <div className="space-y-2">
                 <div className="text-[9px] font-display tracking-widest uppercase text-muted-foreground/40">Attachments</div>

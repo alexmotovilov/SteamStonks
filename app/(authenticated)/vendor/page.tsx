@@ -4,6 +4,7 @@ import { VendorShop, type InventoryItem } from "@/components/vendor-shop"
 import { VendorCountdown } from "@/components/vendor-countdown"
 import { NoScroll } from "@/components/no-scroll"
 import { CrystalBulletinBoard } from "@/components/crystal-bulletin-board"
+import { VestSeasonButton } from "@/components/vest-season-button"
 
 const CYCLE_A_SLUGS = ["scrying_orb_polish", "blood_bargain", "infernal_patrons_pact"]
 const CYCLE_B_SLUGS = ["crystal_focus", "black_gem_accumulator", "tincture_of_divination"]
@@ -15,7 +16,7 @@ export default async function VendorPage() {
 
   const { data: season } = await supabase
     .from("seasons")
-    .select("id, current_vendor_week, current_vendor_cycle, last_vendor_reset_at")
+    .select("id, current_vendor_week, current_vendor_cycle, last_vendor_reset_at, entry_fee_tokens")
     .eq("status", "active")
     .single()
 
@@ -23,14 +24,14 @@ export default async function VendorPage() {
     season
       ? supabase
           .from("season_entries")
-          .select("stipend_week_number")
+          .select("stipend_week_number, is_free_entry, vested_at")
           .eq("user_id", user.id)
           .eq("season_id", season.id)
           .single()
       : Promise.resolve({ data: null }),
     supabase
       .from("profiles")
-      .select("mana_balance")
+      .select("mana_balance, token_balance")
       .eq("id", user.id)
       .single(),
   ])
@@ -93,14 +94,30 @@ export default async function VendorPage() {
   }))
 
   const stipendClaimable = (entry.stipend_week_number ?? 0) < (season.current_vendor_week ?? 1)
+  const isUnvested = !!(entry as { is_free_entry?: boolean | null; vested_at?: string | null }).is_free_entry &&
+    !(entry as { is_free_entry?: boolean | null; vested_at?: string | null }).vested_at
 
   return (
     <>
       <NoScroll />
 
+      {isUnvested && (
+        <div className="fixed top-[calc(var(--header-height,64px)+16px)] left-1/2 -translate-x-1/2 z-30 flex items-center gap-4 px-5 py-3 rounded-xl border border-purple-500/30 bg-[rgba(10,5,25,0.92)] shadow-xl backdrop-blur-sm" style={{ maxWidth: "min(90vw, 560px)", width: "100%" }}>
+          <div className="flex-1 min-w-0">
+            <p className="font-display text-xs text-purple-300 tracking-wide mb-0.5">Free Entry</p>
+            <p className="font-body text-[11px] text-muted-foreground/70 leading-tight">Vest to unlock the Season Ladder, Auspicious Omens, equipment, and the weekly stipend.</p>
+          </div>
+          <VestSeasonButton
+            seasonId={season.id}
+            entryFee={season.entry_fee_tokens ?? 0}
+            currentBalance={(profile as { token_balance?: number | null } | null)?.token_balance ?? 0}
+          />
+        </div>
+      )}
+
       {/* Desktop-only: bulletin board, restock sign, countdown */}
       <div className="hidden md:block">
-        <CrystalBulletinBoard tabletSrc="/crystal-tablet-2.png" top="calc(9.3vh + 50px)" right="calc(6.25vw + 20px)" width="27vw" />
+        <CrystalBulletinBoard tabletSrc="/crystal-tablet-2.png" top="calc(9.3vh + 50px)" right="calc(6.25vw + 140px)" width="27vw" />
         <img
           src="/restock-sign.png"
           alt=""

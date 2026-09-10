@@ -99,11 +99,32 @@ function formatCountdown(ms: number): string {
 }
 
 // Shared position for the board image and goblin — both use this as their base
-const BOARD_TOP  = "calc(64px + 20vh - 30px)"
-const BOARD_LEFT = "25vw"
+const BOARD_TOP   = "calc(64px + 20vh - 30px)"
 const BOARD_WIDTH = "calc(42vw * 1.19)"
 // Base CSS transform (centering) shared by board and goblin
 const BOARD_BASE_TRANSFORM = "translate(calc(-50% - 5px), calc(-50% + 75px))"
+
+function makeBoardPositions(vwOffset: number) {
+  const base = 25 + vwOffset
+  return {
+    boardLeft:   `${base}vw`,
+    rowLeft:     vwOffset === 0 ? "50px" : `calc(${vwOffset}vw + 50px)`,
+    hoverLeft:   vwOffset === 0 ? "-5px" : `calc(${vwOffset}vw - 5px)`,
+    goblinLeft:  `calc(${base}vw + 35px)`,
+    spawnPoints: [
+      { left: `${1  + vwOffset}vw`, top: "calc(64px + 27vh)" },
+      { left: `${6  + vwOffset}vw`, top: "calc(64px + 25vh)" },
+      { left: `${11 + vwOffset}vw`, top: "calc(64px + 28vh)" },
+      { left: `${16 + vwOffset}vw`, top: "calc(64px + 26vh)" },
+      { left: `${20 + vwOffset}vw`, top: "calc(64px + 27vh)" },
+      { left: `${25 + vwOffset}vw`, top: "calc(64px + 25vh)" },
+      { left: `${29 + vwOffset}vw`, top: "calc(64px + 28vh)" },
+      { left: `${34 + vwOffset}vw`, top: "calc(64px + 26vh)" },
+      { left: `${38 + vwOffset}vw`, top: "calc(64px + 27vh)" },
+      { left: `${43 + vwOffset}vw`, top: "calc(64px + 25vh)" },
+    ],
+  }
+}
 
 // ─── Debris sources and spawn points ──────────────────────────────
 const DEBRIS_SRCS = [
@@ -152,24 +173,11 @@ const DEBRIS_ROTATIONS = [
   "rotate(-720deg)",
 ]
 
-const SPAWN_POINTS = [
-  { left: "1vw",  top: "calc(64px + 27vh)" },
-  { left: "6vw",  top: "calc(64px + 25vh)" },
-  { left: "11vw", top: "calc(64px + 28vh)" },
-  { left: "16vw", top: "calc(64px + 26vh)" },
-  { left: "20vw", top: "calc(64px + 27vh)" },
-  { left: "25vw", top: "calc(64px + 25vh)" },
-  { left: "29vw", top: "calc(64px + 28vh)" },
-  { left: "34vw", top: "calc(64px + 26vh)" },
-  { left: "38vw", top: "calc(64px + 27vh)" },
-  { left: "43vw", top: "calc(64px + 25vh)" },
-]
-
-// ─── Independent row positions — adjust each freely ───────────────
-const ROW_POSITIONS: React.CSSProperties[] = [
-  { top: "calc(64px + 5vh + 17px)",   left: "50px" },  // Row 1 (nearest)
-  { top: "calc(64px + 13vh + 9.5px)", left: "50px" },  // Row 2
-  { top: "calc(64px + 21vh + 2px)",   left: "50px" },  // Row 3
+// ─── Independent row tops — adjust each freely ────────────────────
+const ROW_TOPS = [
+  "calc(64px + 5vh + 17px)",
+  "calc(64px + 13vh + 9.5px)",
+  "calc(64px + 21vh + 2px)",
 ]
 
 const ROW_PANEL_STYLE: React.CSSProperties = {
@@ -184,17 +192,21 @@ const ROW_PANEL_STYLE: React.CSSProperties = {
   width: "466px",
 }
 
-export function ScoringCountdownPanel({
+function ScoringCountdownPanelBase({
   games,
   hasUnread = false,
   hasUnclaimed = false,
   mobile = false,
+  vwOffset = 0,
 }: {
   games: CountdownGame[]
   hasUnread?: boolean
   hasUnclaimed?: boolean
   mobile?: boolean
+  vwOffset?: number
 }) {
+  const { boardLeft, rowLeft, hoverLeft, goblinLeft, spawnPoints: SPAWN_POINTS } = makeBoardPositions(vwOffset)
+  const ROW_POSITIONS: React.CSSProperties[] = ROW_TOPS.map(top => ({ top, left: rowLeft }))
   const [now, setNow] = useState<number | null>(null)
   const [active, setActive] = useState<CountdownGame[]>(games)
   const [boardHovered, setBoardHovered] = useState(false)
@@ -465,7 +477,7 @@ export function ScoringCountdownPanel({
         style={{
           position: "fixed",
           top: BOARD_TOP,
-          left: BOARD_LEFT,
+          left: boardLeft,
           width: BOARD_WIDTH,
           height: "auto",
           zIndex: 51,
@@ -490,7 +502,7 @@ export function ScoringCountdownPanel({
         style={{
           position: "fixed",
           top: BOARD_TOP,
-          left: BOARD_LEFT,
+          left: boardLeft,
           transform: BOARD_BASE_TRANSFORM,
           width: BOARD_WIDTH,
           aspectRatio: "1212 / 588",
@@ -517,7 +529,7 @@ export function ScoringCountdownPanel({
       </div>
 
       {/* Outer div: fixed position + centering transform */}
-      <div style={{ position: "fixed", top: BOARD_TOP, left: BOARD_LEFT, transform: BOARD_BASE_TRANSFORM, width: BOARD_WIDTH, zIndex: 52, pointerEvents: "none", lineHeight: 0 }}>
+      <div style={{ position: "fixed", top: BOARD_TOP, left: boardLeft, transform: BOARD_BASE_TRANSFORM, width: BOARD_WIDTH, zIndex: 52, pointerEvents: "none", lineHeight: 0 }}>
         {/* Inner div: shake animation (simple offsets, no base transform conflict) */}
         <div style={{ animation: boardHovered ? "boardShake 0.4s ease-out 0s" : "none" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -542,7 +554,7 @@ export function ScoringCountdownPanel({
         style={{
           position: "fixed",
           top: "calc(64px + 4vh)",
-          left: "-5px",
+          left: hoverLeft,
           width: BOARD_WIDTH,
           height: "20vh",
           zIndex: 53,
@@ -603,7 +615,7 @@ export function ScoringCountdownPanel({
         style={{
           position: "fixed",
           top: "calc(64px + 26vh)",
-          left: "calc(25vw + 35px)",
+          left: goblinLeft,
           zIndex: 56,
           pointerEvents: "none",
           width: "230px",
@@ -634,4 +646,16 @@ export function ScoringCountdownPanel({
       </div>
     </>
   )
+}
+
+type PanelProps = { games: CountdownGame[]; hasUnread?: boolean; hasUnclaimed?: boolean; mobile?: boolean }
+
+// Games page — board on the left (default position)
+export function ScoringCountdownPanel(props: PanelProps) {
+  return <ScoringCountdownPanelBase {...props} vwOffset={0} />
+}
+
+// Mailbox page — board on the right column
+export function ScoringCountdownPanelMailbox(props: PanelProps) {
+  return <ScoringCountdownPanelBase {...props} vwOffset={50} />
 }

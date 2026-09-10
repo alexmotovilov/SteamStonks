@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback, useLayoutEffect, useEffect } from "react"
 import type { PredictionData } from "./game-card"
+import { PerfectMoteOverlay } from "./perfect-mote-overlay"
 
 type RolodexGame = {
   id: string
@@ -20,9 +21,9 @@ interface Props {
 }
 
 // letter-background.png is 988×660 — match this ratio exactly so it renders without cropping
-const TILE_W = 280
-const TILE_H = Math.round(TILE_W * (660 / 988)) // 187
-const GAP = 12
+const TILE_W = 252
+const TILE_H = Math.round(TILE_W * (660 / 988)) // 168
+const GAP = 6
 const SLOT_H = TILE_H + GAP
 
 function fmtDate(d: string | null) {
@@ -52,6 +53,25 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
   const [centeredIdx, setCenteredIdx] = useState(0)
   const centeredRef = useRef(0)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
+
+  const [stampJitter, setStampJitter] = useState<Record<string, { status: { dx: number; dy: number; rot: number }; score: { dx: number; dy: number; rot: number }; result: { dx: number; dy: number; rot: number } }>>({})
+  useEffect(() => {
+    const rand = (n: number) => (Math.random() * 2 - 1) * n
+    setStampJitter(Object.fromEntries(games.map(g => [
+      g.id,
+      {
+        status: { dx: rand(5), dy: rand(5), rot: rand(5) },
+        result: { dx: rand(5), dy: rand(5), rot: rand(5) },
+        score:  { dx: Math.random() * 5, dy: Math.random() * 5, rot: rand(7) },
+      }
+    ])))
+  }, [])
+
+  const [shimmerKeys, setShimmerKeys] = useState<Record<string, number>>({})
+  useEffect(() => {
+    const g = games[centeredIdx]
+    if (g) setShimmerKeys(prev => ({ ...prev, [g.id]: (prev[g.id] ?? 0) + 1 }))
+  }, [centeredIdx])
 
   useLayoutEffect(() => {
     const el = containerRef.current
@@ -114,7 +134,19 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
 
   return (
     <>
-      <style>{`.mgr-scroll::-webkit-scrollbar { display: none; }`}</style>
+      <style>{`
+        .mgr-scroll::-webkit-scrollbar { display: none; }
+        @keyframes shimmer-partial {
+          0%   { background-position: -150% 50%; }
+          50%  { background-position: 200% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+        @keyframes shimmer-perfect {
+          0%   { background-position: -150% 50%; }
+          50%  { background-position: 200% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+      `}</style>
       <div
         ref={containerRef}
         onScroll={handleScroll}
@@ -124,7 +156,7 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
           position: "fixed",
           left: 0,
           right: 0,
-          top: "calc(156px + 53.4vw + 8px)",
+          top: "calc(156px + 38vw)",
           bottom: 80,
           overflowY: "scroll",
           scrollSnapType: "y mandatory",
@@ -204,16 +236,40 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
                   draggable={false}
                   style={{
                     position: "absolute",
-                    top: "9%", left: "8%", right: "8%", bottom: "7%",
-                    width: "84%", height: "84%",
+                    top: "12%", left: "12%", right: "12%", bottom: "10%",
+                    width: "76%", height: "78%",
                     objectFit: "cover",
                     objectPosition: game.header_image_position ?? "50% 50%",
                     borderRadius: 3,
-                    border: "1px solid rgba(196,168,130,0.25)",
+                    border: "2px solid rgba(200,210,225,0.75)",
                     boxShadow: "0 2px 10px rgba(0,0,0,0.8)",
                     opacity: isExpanded ? 1 : 0,
                     transition: "opacity 0.28s ease",
                   }}
+                />
+              )}
+
+              {/* Shimmer overlay — partial (green) or perfect (purple) */}
+              {(pred?.result === "partial" || pred?.result === "perfect") && (
+                <div
+                  key={shimmerKeys[game.id] ?? 0}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: pred.result === "perfect"
+                      ? "linear-gradient(110deg, transparent 30%, rgba(168,85,247,0.55) 45%, rgba(232,210,255,0.35) 52%, rgba(168,85,247,0.55) 59%, transparent 74%)"
+                      : "linear-gradient(110deg, transparent 30%, rgba(52,211,153,0.45) 45%, rgba(200,255,230,0.30) 52%, rgba(52,211,153,0.45) 59%, transparent 74%)",
+                    backgroundSize: "300% 100%",
+                    animation: `${pred.result === "perfect" ? "shimmer-perfect" : "shimmer-partial"} 3.5s ease-in-out ${idx * 0.4}s 1 forwards`,
+                    opacity: isExpanded ? 0 : 1,
+                    transition: "opacity 0.18s ease",
+                    pointerEvents: "none",
+                    mixBlendMode: "screen",
+                    WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)",
+                    WebkitMaskComposite: "destination-in",
+                    maskImage: "linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)",
+                    maskComposite: "intersect",
+                  } as React.CSSProperties}
                 />
               )}
 
@@ -239,6 +295,36 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
                 {game.name}
               </div>
 
+              {/* Score stamp — center-left, between title and date, only after scoring */}
+              {pred?.final_points != null && (() => {
+                const j = stampJitter[game.id]?.score ?? { dx: 0, dy: 0, rot: 0 }
+                const digits = String(pred.final_points).split("")
+                return (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: `calc(11% + 20px + ${j.dy}px)`,
+                      left: `calc(10% + 10px + ${j.dx}px)`,
+                      transform: `translateY(-50%) rotate(${j.rot}deg)`,
+                      display: "flex",
+                      alignItems: "center",
+                      opacity: isExpanded ? 0 : 0.88,
+                      transition: "opacity 0.18s ease",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/text/plus-stamp.png" style={{ height: "24px", display: "block", marginRight: "-4px" }} alt="+" />
+                    {digits.map((d, di) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={di} src={`/text/${d}-stamp.png`} style={{ height: "24px", display: "block", marginRight: "-8px" }} alt={d} />
+                    ))}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/text/ss-stamp.png" style={{ height: "24px", display: "block", marginLeft: "7px" }} alt="ss" />
+                  </div>
+                )
+              })()}
+
               {/* Release date — bottom left of tile */}
               {fmtDate(game.release_date) && (
                 <div
@@ -258,30 +344,72 @@ export function MobileGamesRolodex({ games, predMap, onSelect }: Props) {
                 </div>
               )}
 
-              {/* Stamps — bottom-right corner of letter, hides when expanded */}
-              {(status.label === "Released" || status.label === "Awaiting Scores") && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={status.label === "Released" ? "/released-stamp.png" : "/launch-stamp.png"}
-                  alt={status.label === "Released" ? "Released" : "Launched"}
-                  style={{
-                    position: "absolute",
-                    bottom: "calc(9% - 15px)",
-                    right: "10%",
-                    width: "43.7%",
-                    opacity: isExpanded ? 0 : 0.88,
-                    transition: "opacity 0.18s ease",
-                    pointerEvents: "none",
-                    transform: "rotate(-8deg)",
-                  }}
-                />
-              )}
+              {/* Status stamp — bottom-right corner of letter, hides when expanded */}
+              {(status.label === "Released" || status.label === "Awaiting Scores") && (() => {
+                const j = stampJitter[game.id]?.status ?? { dx: 0, dy: 0, rot: 0 }
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={status.label === "Released" ? "/released-stamp.png" : "/launch-stamp.png"}
+                    alt={status.label === "Released" ? "Released" : "Launched"}
+                    style={{
+                      position: "absolute",
+                      bottom: `calc(9% - 15px + ${j.dy}px)`,
+                      right: `calc(10% - ${j.dx}px)`,
+                      width: "43.7%",
+                      opacity: isExpanded ? 0 : 0.88,
+                      transition: "opacity 0.18s ease",
+                      pointerEvents: "none",
+                      transform: `rotate(${-8 + j.rot}deg)`,
+                    }}
+                  />
+                )
+              })()}
+
+              {/* Result stamp — center of letter; perfect wraps mote overlay */}
+              {pred?.result && (() => {
+                const j = stampJitter[game.id]?.result ?? { dx: 0, dy: 0, rot: 0 }
+                const baseLeft = pred.result === "failed" ? 70 : pred.result === "partial" ? 66 : 58
+                const baseRot = pred.result === "perfect" ? -1 : pred.result === "partial" ? 12 : 23
+                return (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: `calc(50% - ${pred.result === "perfect" ? 27 : 30}px + ${j.dy}px)`,
+                      left: `calc(50% + ${baseLeft + j.dx}px)`,
+                      width: pred.result === "partial" ? "59.9%" : pred.result === "failed" ? "52.9%" : "70.5%",
+                      transform: `translate(-50%, -50%) rotate(${baseRot + j.rot}deg)`,
+                      opacity: isExpanded ? 0 : 0.88,
+                      transition: "opacity 0.18s ease",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={
+                        pred.result === "perfect" ? "/perfect-stamp.png"
+                        : pred.result === "partial" ? "/partial-stamp.png"
+                        : "/miss-stamp.png"
+                      }
+                      alt={pred.result}
+                      style={{ width: "100%", display: "block" }}
+                    />
+                    {pred.result === "perfect" && (
+                      <PerfectMoteOverlay
+                        delay={idx * 0.4}
+                        shimmerKey={shimmerKeys[game.id] ?? 0}
+                        visible
+                      />
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Expanded overlay — gradient + info at bottom, fades in when expanded */}
               <div
                 style={{
                   position: "absolute",
-                  top: "9%", left: "8%", right: "8%", bottom: "7%",
+                  top: "12%", left: "12%", right: "12%", bottom: "10%",
                   borderRadius: 3,
                   background: "linear-gradient(to bottom, transparent 0%, rgba(4,2,12,0.55) 40%, rgba(4,2,12,0.94) 100%)",
                   padding: "10px 12px 10px",

@@ -49,6 +49,7 @@ export function GamesPageClient({ games, predMap, currentSeasonId }: GamesPageCl
           predMap={predMap}
           currentSeasonId={currentSeasonId}
           onSelect={handleSelectGame}
+          isPanelOpen={!!selectedGameId}
         />
       )}
       {selectedGameId && currentSeasonId && (

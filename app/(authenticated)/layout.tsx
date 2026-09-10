@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { Header } from "@/components/header"
 import { WelcomeModal } from "@/components/welcome-modal"
 
@@ -15,6 +16,23 @@ export default async function AuthenticatedLayout({
   if (!user) {
     redirect("/auth/login")
   }
+
+  // Idempotent welcome mail — unique partial index (migration 020) prevents duplicates
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  await supabaseAdmin.from("mail_messages").insert({
+    message_type: "welcome",
+    subject: "Welcome to Prognos",
+    body: "Greetings, aspirant. Prognos is a contest that favors the informed, so be sure to read the Guide before beginning your journey. We would like to thank you for joining us in this inaugural season. Claim your introductory bonus and prepare to Prognos.",
+    target_user_id: user.id,
+    target: "user",
+    is_published: true,
+    mana_reward: 50,
+    season_id: null,
+  })
+  // Errors are intentionally ignored — a unique-constraint violation means the mail already exists
 
   const { data: profile } = await supabase
     .from("profiles")

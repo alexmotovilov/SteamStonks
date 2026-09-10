@@ -178,7 +178,6 @@ export function scoreWeekOnePrediction(
   equipment: EquipmentTierEffect,
   rites: RiteEffects,
   releaseDate: Date | null,
-  isFirstPrediction: boolean = false
 ): WeekOneScoreResult {
 
   // 1. Resolve effective windows (booster + equipment deltas stack)
@@ -236,7 +235,6 @@ export function scoreWeekOnePrediction(
   const manaBoosters  = boosters.mana_total_reward
   const manaEquipment = equipment.mana_total_reward
   const manaRites     = 0  // Eldritch Wager is handled per-metric above
-  const manaFirstPrediction = isFirstPrediction ? FIRST_PREDICTION_BONUS : 0
 
   const finalMana = Math.max(0,
     manaPlayers +
@@ -245,8 +243,7 @@ export function scoreWeekOnePrediction(
     manaEarlyLock +
     manaBoosters +
     manaEquipment +
-    manaRites +
-    manaFirstPrediction
+    manaRites
   )
 
   // 8. Drops (base + equipment + booster total reward drops)
@@ -272,7 +269,7 @@ export function scoreWeekOnePrediction(
     mana_boosters:          manaBoosters,
     mana_equipment:         manaEquipment,
     mana_rites:             manaRites,
-    mana_first_prediction:  manaFirstPrediction,
+    mana_first_prediction:  0,
     final_mana:             finalMana,
     drops_awarded:          dropsAwarded,
   }
