@@ -29,6 +29,9 @@ const CARD_HOV_VW = 15.5 // hover — subtle enlarge
 const CARD_EXP_VW = 20   // clicked/expanded — full
 const RISE_VH     = 5
 const SPREAD_VW   = 1.2
+// Pagination arrow size in vw so it scales with the (vw-based) tiles.
+// 6.9vw ≈ 89px at the reference display; tune this one knob to resize the arrows.
+const NAV_BTN_VW  = 6.9
 
 function fmtDate(d: string | null) {
   if (!d) return null
@@ -118,7 +121,7 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
         opacity: disabled ? 0.3 : 1,
         cursor: disabled ? "default" : "pointer",
         background: "none", border: "none", padding: 0,
-        marginTop: "-16px",
+        marginTop: `${-(NAV_BTN_VW * 16 / 89)}vw`,
         pointerEvents: disabled ? "none" : "auto",
         transition: "transform 0.1s",
       }}
@@ -127,7 +130,7 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/icons/${icon}`} alt={alt} style={{ width: 89, height: 89, objectFit: "contain", display: "block" }} draggable={false} />
+      <img src={`/icons/${icon}`} alt={alt} style={{ width: `${NAV_BTN_VW}vw`, height: `${NAV_BTN_VW}vw`, objectFit: "contain", display: "block" }} draggable={false} />
     </button>
   )
 
@@ -159,7 +162,7 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
         draggable={false}
         style={{
           position: "fixed",
-          bottom: "15px",
+          bottom: "5px",
           left: "50%",
           transform: "translateX(-50%)",
           width: `${VIEW_VW}vw`,

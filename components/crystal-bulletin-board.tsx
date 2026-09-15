@@ -52,12 +52,24 @@ const SLIDES: Slide[] = [
 const INTERVAL_MS = 15000
 const FADE_MS     = 500
 
+// Board width scales with the viewport (like the tiles / scoring board), but is
+// also capped by a vh term so it can't grow too tall on short viewports (e.g. a
+// dev window with devtools open) and clip under the rolodex. On a full-height
+// display the vw governs; when vertical space is tight the vh cap takes over.
+const BOARD_W_VW     = 34   // width knob (governs on full-height displays)
+const BOARD_W_VH_CAP = 57   // height cap knob (bites only on short viewports)
+const FONT_RATIO     = 15 / 576  // body-text-to-width ratio (raise numerator for larger text)
+// Text is tied to the same min() so it stays proportional to the *rendered*
+// board width under either regime; inner sizes are em off this base.
+const BOARD_WIDTH_CSS = `min(${BOARD_W_VW}vw, ${BOARD_W_VH_CAP}vh)`
+const FONT_BASE_CSS   = `min(${(BOARD_W_VW * FONT_RATIO).toFixed(3)}vw, ${(BOARD_W_VH_CAP * FONT_RATIO).toFixed(3)}vh)`
+
 export function CrystalBulletinBoard({
   tabletSrc = "/crystal-tablet.png",
-  top = "calc(64px + 28vh + 65px)",
+  top = "calc(64px + 28vh + 65px - 12px)",
   left,
   right,
-  width = "576px",
+  width = BOARD_WIDTH_CSS,
   className,
 }: {
   tabletSrc?: string
@@ -147,10 +159,11 @@ export function CrystalBulletinBoard({
           position: "absolute",
           top: "17%", left: "9%", right: "9%", bottom: "13%",
           background: "rgba(0, 8, 20, 0.58)",
-          padding: "clamp(8px, 0.83vw, 16px) clamp(14px, 1.88vw, 36px) clamp(8px, 0.83vw, 16px)",
+          fontSize: FONT_BASE_CSS,
+          padding: "0.9em 1.9em",
           display: "flex",
           flexDirection: "column",
-          gap: "4px",
+          gap: "0.3em",
           overflow: "hidden",
           pointerEvents: "auto",
           WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent), linear-gradient(to bottom, transparent, black 8%, black 92%, transparent)",
@@ -167,21 +180,21 @@ export function CrystalBulletinBoard({
             transition: `opacity ${FADE_MS}ms ease`,
             display: "flex",
             flexDirection: "column",
-            gap: "4px",
+            gap: "0.3em",
             minHeight: 0,
           }}
         >
           {/* Tag + title row */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: "7px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "0.52em" }}>
             <span
               className="font-display"
               style={{
-                fontSize: "clamp(7px, 0.52vw, 10px)",
+                fontSize: "0.74em",
                 letterSpacing: "0.12em",
                 color: slide.tagColor,
                 border: `1px solid ${slide.tagColor}55`,
-                borderRadius: "3px",
-                padding: "1px 5px",
+                borderRadius: "0.22em",
+                padding: "0.07em 0.37em",
                 lineHeight: 1.6,
                 flexShrink: 0,
               }}
@@ -191,7 +204,7 @@ export function CrystalBulletinBoard({
             <span
               className="font-display"
               style={{
-                fontSize: "clamp(9px, 0.68vw, 13px)",
+                fontSize: "0.96em",
                 color: "rgba(200,240,255,0.90)",
                 letterSpacing: "0.04em",
                 lineHeight: 1.3,
@@ -207,7 +220,7 @@ export function CrystalBulletinBoard({
             className="font-body"
             style={{
               margin: 0,
-              fontSize: "clamp(10px, 0.70vw, 13.5px)",
+              fontSize: "1em",
               color: "rgba(180,225,240,0.78)",
               lineHeight: 1.55,
               textShadow: "0 1px 4px rgba(0,0,0,0.8)",
@@ -228,17 +241,17 @@ export function CrystalBulletinBoard({
         </div>
 
         {/* Footer: dots + progress bar */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.37em" }}>
           {/* Dot indicators */}
-          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.37em" }}>
             {SLIDES.map((_, i) => (
               <button
                 key={i}
                 onClick={() => goTo(i)}
                 style={{
-                  width:  i === current ? "14px" : "5px",
-                  height: "5px",
-                  borderRadius: "3px",
+                  width:  i === current ? "1.04em" : "0.37em",
+                  height: "0.37em",
+                  borderRadius: "0.22em",
                   border: "none",
                   background: i === current
                     ? "rgba(103,232,249,0.80)"
@@ -253,13 +266,13 @@ export function CrystalBulletinBoard({
           </div>
 
           {/* Progress bar */}
-          <div style={{ height: "2px", background: "rgba(103,232,249,0.12)", borderRadius: "1px", overflow: "hidden" }}>
+          <div style={{ height: "0.15em", background: "rgba(103,232,249,0.12)", borderRadius: "0.07em", overflow: "hidden" }}>
             <div
               style={{
                 height: "100%",
                 width: `${progress * 100}%`,
                 background: "rgba(103,232,249,0.50)",
-                borderRadius: "1px",
+                borderRadius: "0.07em",
                 transition: "width 0.05s linear",
                 boxShadow: "0 0 4px rgba(103,232,249,0.6)",
               }}

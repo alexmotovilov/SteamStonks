@@ -182,9 +182,9 @@ const DEBRIS_ROTATIONS = [
 
 // ─── Independent row tops — adjust each freely ────────────────────
 const ROW_TOPS = [
-  "calc(64px + 5vh + 17px)",
-  "calc(64px + 13vh + 9.5px)",
-  "calc(64px + 21vh + 2px)",
+  "calc(64px + 5vh + 17px - 10px)",
+  "calc(64px + 13vh + 9.5px - 10px)",
+  "calc(64px + 21vh + 2px - 10px)",
 ]
 
 // CRT phosphor-screen readout styling
