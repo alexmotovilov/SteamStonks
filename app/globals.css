@@ -59,6 +59,7 @@ html {
   --font-display: var(--font-display), 'Cinzel', serif;
   --font-body: var(--font-body), 'IM Fell English', serif;
   --font-typewriter: var(--font-typewriter), 'Special Elite', serif;
+  --font-crt: var(--font-crt), 'VT323', monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

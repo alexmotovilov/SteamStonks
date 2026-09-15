@@ -68,16 +68,6 @@ function formatReview(pct: number | null): string {
   return String(Math.round(pct)).padStart(3) + "%"
 }
 
-// Renders each character in str in a fixed-width inline-block cell so
-// all characters occupy stable horizontal positions regardless of content.
-function fixedChars(str: string, color: string, w = 12, ns = "") {
-  return Array.from(str).map((ch, i) => (
-    <span key={`${ns}${i}`} style={{ display: "inline-block", width: w, textAlign: "center", color }}>
-      {ch}
-    </span>
-  ))
-}
-
 function trendIcon(trend: "up" | "down" | "flat" | null): string {
   return trend === "down" ? "▼" : "▲"
 }
@@ -104,11 +94,28 @@ const BOARD_WIDTH = "calc(42vw * 1.19)"
 // Base CSS transform (centering) shared by board and goblin
 const BOARD_BASE_TRANSFORM = "translate(calc(-50% - 5px), calc(-50% + 75px))"
 
+// Ticker row width as a fraction of the viewport (vw) so it scales with the
+// board (also vw-based) — the row stays a constant fraction of the board at
+// every resolution, fixing the "bunched in the centre on large displays" issue.
+// NOTE: vw is in CSS pixels, which are affected by OS/browser display scaling,
+// so this won't equal a fixed physical px width. It's the single knob for the
+// row's width — tune it visually; whatever looks right at one resolution holds
+// at all of them because it's proportional to the board (~49.98vw wide).
+const ROW_WIDTH_VW = 36
+
+// Base readout font size, in vw, derived from the row width so text scales with
+// the board and keeps the original 14px-at-466px text-to-row ratio. All desktop
+// readout sizes/spacing are expressed in em off this base, so tuning ROW_WIDTH_VW
+// (or this ratio) rescales the whole readout proportionally.
+const FONT_BASE_VW = ROW_WIDTH_VW * (14 / 466)
+
 function makeBoardPositions(vwOffset: number) {
   const base = 25 + vwOffset
   return {
     boardLeft:   `${base}vw`,
-    rowLeft:     vwOffset === 0 ? "50px" : `calc(${vwOffset}vw + 50px)`,
+    // Center the rows on the board's center (boardLeft - 5px) by offsetting half
+    // the row width instead of translateX, so we don't clobber the boardShake transform.
+    rowLeft:     `calc(${base - ROW_WIDTH_VW / 2}vw - 5px)`,
     hoverLeft:   vwOffset === 0 ? "-5px" : `calc(${vwOffset}vw - 5px)`,
     goblinLeft:  `calc(${base}vw + 35px)`,
     spawnPoints: [
@@ -180,16 +187,53 @@ const ROW_TOPS = [
   "calc(64px + 21vh + 2px)",
 ]
 
+// CRT phosphor-screen readout styling
+const CRT_FONT  = "var(--font-crt), 'VT323', monospace"
+const CRT_GREEN = "#7dff9b"                        // light phosphor green
+const CRT_DIM   = "rgba(125,255,155,0.35)"         // dim green for separators
+const CRT_GLOW  = "0 0 6px rgba(125,255,155,0.55)" // phosphor bloom
+
 const ROW_PANEL_STYLE: React.CSSProperties = {
-  backdropFilter: "blur(10px)",
-  WebkitBackdropFilter: "blur(10px)",
-  background: "rgba(0,0,0,0.58)",
-  borderRadius: 6,
-  padding: "5px 14px",
   display: "flex",
   alignItems: "center",
-  gap: "14px",
-  width: "466px",
+  gap: "1em",
+  width: `${ROW_WIDTH_VW}vw`,
+  fontSize: `${FONT_BASE_VW}vw`,
+  fontFamily: CRT_FONT,
+  textShadow: CRT_GLOW,
+}
+
+// Compact range value formatter (no zero-padding) — e.g. 12.5K, 1.20M, 87
+function fmtRangeNum(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M"
+  if (n >= 1000) return (n / 1000).toFixed(1) + "K"
+  return String(Math.round(n))
+}
+
+function playersRangeStr(g: CountdownGame): string | null {
+  if (g.players_window_low == null || g.players_window_high == null) return null
+  return `${fmtRangeNum(g.players_window_low)}–${fmtRangeNum(g.players_window_high)}`
+}
+
+function reviewsRangeStr(g: CountdownGame): string | null {
+  if (g.reviews_window_low == null || g.reviews_window_high == null) return null
+  return `${Math.round(g.reviews_window_low)}–${Math.round(g.reviews_window_high)}%`
+}
+
+// Green glowing frame drawn around a metric when it lands inside its range.
+// The transparent-bordered variant keeps identical box metrics so the number
+// doesn't shift when the frame toggles on/off.
+const FRAMED_NUM: React.CSSProperties = {
+  color: CRT_GREEN,
+  border: `1px solid ${CRT_GREEN}`,
+  borderRadius: "0.21em",
+  padding: "0 0.29em",
+  boxShadow: "0 0 6px rgba(125,255,155,0.45), inset 0 0 5px rgba(125,255,155,0.22)",
+}
+const UNFRAMED_NUM: React.CSSProperties = {
+  color: CRT_GREEN,
+  border: "1px solid transparent",
+  padding: "0 0.29em",
 }
 
 function ScoringCountdownPanelBase({
@@ -404,15 +448,15 @@ function ScoringCountdownPanelBase({
           />
           <div style={{
             position: "absolute",
-            top: "22%",
+            top: "5%",
             left: "8%",
             right: "8%",
             display: "flex",
             flexDirection: "column",
-            gap: 5,
+            gap: 8,
           }}>
             {active.length === 0 ? (
-              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "Cinzel, serif" }}>
+              <div style={{ textAlign: "center", color: CRT_DIM, fontSize: 14, fontFamily: CRT_FONT, textShadow: CRT_GLOW }}>
                 No pending scores
               </div>
             ) : active.slice(0, 3).map((game, i) => {
@@ -422,27 +466,42 @@ function ScoringCountdownPanelBase({
                   display: "flex",
                   alignItems: "center",
                   gap: 5,
-                  background: "rgba(0,0,0,0.52)",
-                  backdropFilter: "blur(6px)",
-                  WebkitBackdropFilter: "blur(6px)",
-                  borderRadius: 4,
-                  padding: "3px 7px",
+                  padding: "1px 7px",
+                  fontFamily: CRT_FONT,
+                  textShadow: CRT_GLOW,
                 }}>
-                  <span className="font-display tabular-nums" style={{ color: "#f59e0b", fontSize: 10, letterSpacing: 0 }}>
+                  <span className="tabular-nums" style={{ color: CRT_GREEN, fontSize: 13, letterSpacing: 0, marginLeft: 24 }}>
                     {game.ticker.slice(0, 4).padEnd(4)}
                   </span>
-                  <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 9 }}>|</span>
-                  <span style={{ color: trendColor(game.player_trend), fontSize: 9 }}>{trendIcon(game.player_trend)}</span>
-                  <span className="font-display tabular-nums" style={{ color: inPlayersRange(game) ? "#34d399" : playersExceededRange(game) ? "#f87171" : "rgba(255,255,255,0.82)", fontSize: 10, letterSpacing: 0 }}>
-                    {formatPeak(game.peak_players)}
+                  <span style={{ color: CRT_DIM, fontSize: 11 }}>|</span>
+                  <span style={{ color: trendColor(game.player_trend), fontSize: 10 }}>{trendIcon(game.player_trend)}</span>
+                  <span style={{ position: "relative", display: "inline-block" }}>
+                    <span className="tabular-nums" style={{ ...(inPlayersRange(game) ? FRAMED_NUM : UNFRAMED_NUM), fontSize: 13, letterSpacing: 0 }}>
+                      {formatPeak(game.peak_players)}
+                    </span>
+                    {playersRangeStr(game) && (
+                      <span style={{ position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", marginTop: -3, fontSize: 10, color: CRT_DIM, whiteSpace: "nowrap" }}>
+                        {playersRangeStr(game)}
+                      </span>
+                    )}
                   </span>
-                  <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 9 }}>|</span>
-                  <span style={{ color: trendColor(game.review_trend), fontSize: 9 }}>{trendIcon(game.review_trend)}</span>
-                  <span className="font-display tabular-nums" style={{ color: inReviewsRange(game) ? "#34d399" : "rgba(255,255,255,0.82)", fontSize: 10, letterSpacing: 0 }}>
-                    {formatReview(game.latest_review_pct)}
+                  <span style={{ color: CRT_DIM, fontSize: 11 }}>|</span>
+                  <span style={{ color: trendColor(game.review_trend), fontSize: 10 }}>{trendIcon(game.review_trend)}</span>
+                  <span style={{ position: "relative", display: "inline-block" }}>
+                    <span className="tabular-nums" style={{ ...(inReviewsRange(game) ? FRAMED_NUM : UNFRAMED_NUM), fontSize: 13, letterSpacing: 0 }}>
+                      {formatReview(game.latest_review_pct)}
+                    </span>
+                    {reviewsRangeStr(game) && (
+                      <span style={{ position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", marginTop: -3, fontSize: 10, color: CRT_DIM, whiteSpace: "nowrap" }}>
+                        {reviewsRangeStr(game)}
+                      </span>
+                    )}
                   </span>
-                  <span className="font-display tabular-nums text-cyan-300" style={{ fontSize: 10, marginLeft: "auto", letterSpacing: 0 }}>
-                    {ms != null ? formatCountdown(ms) : "——:——:——:——"}
+                  <span style={{ position: "relative", marginLeft: "auto", marginRight: 24, display: "inline-block" }}>
+                    <span style={{ position: "relative", top: 3, fontSize: 8, color: CRT_DIM, letterSpacing: 1, whiteSpace: "nowrap" }}>RESULTS IN</span>
+                    <span className="tabular-nums" style={{ position: "absolute", top: "100%", right: 0, marginTop: -4, color: CRT_GREEN, fontSize: 13, letterSpacing: 0, whiteSpace: "nowrap" }}>
+                      {ms != null ? formatCountdown(ms) : "——:——:——:——"}
+                    </span>
                   </span>
                 </div>
               )
@@ -583,27 +642,49 @@ function ScoringCountdownPanelBase({
             }}
           >
             <div style={ROW_PANEL_STYLE}>
-              <span className="font-display text-sm tabular-nums" style={{ letterSpacing: 0 }}>
-                {fixedChars(game.ticker.slice(0, 4).padEnd(4), "#f59e0b", 14, "tk")}
-                {fixedChars(" | ", "rgba(255,255,255,0.2)", 12, "s1")}
-                <span style={{ display: "inline-block", width: 16, textAlign: "center", color: trendColor(game.player_trend), position: "relative", left: "-10px" }}>{trendIcon(game.player_trend)}</span>
-                {fixedChars(formatPeak(game.peak_players), inPlayersRange(game) ? "#34d399" : playersExceededRange(game) ? "#f87171" : "rgba(255,255,255,0.85)", 12, "pk")}
-                <span style={{ display: "inline-block", width: 15 }} />
-                {fixedChars(trendIcon(game.review_trend), trendColor(game.review_trend), 16, "rt")}
-                {fixedChars(formatReview(game.latest_review_pct), inReviewsRange(game) ? "#34d399" : "rgba(255,255,255,0.85)", 12, "rv")}
+              <span className="tabular-nums" style={{ letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.43em" }}>
+                {/* ticker */}
+                <span style={{ color: CRT_GREEN }}>{game.ticker.slice(0, 4).padEnd(4)}</span>
+                <span style={{ color: CRT_DIM }}>|</span>
+
+                {/* players peak + range */}
+                <span style={{ display: "inline-block", width: "1.14em", textAlign: "center", color: trendColor(game.player_trend) }}>{trendIcon(game.player_trend)}</span>
+                <span style={{ position: "relative", display: "inline-block" }}>
+                  <span style={inPlayersRange(game) ? FRAMED_NUM : UNFRAMED_NUM}>{formatPeak(game.peak_players)}</span>
+                  {playersRangeStr(game) && (
+                    <span style={{ position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", marginTop: "0.14em", fontSize: "0.857em", color: CRT_DIM, whiteSpace: "nowrap" }}>
+                      {playersRangeStr(game)}
+                    </span>
+                  )}
+                </span>
+
+                <span style={{ display: "inline-block", width: "0.57em" }} />
+
+                {/* reviews pct + range */}
+                <span style={{ display: "inline-block", width: "1.14em", textAlign: "center", color: trendColor(game.review_trend) }}>{trendIcon(game.review_trend)}</span>
+                <span style={{ position: "relative", display: "inline-block" }}>
+                  <span style={inReviewsRange(game) ? FRAMED_NUM : UNFRAMED_NUM}>{formatReview(game.latest_review_pct)}</span>
+                  {reviewsRangeStr(game) && (
+                    <span style={{ position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", marginTop: "0.14em", fontSize: "0.857em", color: CRT_DIM, whiteSpace: "nowrap" }}>
+                      {reviewsRangeStr(game)}
+                    </span>
+                  )}
+                </span>
               </span>
-              <span style={{ color: "rgba(255,255,255,0.15)", letterSpacing: 0 }}>|</span>
-              <span className="font-display text-sm text-cyan-300 tabular-nums" style={{ letterSpacing: 0, marginLeft: "auto" }}>
-                {Array.from(ms != null ? formatCountdown(ms) : "DD:HH:MM:SS").map((ch, i) => (
-                  <span key={i} style={{
-                    display: "inline-block",
-                    width: ch === ":" ? 10 : 13,
-                    textAlign: "center",
-                    opacity: ch === ":" ? 0.55 : 1,
-                  }}>
-                    {ch}
-                  </span>
-                ))}
+              <span style={{ position: "relative", marginLeft: "auto", display: "inline-block" }}>
+                <span style={{ fontSize: "0.786em", color: CRT_DIM, letterSpacing: "0.1em", whiteSpace: "nowrap" }}>RESULTS IN</span>
+                <span className="tabular-nums" style={{ position: "absolute", top: "100%", right: 0, marginTop: "-0.07em", letterSpacing: 0, color: CRT_GREEN, whiteSpace: "nowrap" }}>
+                  {Array.from(ms != null ? formatCountdown(ms) : "DD:HH:MM:SS").map((ch, i) => (
+                    <span key={i} style={{
+                      display: "inline-block",
+                      width: ch === ":" ? "0.71em" : "0.93em",
+                      textAlign: "center",
+                      opacity: ch === ":" ? 0.55 : 1,
+                    }}>
+                      {ch}
+                    </span>
+                  ))}
+                </span>
               </span>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Cinzel, IM_Fell_English, Special_Elite } from 'next/font/google'
+import { Cinzel, IM_Fell_English, Special_Elite, VT323 } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ParallaxBackground } from '@/components/parallax-background'
 import './globals.css'
@@ -16,6 +16,14 @@ const specialElite = Special_Elite({
   weight: '400',
   subsets: ['latin'],
   variable: '--font-typewriter',
+  display: 'swap',
+})
+
+// CRT / phosphor-terminal font — scoring countdown board readout
+const vt323 = VT323({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-crt',
   display: 'swap',
 })
 
@@ -46,7 +54,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${cinzel.variable} ${imFellEnglish.variable} ${specialElite.variable}`}>
+    <html lang="en" className={`${cinzel.variable} ${imFellEnglish.variable} ${specialElite.variable} ${vt323.variable}`}>
       <body className="font-body antialiased pb-10 overflow-x-hidden">
         <ParallaxBackground />
         {children}

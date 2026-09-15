@@ -150,6 +150,26 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
         style={{ position: "fixed", inset: 0, zIndex: 34, pointerEvents: expandedId ? "auto" : "none" }}
         onClick={() => setExpandedId(null)}
       />
+      {/* Stone backdrop — the base the tiles are laid against */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/gametile-backdrop.png"
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        style={{
+          position: "fixed",
+          bottom: "15px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: `${VIEW_VW}vw`,
+          height: "auto",
+          zIndex: 33,
+          pointerEvents: "none",
+          WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+          maskImage: "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+        }}
+      />
       {/* Left buttons — anchored to the left margin, stacked vertically */}
       <div style={{ position: "fixed", left: "16px", bottom: "20px", height: "80vh", display: "flex", flexDirection: "column", justifyContent: "flex-end", paddingBottom: "calc(5vh - 40px)", gap: "0px", zIndex: 36, pointerEvents: "auto" }}>
         {navBtn(() => moveBy(-1),        atStart, "left.png",        "Back one tile")}
@@ -217,6 +237,13 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
           const scaleFactor = isExp ? CARD_EXP_VW / CARD_VW : isHov ? CARD_HOV_VW / CARD_VW : 1
           const riseY = isExp ? -RISE_VH : 0
 
+          // Shaped shadow that follows the parchment's torn silhouette
+          const dropShadow = isExp
+            ? "drop-shadow(0 12px 16px rgba(0,0,0,0.6)) drop-shadow(0 5px 8px rgba(0,0,0,0.45))"
+            : isHov
+            ? "drop-shadow(0 8px 12px rgba(0,0,0,0.55)) drop-shadow(0 4px 6px rgba(0,0,0,0.42))"
+            : "drop-shadow(0 5px 9px rgba(0,0,0,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.38))"
+
           return (
             <div
               key={game.id}
@@ -226,9 +253,9 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
                 bottom: 0,
                 zIndex: isExp ? 100 : isHov ? 50 : N - i,
                 transform: `translateX(${spreadX}vw) translateY(${riseY}vh)`,
-                transition: "transform 0.32s ease",
+                transition: "transform 0.32s ease, filter 0.32s ease",
                 pointerEvents: isPanelOpen ? "none" : "auto",
-                filter: isPanelOpen ? "grayscale(1) blur(2px)" : isInactive ? "grayscale(1)" : "none",
+                filter: isPanelOpen ? "grayscale(1) blur(2px)" : isInactive ? `grayscale(1) ${dropShadow}` : dropShadow,
               }}
             >
               <div
@@ -254,12 +281,7 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
                     width: `${CARD_VW}vw`,
                     transform: `scale(${scaleFactor})`,
                     transformOrigin: "center bottom",
-                    transition: "transform 0.32s ease, box-shadow 0.32s ease, filter 0.3s ease",
-                    boxShadow: isExp
-                      ? "0 24px 56px rgba(0,0,0,0.95), 0 0 20px rgba(196,168,130,0.10)"
-                      : isHov
-                      ? "0 16px 40px rgba(0,0,0,0.90)"
-                      : "0 8px 24px rgba(0,0,0,0.80)",
+                    transition: "transform 0.32s ease, filter 0.3s ease",
                     cursor: isInactive ? "default" : "pointer",
                     overflow: "hidden",
                     WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 2%, black 98%, transparent 100%)",
