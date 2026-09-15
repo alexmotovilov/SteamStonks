@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     .insert({
       message_type: "starter_kit",
       subject: "Starter Kit",
-      body: "Your starter items are ready to claim. Three boosters to get your first predictions off to a strong start.",
+      body: "Please find inside three boosters to aid you in your divinations. More can be obtained from the Vendor or for making accurate predictions.\n\n-Prognos Team",
       target_user_id: user.id,
       target: "user",
       is_published: true,

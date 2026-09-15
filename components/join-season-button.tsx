@@ -192,6 +192,7 @@ export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalanc
 
       setPhase("idle")
       router.push("/games")
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join season")
     } finally {
@@ -250,6 +251,7 @@ export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalanc
 
       setPhase("idle")
       router.push("/games")
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join season")
     } finally {
@@ -275,11 +277,14 @@ export function JoinSeasonButton({ seasonId, seasonName, entryFee, currentBalanc
                   Join for Free
                 </h2>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  You can make predictions, earn mana and drops, and use most rites — all without paying the entry fee.
+                  You can make predictions, earn mana and drops, and use most rites, all without paying the entry fee.
                 </p>
                 <p className="text-xs text-muted-foreground/60 mt-2 leading-relaxed">
                   The Season Ladder, Auspicious Omens, equipment, and weekly stipend are locked until you vest
                   by paying the {entryFee}-token entry fee.
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-2 leading-relaxed">
+                  Season score cannot be earned while playing for free. Your progress will not advance your leaderboard standing.
                 </p>
               </div>
 

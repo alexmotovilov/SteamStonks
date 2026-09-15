@@ -86,6 +86,23 @@ interface LadderGame {
   header_image_position?: string | null
   is_released: boolean
   release_date: string | null
+  release_time_override?: string | null
+}
+
+// A game is released once its actual launch time has passed. Mirrors the
+// steam-collector cron: prefer release_time_override (exact launch instant);
+// otherwise treat release_date as end-of-day UTC (not midnight) so the ladder
+// doesn't lock a game hours before it actually launches.
+function isGameReleased(g: Pick<LadderGame, "is_released" | "release_date" | "release_time_override">): boolean {
+  if (g.is_released) return true
+  let t: Date | null = null
+  if (g.release_time_override) {
+    t = new Date(g.release_time_override)
+  } else if (g.release_date) {
+    t = new Date(g.release_date)
+    t.setUTCHours(23, 59, 59, 0)
+  }
+  return t !== null && t <= new Date()
 }
 
 interface PredictionFormProps {
@@ -666,7 +683,7 @@ export function PredictionForm({
     const id = ladder[dragItem.current]
     if (id === null) return
     const g = ladderGames.find(g => g.id === id)
-    const gReleased = g ? (g.is_released || (!!g.release_date && new Date(g.release_date) <= new Date())) : false
+    const gReleased = g ? isGameReleased(g) : false
     if (lockedLadderGameIds.includes(id) || gReleased) return
     const next = [...ladder]; const [d] = next.splice(dragItem.current, 1); next.splice(dragOverItem.current, 0, d)
     setLadder(next); dragItem.current = null; dragOverItem.current = null
@@ -749,8 +766,26 @@ export function PredictionForm({
       if (!user) throw new Error("You must be logged in")
       const payload = { user_id: user.id, game_id: gameId, season_id: seasonId, prediction_type: "week_one", players_midpoint: playersMidpoint, reviews_midpoint: reviewsMidpoint, players_window_low: playersWindow.low, players_window_high: playersWindow.high, reviews_window_low: reviewsWindow.low, reviews_window_high: reviewsWindow.high, applied_boosters: appliedBoosters, updated_at: new Date().toISOString(), ladder_red_slot_game_id: (ladder[8] !== null && ladder[8] !== gameId) ? ladder[8] : null }
       let predictionId = existingPrediction?.id ?? null
-      if (existingPrediction) { const { error: e } = await supabase.from("predictions").update(payload).eq("id", existingPrediction.id); if (e) throw e }
-      else { const { data: ins, error: e } = await supabase.from("predictions").insert(payload).select("id").single(); if (e) throw e; predictionId = ins?.id ?? null }
+      // Opening the card auto-creates a default prediction row; if that row
+      // exists but wasn't passed in as existingPrediction, look it up so we
+      // UPDATE it rather than INSERT a duplicate (which violates the unique
+      // (user, game, season, type) constraint and surfaced as "Failed to save").
+      if (!predictionId) {
+        const { data: found } = await supabase
+          .from("predictions")
+          .select("id")
+          .eq("user_id", user.id).eq("game_id", gameId).eq("season_id", seasonId).eq("prediction_type", "week_one")
+          .maybeSingle()
+        predictionId = found?.id ?? null
+      }
+      if (predictionId) {
+        const { error: e } = await supabase.from("predictions").update(payload).eq("id", predictionId)
+        if (e) throw e
+      } else {
+        const { data: ins, error: e } = await supabase.from("predictions").insert(payload).select("id").single()
+        if (e) throw e
+        predictionId = ins?.id ?? null
+      }
       const prev = existingPrediction?.applied_boosters ?? []
       const changed = appliedBoosters.length !== prev.length || appliedBoosters.some(s => !prev.includes(s))
       if (predictionId && changed) {
@@ -760,7 +795,7 @@ export function PredictionForm({
       const rankedGames = ladder.slice(0, 8).filter((id): id is string => id !== null)
       if (rankedGames.length > 0 && !isUnvested) await supabase.from("ladder_rankings").upsert({ user_id: user.id, season_id: seasonId, ranked_games: rankedGames, updated_at: new Date().toISOString() }, { onConflict: "user_id,season_id" })
       router.refresh(); onSave?.()
-    } catch (err) { setError(err instanceof Error ? err.message : "Failed to save") }
+    } catch (err) { setError(err instanceof Error ? err.message : ((err as { message?: string })?.message ?? "Failed to save")) }
     finally { setSaving(false) }
   }
 
@@ -799,14 +834,14 @@ export function PredictionForm({
         100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.0); }
       }
     `}</style>
-    <Card className="border-border bg-[rgba(10,10,20,0.50)]" style={{ filter: isFullyLocked ? "grayscale(1)" : undefined }}>
+    <Card className="border-0 bg-transparent shadow-none" style={{ filter: isFullyLocked ? "grayscale(1)" : undefined }}>
       <CardContent className="p-2">
         {error && <Alert variant="destructive" className="mb-3"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
 
         <div className="grid gap-2" style={{ gridTemplateColumns: "120px 1fr 160px" }}>
 
           {/* LEFT — Rites / Boosters */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 rounded-xl border border-white/8 bg-[rgba(15,12,25,0.75)] p-2">
             {/* Tab toggle */}
             <div className="flex rounded overflow-hidden border border-white/10" style={{ fontSize: 9 }}>
               <button
@@ -876,7 +911,7 @@ export function PredictionForm({
             <div className="relative flex flex-col gap-3">
               <div className={`space-y-1 transition-opacity duration-200 ${isEarlyLocked ? "opacity-30" : ""}`}>
                 <div className="flex items-center justify-between">
-                  <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase flex items-center gap-1">Highest Player Count · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
+                  <label className="text-[10px] tracking-wide uppercase flex items-center gap-1" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>Highest Player Count · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -891,16 +926,17 @@ export function PredictionForm({
                       setPlayersEditing(false)
                     }}
                     onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }}
-                    className={`font-mono text-xs text-emerald-400 font-bold bg-transparent rounded px-1.5 py-0.5 text-right w-24 outline-none transition-colors border ${isSlidersLocked ? "cursor-default border-emerald-500/10" : "cursor-text border-emerald-500/25 hover:border-emerald-500/50 focus:border-emerald-500/70 focus:bg-emerald-950/20"}`}
+                    className={`font-bold bg-transparent rounded px-1.5 py-0.5 text-right w-24 outline-none transition-colors border ${isSlidersLocked ? "cursor-default border-emerald-500/10" : "cursor-text border-emerald-500/25 hover:border-emerald-500/50 focus:border-emerald-500/70"}`}
+                    style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05", fontSize: "0.75rem" }}
                   />
                 </div>
                 <GemSlider min={PLAYERS_MIN} max={PLAYERS_MAX} step={PLAYERS_STEP} value={Math.max(PLAYERS_MIN, playersMidpoint)} savedValue={existingPrediction?.players_midpoint ?? 10000} onChange={setPlayersMidpoint} disabled={isSlidersLocked} windowLow={Math.max(0, playersWindow.low)} windowHigh={playersWindow.high} auguryGradient={auguryGradientPlayers} formatValue={v => v.toLocaleString() + " players"} logScale />
-                <div className="text-[10px] text-emerald-700 text-center">{playersWindow.low.toLocaleString()} – {playersWindow.high.toLocaleString()}</div>
+                <div className="text-[10px] text-center" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>{playersWindow.low.toLocaleString()} – {playersWindow.high.toLocaleString()}</div>
               </div>
 
               <div className={`space-y-1 transition-opacity duration-200 ${isEarlyLocked ? "opacity-30" : ""}`}>
                 <div className="flex items-center justify-between">
-                  <label className="font-display text-[10px] text-muted-foreground tracking-wide uppercase flex items-center gap-1">% Positive Reviews · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
+                  <label className="text-[10px] tracking-wide uppercase flex items-center gap-1" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>% Positive Reviews · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
                   <div className="flex items-center">
                     <input
                       type="text"
@@ -916,13 +952,14 @@ export function PredictionForm({
                         setReviewsEditing(false)
                       }}
                       onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }}
-                      className={`font-mono text-xs text-emerald-400 font-bold bg-transparent rounded px-1.5 py-0.5 text-right w-8 outline-none transition-colors border ${isSlidersLocked ? "cursor-default border-emerald-500/10" : "cursor-text border-emerald-500/25 hover:border-emerald-500/50 focus:border-emerald-500/70 focus:bg-emerald-950/20"}`}
+                      className={`font-bold bg-transparent rounded px-1.5 py-0.5 text-right w-8 outline-none transition-colors border ${isSlidersLocked ? "cursor-default border-emerald-500/10" : "cursor-text border-emerald-500/25 hover:border-emerald-500/50 focus:border-emerald-500/70"}`}
+                      style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05", fontSize: "0.75rem" }}
                     />
-                    <span className="font-mono text-xs text-emerald-400 font-bold">%</span>
+                    <span className="text-xs font-bold" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>%</span>
                   </div>
                 </div>
                 <GemSlider min={0} max={100} step={1} value={reviewsMidpoint} savedValue={existingPrediction?.reviews_midpoint ?? 75} onChange={setReviewsMidpoint} disabled={isSlidersLocked} windowLow={reviewsWindow.low} windowHigh={reviewsWindow.high} auguryGradient={auguryGradientReviews} formatValue={v => v + "% positive"} />
-                <div className="text-[10px] text-emerald-700 text-center">{reviewsWindow.low}% – {reviewsWindow.high}%</div>
+                <div className="text-[10px] text-center" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>{reviewsWindow.low}% – {reviewsWindow.high}%</div>
               </div>
 
               {/* Single padlock overlay for the whole week 1 panel */}
@@ -961,7 +998,8 @@ export function PredictionForm({
             {!isSeasonClosed && existingPrediction && !isEarlyLocked && !isReleased && !isFullyLocked && (
               <div className="relative">
                 <button onClick={() => { setShowLockPop(p => !p); setShowSavePop(false) }} disabled={saving}
-                  className="w-full py-1.5 rounded-lg font-display text-xs tracking-wide bg-amber-500/8 text-amber-400 border border-amber-500/22 hover:bg-amber-500/15 transition-colors">
+                  className="w-full py-1.5 rounded-lg text-xs tracking-wide bg-transparent hover:bg-black/5 transition-colors"
+                  style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05", border: "1.5px solid #1c0e05" }}>
                   <Lock className="inline h-3 w-3 mr-1" />Early Lock (+{earlyLockMana} mana bonus) <GuideLink section="early-lock" label="About early lock" />
                 </button>
                 <ActionPopover open={showLockPop} title="Apply Early Lock?" description="Your week-one sliders and prediction window will be frozen, securing your early lock mana bonus. Boosters, rites, and the season ladder remain fully editable." confirmLabel="Lock It" onConfirm={handleEarlyLock} onCancel={() => setShowLockPop(false)} colorClass="amber" />
@@ -973,7 +1011,7 @@ export function PredictionForm({
               <AuguryCountdown expiry={auguryExpiry} />
             )}
             {auguryGradientPlayers && (
-              <div className="text-[9px] text-muted-foreground/50 text-center italic font-body">
+              <div className="text-[9px] text-center italic" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>
                 {auguryIsSparse
                   ? "Few prophecies recorded — heatmap may not be representative"
                   : "Showing crowd prediction distribution"}
@@ -999,21 +1037,17 @@ export function PredictionForm({
                       onClick={() => { setShowSavePop(p => !p); setShowLockPop(false) }}
                       disabled={saving}
                       onAnimationEnd={() => setSaveFlash(false)}
-                      style={saveFlash ? { animation: "save-btn-flash 0.55s ease-out forwards" } : undefined}
-                      className={`w-full py-1.5 rounded-lg font-display text-xs tracking-wide border transition-colors disabled:opacity-50 ${
-                        isDirty
-                          ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/25 hover:bg-emerald-500/18"
-                          : "bg-zinc-800/40 text-zinc-500/70 border-zinc-600/20 hover:text-zinc-400 hover:border-zinc-500/30"
-                      }`}
+                      style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05", border: "1.5px solid #1c0e05", ...(saveFlash ? { animation: "save-btn-flash 0.55s ease-out forwards" } : {}) }}
+                      className={`w-full py-1.5 rounded-lg text-xs tracking-wide bg-transparent hover:bg-black/5 transition-opacity disabled:opacity-50 ${isDirty ? "opacity-100" : "opacity-45"}`}
                     >
                       {saving ? <Loader2 className="inline h-3 w-3 animate-spin mr-1" /> : null}
-                      {existingPrediction ? "Update Prediction" : "Save Prediction"}
+                      Update Prediction
                     </button>
-                    <ActionPopover open={showSavePop} title={existingPrediction ? "Update your prediction?" : "Save your prediction?"} description="Your midpoints, window adjustments, and applied boosters will be recorded." confirmLabel="Confirm" onConfirm={handleSavePrediction} onCancel={() => setShowSavePop(false)} colorClass="emerald" />
+                    <ActionPopover open={showSavePop} title="Update your prediction?" description="Your midpoints, window adjustments, and applied boosters will be recorded." confirmLabel="Confirm" onConfirm={handleSavePrediction} onCancel={() => setShowSavePop(false)} colorClass="emerald" />
                   </div>
                 )}
-                {countdown && <div className="font-display text-[9px] text-muted-foreground/40 text-center tracking-widest">{countdown}</div>}
-                {isReleased && existingPrediction && <div className="font-display text-[9px] text-muted-foreground/40 text-center tracking-widest"><Lock className="inline h-2.5 w-2.5 mr-1" />Locked on release · awaiting scoring</div>}
+                {countdown && <div className="text-[9px] text-center tracking-widest" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>{countdown}</div>}
+                {isReleased && existingPrediction && <div className="text-[9px] text-center tracking-widest" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}><Lock className="inline h-2.5 w-2.5 mr-1" />Locked on release · awaiting scoring</div>}
               </div>
             )}
           </div>
@@ -1022,7 +1056,7 @@ export function PredictionForm({
           {ladderGames.length > 0 && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase">Ladder</span>
+                <span className="text-[9px] tracking-widest uppercase" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>Ladder</span>
                 <GuideLink section="ladder-scoring" label="How ladder scoring works" />
               </div>
               {isUnvested ? (
@@ -1041,7 +1075,7 @@ export function PredictionForm({
                     }
                     const game = ladderGames.find(g => g.id === gId)
                     if (!game) return null
-                    const gameReleased = game.is_released || (!!game.release_date && new Date(game.release_date) <= new Date())
+                    const gameReleased = isGameReleased(game)
                     const isLockedPos = lockedLadderGameIds.includes(gId) || gameReleased
                     const isExcluded = gameReleased && !predictedSet.has(gId)
                     const isCurrentGame = gId === gameId

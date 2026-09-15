@@ -102,8 +102,8 @@ export default async function VendorPage() {
       <NoScroll />
 
       {isUnvested && (
-        <div className="fixed top-[calc(var(--header-height,64px)+16px)] left-1/2 -translate-x-1/2 z-30 flex items-center gap-4 px-5 py-3 rounded-xl border border-purple-500/30 bg-[rgba(10,5,25,0.92)] shadow-xl backdrop-blur-sm" style={{ maxWidth: "min(90vw, 560px)", width: "100%" }}>
-          <div className="flex-1 min-w-0">
+        <div className="free-entry-panel fixed top-[calc(var(--header-height,64px)+76px)] left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3 px-5 py-3 rounded-xl border border-purple-500/30 bg-[rgba(10,5,25,0.92)] shadow-xl backdrop-blur-sm" style={{ maxWidth: "min(45vw, 280px)", width: "100%" }}>
+          <div className="w-full min-w-0">
             <p className="font-display text-xs text-purple-300 tracking-wide mb-0.5">Free Entry</p>
             <p className="font-body text-[11px] text-muted-foreground/70 leading-tight">Vest to unlock the Season Ladder, Auspicious Omens, equipment, and the weekly stipend.</p>
           </div>
@@ -117,15 +117,15 @@ export default async function VendorPage() {
 
       {/* Desktop-only: bulletin board, restock sign, countdown */}
       <div className="hidden md:block">
-        <CrystalBulletinBoard tabletSrc="/crystal-tablet-2.png" top="calc(9.3vh + 50px)" right="calc(6.25vw + 140px)" width="27vw" />
+        <CrystalBulletinBoard className="vendor-blur bag-blur" tabletSrc="/crystal-tablet-2.png" top="calc(9.3vh + 50px)" right="calc(6.25vw + 140px)" width="27vw" />
         <img
           src="/restock-sign.png"
           alt=""
-          className="vendor-blur"
+          className="vendor-blur bag-blur"
           style={{ position: "fixed", top: "calc(7.4vh + 40px)", right: "calc(49vw + 170px)", width: "17.4vw", height: "auto", zIndex: 10, pointerEvents: "none" }}
           draggable={false}
         />
-        <div className="vendor-blur" style={{ position: "fixed", top: "calc(16.2vh + 45px)", right: "calc(49.4vw + 172px)", width: "8.3vw", zIndex: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="vendor-blur bag-blur" style={{ position: "fixed", top: "calc(16.2vh + 45px)", right: "calc(49.4vw + 172px)", width: "8.3vw", zIndex: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <VendorCountdown />
         </div>
       </div>
@@ -139,6 +139,7 @@ export default async function VendorPage() {
         vendorWeek={season.current_vendor_week ?? 1}
         vendorCycle={cycle}
         stipendClaimable={stipendClaimable}
+        isUnvested={isUnvested}
         inventory={(inventory ?? []) as unknown as InventoryItem[]}
       />
     </>

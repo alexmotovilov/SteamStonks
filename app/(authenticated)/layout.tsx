@@ -25,7 +25,7 @@ export default async function AuthenticatedLayout({
   await supabaseAdmin.from("mail_messages").insert({
     message_type: "welcome",
     subject: "Welcome to Prognos",
-    body: "Greetings, aspirant. Prognos is a contest that favors the informed, so be sure to read the Guide before beginning your journey. We would like to thank you for joining us in this inaugural season. Claim your introductory bonus and prepare to Prognos.",
+    body: "Greetings, aspirant. Prognos is a contest that favors the informed, so be sure to read the Guide before beginning your journey. We would like to thank you for joining us in this inaugural season. Claim your introductory bonus and prepare to Prognos.\n\n-Prognos Team",
     target_user_id: user.id,
     target: "user",
     is_published: true,

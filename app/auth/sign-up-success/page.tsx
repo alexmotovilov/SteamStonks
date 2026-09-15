@@ -21,8 +21,8 @@ export default function SignUpSuccessPage() {
           <p className="font-display text-[13px] tracking-wide text-stone-200 leading-tight" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)" }}>
             Check Your Email
           </p>
-          <p className="font-body text-[11px] text-stone-400 leading-snug" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7)" }}>
-            A confirmation link has been sent. Click it to complete your registration and enter the circle.
+          <p className="font-body text-[11.5px] text-stone-300 leading-snug" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7)" }}>
+            A confirmation link has been sent. Click it to complete your registration and login.
           </p>
         </div>
       </div>

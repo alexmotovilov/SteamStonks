@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { PredictionFormClient } from "@/components/prediction-form-client"
 import { ScoredResultsUpper, ScoredResultsMiddle, ScoredResultsLower } from "@/components/prediction-form"
@@ -23,7 +24,7 @@ type PanelData = {
   weekOneSnapshot: { player_count: number | null; review_positive: number | null; review_negative: number | null; captured_at: string | null } | null
   seasonEntry: { equipment_id: string | null; equipment_tier_score: number; is_free_entry: boolean | null; vested_at: string | null } | null
   inventory: { item_id: string; quantity: number; items: { slug: string; name: string; image_url: string | null; effects: Record<string, number>; description: string } }[]
-  seasonGames: { id: string; name: string; header_image_url: string | null; header_image_position: string | null; is_released: boolean; release_date: string | null }[]
+  seasonGames: { id: string; name: string; header_image_url: string | null; header_image_position: string | null; is_released: boolean; release_date: string | null; release_time_override: string | null }[]
   aoMarkCount: number
   aoMarkedGameIds: string[]
   predictedGameIds: string[]
@@ -38,6 +39,7 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
   const [isFormDirty, setIsFormDirty] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -97,7 +99,7 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         user
           ? supabase.from("inventory").select("item_id, quantity").eq("user_id", user.id)
           : Promise.resolve({ data: [] }),
-        supabase.from("games").select("id, name, header_image_url, header_image_position, is_released, release_date").eq("season_id", seasonId).order("release_date", { ascending: true }),
+        supabase.from("games").select("id, name, header_image_url, header_image_position, is_released, release_date, release_time_override").eq("season_id", seasonId).order("release_date", { ascending: true }),
         user
           ? supabase.from("rite_history").select("id").eq("user_id", user.id).eq("season_id", seasonId).eq("rite_slug", "auspicious_omens")
           : Promise.resolve({ data: [] }),
@@ -181,10 +183,13 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         existingLadder: ((ladderRes.data as { ranked_games?: string[] } | null)?.ranked_games ?? []),
         lockedLadderGameIds: ((ladderRes.data as { locked_game_ids?: string[] } | null)?.locked_game_ids ?? []),
       })
+      // A freshly auto-created default prediction isn't in the games page's
+      // predMap yet — refresh server data so the game tile reflects it.
+      if (autoCreated) router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load prediction")
     }
-  }, [gameId, seasonId])
+  }, [gameId, seasonId, router])
 
   // Initial load
   useEffect(() => {

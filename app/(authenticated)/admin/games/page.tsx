@@ -407,8 +407,8 @@ export default function AdminGamesPage() {
                               })()}
                             </div>
                           )}
-                          <div>
-                            <p className="font-medium">{game.name}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate max-w-[240px]" title={game.name}>{game.name}</p>
                             {game.release_date && (
                               <p className="text-xs text-muted-foreground">
                                 {new Date(game.release_date).toLocaleDateString("en-US", { timeZone: "UTC" })}

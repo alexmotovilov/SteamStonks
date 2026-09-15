@@ -58,34 +58,23 @@ export default function SignUpPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="relative w-full max-w-md">
         {/* Gargoyle + speech bubble — absolutely positioned to the left of the card */}
-        <div className="absolute right-full hidden md:flex flex-col items-center pr-6" style={{ width: "320px", bottom: "85px" }}>
-          {/* Speech bubble */}
+        <div className="absolute left-1/2 flex flex-col items-center" style={{ width: "320px", bottom: "calc(100% - 85px)", zIndex: 0, transform: "translateX(calc(-50% - 110px))" }}>
+          {/* Speech bubble — to the gargoyle's right */}
           <div
-            className="relative rounded-xl border px-4 py-3 text-sm font-body text-white w-full text-center mb-2"
-            style={{ backdropFilter: "blur(4px)", borderColor: "#C4A882", backgroundColor: "rgba(196,168,130,0.25)" }}
+            className="absolute rounded-xl border px-4 py-3 text-sm font-body text-white text-center"
+            style={{ width: "190px", left: "calc(62% + 50px)", top: "calc(12% - 17px)", backdropFilter: "blur(4px)", borderColor: "#ef4444", backgroundColor: "rgba(239,68,68,0.25)" }}
           >
             Prognos staff will{" "}
             <span className="text-red-400 font-semibold">NEVER</span> ask for your password. Do not share it with anyone.
-            {/* Tail pointing down */}
-            <div
-              className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-full"
-              style={{
-                width: 0,
-                height: 0,
-                borderLeft: "8px solid transparent",
-                borderRight: "8px solid transparent",
-                borderTop: "10px solid #C4A882",
-              }}
-            />
           </div>
           <img
             src="/other-gargoyle.png"
             alt=""
-            style={{ width: "100%", height: "auto" }}
+            style={{ width: "50%", height: "auto", transform: "translateY(0px)" }}
           />
         </div>
 
-      <Card className="w-full border-border bg-card">
+      <Card className="w-full border-border bg-card relative z-10" style={{ backgroundColor: "oklch(0.17 0.01 260)" }}>
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-2">
             <img src="/icons/game-name-logo.png" alt="Prognos" style={{ height: "80px", width: "auto", filter: "drop-shadow(0 0 8px rgba(157,132,212,0.5))" }} />

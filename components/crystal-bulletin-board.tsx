@@ -58,12 +58,14 @@ export function CrystalBulletinBoard({
   left,
   right,
   width = "576px",
+  className,
 }: {
   tabletSrc?: string
   top?: string
   left?: string
   right?: string
   width?: string
+  className?: string
 }) {
   const [current, setCurrent]   = useState(0)
   const [visible, setVisible]   = useState(0)   // which slide is actually shown
@@ -124,6 +126,7 @@ export function CrystalBulletinBoard({
 
   return (
     <div
+      className={className}
       style={{
         position: "fixed",
         top,

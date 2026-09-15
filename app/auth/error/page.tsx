@@ -21,8 +21,8 @@ export default function AuthErrorPage() {
           <p className="font-display text-[13px] tracking-wide text-stone-200 leading-tight" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)" }}>
             Authentication Error
           </p>
-          <p className="font-body text-[11px] text-stone-400 leading-snug" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7)" }}>
-            Thou must retry or return from whence you came. Contact support if the issue persists.
+          <p className="font-body text-[11.5px] text-stone-300 leading-snug" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7)" }}>
+            Thou must retry or return from whence you came. Contact support if this issue persists.
           </p>
         </div>
       </div>

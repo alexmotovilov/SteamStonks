@@ -116,6 +116,7 @@ interface VendorShopProps {
   vendorWeek: number
   vendorCycle: "A" | "B"
   stipendClaimable?: boolean
+  isUnvested?: boolean
   inventory?: InventoryItem[]
 }
 
@@ -244,7 +245,7 @@ function BoosterDisplayTile({ inv }: { inv: InventoryItem }) {
   )
 }
 
-export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stipendClaimable, inventory }: VendorShopProps) {
+export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stipendClaimable, isUnvested, inventory }: VendorShopProps) {
   const router = useRouter()
   const [localMana, setLocalMana] = useState(manaBalance)
   const [localPurchased, setLocalPurchased] = useState<Record<string, number>>(purchasedCounts)
@@ -427,7 +428,7 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
               onMouseEnter={() => setChestHovering(true)}
               onMouseLeave={() => setChestHovering(false)}
             >
-              <StipendBanner claimable={stipendClaimable} seasonId={seasonId} />
+              <StipendBanner claimable={stipendClaimable} locked={isUnvested} seasonId={seasonId} />
             </div>
             {stipendClaimable && (
               <canvas
@@ -606,7 +607,7 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
           {/* Chest — on the counter, left side */}
           {stipendClaimable !== undefined && (
             <div style={{ position: "absolute", left: "calc(7.7% + 5px)", bottom: "calc(54% + 3px)", width: "29.3%", zIndex: 2 }}>
-              <StipendBanner claimable={stipendClaimable} seasonId={seasonId} />
+              <StipendBanner claimable={stipendClaimable} locked={isUnvested} seasonId={seasonId} />
             </div>
           )}
 

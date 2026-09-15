@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { type PredictionData } from "@/components/game-card"
 import { GamesPageClient } from "@/components/games-page-client"
@@ -26,13 +27,38 @@ export default async function GamesPage() {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: currentSeason } = await supabase
+  // Prefer the active season; fall back to the soonest upcoming one for context.
+  // Game tiles are only shown for an active season the user has joined (below).
+  let { data: currentSeason } = await supabase
     .from("seasons")
     .select("*")
-    .in("status", ["active", "upcoming"])
+    .eq("status", "active")
     .order("start_date", { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
+
+  if (!currentSeason) {
+    const { data: upcomingSeason } = await supabase
+      .from("seasons")
+      .select("*")
+      .eq("status", "upcoming")
+      .order("start_date", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    currentSeason = upcomingSeason
+  }
+
+  // The user may only view game tiles once they've joined the active season.
+  const { data: seasonEntry } = user && currentSeason
+    ? await supabase
+        .from("season_entries")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("season_id", currentSeason.id)
+        .maybeSingle()
+    : { data: null }
+
+  const canViewGames = currentSeason?.status === "active" && !!seasonEntry
 
   const { data: games } = await supabase
     .from("games")
@@ -167,6 +193,47 @@ export default async function GamesPage() {
     })
   }
 
+  const emptyStateCard = (
+    <div
+      className="text-center"
+      style={{
+        pointerEvents: "auto",
+        maxWidth: 560,
+        background: "rgba(8,6,14,0.62)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        border: "1px solid rgba(157,132,212,0.25)",
+        borderRadius: 16,
+        padding: "30px 40px",
+      }}
+    >
+      {currentSeason?.status === "active" ? (
+        <>
+          <p className="font-display text-2xl text-purple-300" style={{ textShadow: "0 0 12px rgba(0,0,0,0.9)" }}>
+            The season is underway.
+          </p>
+          <p className="font-body text-purple-300/80 mt-2">
+            Join to make your predictions and claim your place on the ladder.
+          </p>
+          <Link
+            href={`/seasons/${currentSeason.id}`}
+            className="inline-block mt-5 font-display text-sm tracking-wide px-6 py-2 rounded-xl border border-purple-500/40 text-purple-300 hover:bg-purple-500/15 transition-colors"
+          >
+            Join Season
+          </Link>
+        </>
+      ) : currentSeason?.status === "upcoming" ? (
+        <p className="font-display text-2xl text-purple-300" style={{ textShadow: "0 0 12px rgba(0,0,0,0.9)" }}>
+          Prepare yourself! A new season approaches…
+        </p>
+      ) : (
+        <p className="font-display text-2xl text-purple-300" style={{ textShadow: "0 0 12px rgba(0,0,0,0.9)" }}>
+          No season is currently running.
+        </p>
+      )}
+    </div>
+  )
+
   return (
     <>
       <NoScroll />
@@ -179,11 +246,24 @@ export default async function GamesPage() {
       <div className="md:hidden">
         <ScoringCountdownPanel games={enrichedGames} hasUnread={false} hasUnclaimed={false} mobile />
       </div>
-      <GamesPageClient
-        games={games ?? []}
-        predMap={predMap}
-        currentSeasonId={currentSeason?.id ?? null}
-      />
+      {canViewGames ? (
+        <GamesPageClient
+          games={games ?? []}
+          predMap={predMap}
+          currentSeasonId={currentSeason?.id ?? null}
+        />
+      ) : (
+        <>
+          {/* Mobile: 70% down the page */}
+          <div className="md:hidden flex justify-center" style={{ position: "fixed", top: "70%", left: 0, right: 0, transform: "translateY(-50%)", padding: "1rem", pointerEvents: "none", zIndex: 35 }}>
+            {emptyStateCard}
+          </div>
+          {/* Desktop: along the bottom, where the rolodex sits */}
+          <div className="hidden md:block" style={{ position: "fixed", left: "50%", bottom: "30px", transform: "translateX(-50%)", padding: "1rem", pointerEvents: "none", zIndex: 35 }}>
+            {emptyStateCard}
+          </div>
+        </>
+      )}
     </>
   )
 }

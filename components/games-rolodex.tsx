@@ -92,10 +92,44 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
 
   const N = games.length
 
-  const stepVw = N > 1
-    ? Math.min(CARD_VW - 1, (92 - CARD_EXP_VW) / (N - 1))
-    : CARD_EXP_VW
-  const totalVw = N > 1 ? (N - 1) * stepVw + CARD_EXP_VW : CARD_EXP_VW
+  // ── Pagination (offset measured in tiles) ────────────────────
+  const PER_PAGE = 5
+  const STEP_VW  = 14.5                  // horizontal spacing between tiles
+  const FADE_VW  = 5                     // soft fade / breathing room on each side
+  const VIEW_VW  = PER_PAGE * STEP_VW + 2 * FADE_VW  // window incl. fade margins
+  const fadePct  = (FADE_VW / VIEW_VW) * 100
+  const maxOffset = Math.max(0, N - PER_PAGE)
+  const [offset, setOffset] = useState(0)
+  useEffect(() => { setOffset(o => Math.min(o, maxOffset)) }, [maxOffset])
+  const trackVw = Math.max(VIEW_VW, 2 * FADE_VW + N * STEP_VW)
+  const atStart = offset <= 0
+  const atEnd   = offset >= maxOffset
+
+  function moveBy(delta: number) {
+    setOffset(o => Math.max(0, Math.min(maxOffset, o + delta)))
+    setExpandedId(null)
+  }
+
+  const navBtn = (onClick: () => void, disabled: boolean, icon: string, alt: string) => (
+    <button
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      style={{
+        opacity: disabled ? 0.3 : 1,
+        cursor: disabled ? "default" : "pointer",
+        background: "none", border: "none", padding: 0,
+        marginTop: "-16px",
+        pointerEvents: disabled ? "none" : "auto",
+        transition: "transform 0.1s",
+      }}
+      onMouseDown={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.88)" }}
+      onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`/icons/${icon}`} alt={alt} style={{ width: 89, height: 89, objectFit: "contain", display: "block" }} draggable={false} />
+    </button>
+  )
 
   return (
     <>
@@ -116,24 +150,53 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
         style={{ position: "fixed", inset: 0, zIndex: 34, pointerEvents: expandedId ? "auto" : "none" }}
         onClick={() => setExpandedId(null)}
       />
+      {/* Left buttons — anchored to the left margin, stacked vertically */}
+      <div style={{ position: "fixed", left: "16px", bottom: "20px", height: "80vh", display: "flex", flexDirection: "column", justifyContent: "flex-end", paddingBottom: "calc(5vh - 40px)", gap: "0px", zIndex: 36, pointerEvents: "auto" }}>
+        {navBtn(() => moveBy(-1),        atStart, "left.png",        "Back one tile")}
+        {navBtn(() => moveBy(-PER_PAGE), atStart, "double-left.png", "Back a page")}
+      </div>
+
+      {/* Right buttons — anchored to the right margin, stacked vertically */}
+      <div style={{ position: "fixed", right: "16px", bottom: "20px", height: "80vh", display: "flex", flexDirection: "column", justifyContent: "flex-end", paddingBottom: "calc(5vh - 40px)", gap: "0px", zIndex: 36, pointerEvents: "auto" }}>
+        {navBtn(() => moveBy(1),        atEnd, "right.png",        "Forward one tile")}
+        {navBtn(() => moveBy(PER_PAGE), atEnd, "double-right.png", "Forward a page")}
+      </div>
+
+      {/* Tiles viewport — centered; clips to 6 tiles, track slides */}
       <div
         style={{
           position: "fixed",
           bottom: "20px",
           left: "50%",
-          width: `${totalVw}vw`,
           transform: "translateX(-50%)",
+          width: `${VIEW_VW}vw`,
           height: "80vh",
+          overflow: "hidden",
           zIndex: 35,
           pointerEvents: "none",
+          WebkitMaskImage: `linear-gradient(to right, transparent 0%, black ${fadePct}%, black ${100 - fadePct}%, transparent 100%)`,
+          maskImage: `linear-gradient(to right, transparent 0%, black ${fadePct}%, black ${100 - fadePct}%, transparent 100%)`,
         }}
       >
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            bottom: 0,
+            width: `${trackVw}vw`,
+            height: "100%",
+            transform: `translateX(-${offset * STEP_VW}vw)`,
+            transition: "transform 0.45s ease",
+          }}
+        >
         {games.map((game, i) => {
           const isHov = hoveredId === game.id
           const isExp = expandedId === game.id
           const pred  = predMap[game.id] ?? null
           const ranges = predDisplay(pred)
           const status = gameStatus(game)
+          // A launched game the player never predicted on: greyed + static.
+          const isInactive = status.label !== "Upcoming" && !pred
 
           let resultColor = "#67e8f9"
           let resultLabel: string | null = null
@@ -141,10 +204,7 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
           else if (pred?.result === "partial") { resultColor = "#f59e0b"; resultLabel = "Partial" }
           else if (pred?.result === "failed") { resultColor = "#6b7280"; resultLabel = "Missed" }
 
-          const extraVw = isExp ? CARD_EXP_VW - CARD_VW : isHov ? CARD_HOV_VW - CARD_VW : 0
-          // Shift tile left by half its extra width so it grows symmetrically
-          const centerOffset = -(extraVw / 2)
-          // Neighbors each move by half the active card's extra width
+          // Neighbors each move by half the active card's extra visual width
           const activeExtraVw = expandedIdx >= 0 ? CARD_EXP_VW - CARD_VW : CARD_HOV_VW - CARD_VW
           let spreadX = 0
           if (activeIdx >= 0) {
@@ -152,7 +212,9 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
             else if (i > activeIdx) spreadX = activeExtraVw / 2
           }
 
-          const cardWidth = isExp ? CARD_EXP_VW : isHov ? CARD_HOV_VW : CARD_VW
+          // Enlarge via transform scale (not width) so all card content — text
+          // included — scales uniformly and never re-wraps to a different line count.
+          const scaleFactor = isExp ? CARD_EXP_VW / CARD_VW : isHov ? CARD_HOV_VW / CARD_VW : 1
           const riseY = isExp ? -RISE_VH : 0
 
           return (
@@ -160,20 +222,20 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
               key={game.id}
               style={{
                 position: "absolute",
-                left: `${i * stepVw}vw`,
+                left: `${FADE_VW + i * STEP_VW}vw`,
                 bottom: 0,
                 zIndex: isExp ? 100 : isHov ? 50 : N - i,
-                transform: `translateX(${spreadX + centerOffset}vw) translateY(${riseY}vh)`,
+                transform: `translateX(${spreadX}vw) translateY(${riseY}vh)`,
                 transition: "transform 0.32s ease",
                 pointerEvents: isPanelOpen ? "none" : "auto",
-                filter: isPanelOpen ? "grayscale(1) blur(2px)" : "none",
+                filter: isPanelOpen ? "grayscale(1) blur(2px)" : isInactive ? "grayscale(1)" : "none",
               }}
             >
               <div
                 style={{ display: "block" }}
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (isPanelOpen) return
+                  if (isPanelOpen || isInactive) return
                   if (isExp) {
                     onSelect ? onSelect(game.id) : router.push(`/games/${game.id}${currentSeasonId ? `?season=${currentSeasonId}` : ""}`)
                   } else {
@@ -189,14 +251,16 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
                   onMouseLeave={() => setHoveredId(null)}
                   style={{
                     position: "relative",
-                    width: `${cardWidth}vw`,
-                    transition: "width 0.32s ease, box-shadow 0.32s ease, filter 0.3s ease",
+                    width: `${CARD_VW}vw`,
+                    transform: `scale(${scaleFactor})`,
+                    transformOrigin: "center bottom",
+                    transition: "transform 0.32s ease, box-shadow 0.32s ease, filter 0.3s ease",
                     boxShadow: isExp
                       ? "0 24px 56px rgba(0,0,0,0.95), 0 0 20px rgba(196,168,130,0.10)"
                       : isHov
                       ? "0 16px 40px rgba(0,0,0,0.90)"
                       : "0 8px 24px rgba(0,0,0,0.80)",
-                    cursor: "pointer",
+                    cursor: isInactive ? "default" : "pointer",
                     overflow: "hidden",
                     WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 2%, black 98%, transparent 100%)",
                     maskImage: "linear-gradient(to right, transparent 0%, black 2%, black 98%, transparent 100%)",
@@ -450,6 +514,7 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
             </div>
           )
         })}
+        </div>
       </div>
     </>
   )

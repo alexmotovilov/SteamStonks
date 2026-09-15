@@ -5,6 +5,7 @@ const LETTER_TEXT_SHADOW = "0 0 2px #000, 0 0 2px #000, 0 0 2px #000, 0 0 4px rg
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { CheckCircle2, Loader2, Trash2 } from "lucide-react"
 
 // ─── Types ────────────────────────────────────────────────────
@@ -101,6 +102,51 @@ function fmtPlayers(n: number) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M"
   if (n >= 1000) return Math.round(n / 1000) + "K"
   return String(n)
+}
+
+// Renders a message body with the first occurrence of `marker` turned into a
+// link to `href`. Used for the welcome ("Guide") and starter-kit ("Vendor") mail.
+function linkifyBody(body: string, marker: string, href: string) {
+  const idx = body.indexOf(marker)
+  if (idx === -1) return body
+  return (
+    <>
+      {body.slice(0, idx)}
+      <Link
+        href={href}
+        className="text-purple-300 font-display underline underline-offset-2 decoration-purple-400/60 hover:text-purple-200 transition-colors"
+      >
+        {marker}
+      </Link>
+      {body.slice(idx + marker.length)}
+    </>
+  )
+}
+
+// Renders an admin/welcome/starter-kit body, linkifying the relevant keyword
+// and right-aligning a trailing "-Prognos Team" sign-off on its own line.
+function renderMessageBody(msg: MailMessage) {
+  const signoff = "-Prognos Team"
+  const hasSignoff = msg.body.trimEnd().endsWith(signoff)
+  const mainText = hasSignoff
+    ? msg.body.slice(0, msg.body.lastIndexOf(signoff)).trimEnd()
+    : msg.body
+  const content =
+    msg.message_type === "welcome" ? linkifyBody(mainText, "Guide", "/guide")
+    : msg.message_type === "starter_kit" ? linkifyBody(mainText, "Vendor", "/vendor")
+    : mainText
+  // Welcome + starter-kit mail use larger body text than routine admin notices
+  // on desktop, but stay smaller on mobile where space is tight.
+  const isIntroMail = msg.message_type === "welcome" || msg.message_type === "starter_kit"
+  const sizeClass = isIntroMail ? "text-sm md:text-base" : "text-sm"
+  return (
+    <>
+      <p className={`${sizeClass} font-body text-foreground/85 leading-relaxed whitespace-pre-wrap`}>{content}</p>
+      {hasSignoff && (
+        <p className={`${sizeClass} font-body text-foreground/85 leading-relaxed text-right mt-3`}>{signoff}</p>
+      )}
+    </>
+  )
 }
 
 // ─── ClaimManaButton ──────────────────────────────────────────
@@ -1001,7 +1047,7 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
         ) : undefined}>
           <div className="w-[72%] space-y-4 rounded-xl px-6 py-5" style={{ background: "rgba(8,6,4,0.62)", backdropFilter: "blur(2px)" }}>
             <div className="md:hidden text-[10px] font-body text-muted-foreground/50 text-right">{date}</div>
-            <p className="text-sm font-body text-foreground/85 leading-relaxed whitespace-pre-wrap">{msg.body}</p>
+            {renderMessageBody(msg)}
             {(msg.mana_reward ?? 0) > 0 && (
               manaClaimed ? (
                 <div className="flex items-center gap-2 text-xs text-emerald-400">
@@ -1018,31 +1064,37 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
             )}
             {msg.mail_attachments.length > 0 && (
               <div className="space-y-2">
-                <div className="text-[9px] font-display tracking-widest uppercase text-muted-foreground/40">Attachments</div>
                 {msg.mail_attachments.map((att, i) => (
                   <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-secondary/30 border border-border/50">
                     {att.items?.image_url && (
-                      <img src={att.items.image_url} alt={att.items.name} className="w-8 h-8 rounded-md object-cover shrink-0" />
+                      <div className="relative w-8 h-8 shrink-0">
+                        <img src={att.items.image_url} alt={att.items.name} className="w-8 h-8 rounded-md object-cover" />
+                        {isClaimed && (
+                          <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/50">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                          </div>
+                        )}
+                      </div>
                     )}
                     <span className="flex-1 text-sm font-body text-foreground">
                       {att.quantity > 1 && <span className="text-amber-400 font-display">{att.quantity}× </span>}
                       {att.items?.name ?? "Unknown item"}
                     </span>
-                    {isClaimed ? (
-                      <span className="text-xs font-display text-emerald-400 shrink-0">✓ Claimed</span>
-                    ) : isExpired ? (
-                      <span className="text-xs font-body text-muted-foreground/50 shrink-0">Expired</span>
-                    ) : (
-                      <button
-                        onClick={e => { e.stopPropagation(); handleClaim() }}
-                        disabled={claiming}
-                        className="px-3 py-1 rounded-lg text-xs font-display bg-purple-500/10 text-purple-400 border border-purple-500/25 hover:bg-purple-500/20 transition-colors disabled:opacity-50 shrink-0"
-                      >
-                        {claiming ? "Claiming…" : "Claim"}
-                      </button>
-                    )}
                   </div>
                 ))}
+                {isClaimed ? (
+                  <div className="text-center text-xs font-display text-emerald-400 pt-1">Claimed</div>
+                ) : isExpired ? (
+                  <div className="text-center text-xs font-body text-muted-foreground/50 pt-1">Expired</div>
+                ) : (
+                  <button
+                    onClick={e => { e.stopPropagation(); handleClaim() }}
+                    disabled={claiming}
+                    className="w-full py-2 rounded-lg text-xs font-display bg-amber-500/10 text-amber-400 border border-amber-500/25 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                  >
+                    {claiming ? "Claiming…" : msg.mail_attachments.length > 1 ? "Claim All" : "Claim"}
+                  </button>
+                )}
                 {claimError && <p className="text-xs text-red-400 font-body">{claimError}</p>}
               </div>
             )}

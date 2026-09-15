@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation"
 interface StipendBannerProps {
   claimable: boolean
   seasonId: string
+  locked?: boolean
 }
 
-export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
+export function StipendBanner({ claimable, seasonId, locked = false }: StipendBannerProps) {
   const router = useRouter()
   const [localClaimed, setLocalClaimed] = useState(!claimable)
   const [claiming, setClaiming] = useState(false)
@@ -26,7 +27,7 @@ export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
   }, [hovering])
 
   async function handleCollect() {
-    if (localClaimed || claiming) return
+    if (localClaimed || claiming || locked) return
     setAnimating(true)
     setTimeout(() => setAnimating(false), 700)
     setClaiming(true)
@@ -60,6 +61,20 @@ export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
           25%  { opacity: 1; transform: translateY(-8px) scale(1.18); }
           100% { opacity: 0; transform: translateY(-60px) scale(1.35); }
         }
+        /* Locked chest hover shakes the Free Entry panel to link the two.
+           Only offsets via transform — the panel's horizontal centering comes
+           from Tailwind's translate property (v4), which composes with this. */
+        @keyframes freeEntryShake {
+          0%, 100% { transform: rotate(0deg); }
+          15% { transform: translateX(-5px) rotate(-2deg); }
+          30% { transform: translateX(5px) rotate(2deg); }
+          45% { transform: translateX(-4px) rotate(-1.5deg); }
+          60% { transform: translateX(3px) rotate(1deg); }
+          75% { transform: translateX(-2px) rotate(-0.5deg); }
+        }
+        body.chest-hovered .free-entry-panel {
+          animation: freeEntryShake 0.6s ease-in-out;
+        }
       `}</style>
       <div className="flex flex-col items-center gap-1.5">
         <div
@@ -79,7 +94,7 @@ export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
             </div>
           )}
           {/* Hover label + click fly-up animation */}
-          {!localClaimed && (hovering || animating) && (
+          {!localClaimed && !locked && (hovering || animating) && (
             <div
               className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
               style={{ animation: animating ? "collectFlyUp 0.65s ease-out forwards" : "none" }}
@@ -108,10 +123,11 @@ export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
             onClick={handleCollect}
             className={[
               "hidden md:block select-none transition-all duration-300",
-              !localClaimed && !claiming
+              !localClaimed && !claiming && !locked
                 ? "cursor-pointer hover:scale-105 hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] active:scale-95"
                 : "",
               claiming ? "opacity-60 cursor-wait" : "",
+              locked ? "grayscale opacity-70 cursor-default" : "",
             ].join(" ")}
             draggable={false}
           />
@@ -124,10 +140,11 @@ export function StipendBanner({ claimable, seasonId }: StipendBannerProps) {
             onClick={handleCollect}
             className={[
               "md:hidden select-none transition-all duration-300",
-              !localClaimed && !claiming
+              !localClaimed && !claiming && !locked
                 ? "cursor-pointer hover:scale-105 hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] active:scale-95"
                 : "",
               claiming ? "opacity-60 cursor-wait" : "",
+              locked ? "grayscale opacity-70 cursor-default" : "",
             ].join(" ")}
             style={{ width: "100%", height: "auto" }}
             draggable={false}
