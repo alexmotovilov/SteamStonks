@@ -162,20 +162,44 @@ export function GemSlider({
   // so valToSvg(value) sits slightly right of (lowX+highX)/2 — this corrects it.
   const gemX  = (lowX + highX) / 2
 
-  function handleSvgClick(e: React.MouseEvent<SVGSVGElement>) {
-    if (disabled || !svgRef.current) return
-    const rect = svgRef.current.getBoundingClientRect()
-    const svgX = ((e.clientX - rect.left) / rect.width) * SVG_W
+  function svgXFromClient(clientX: number): number {
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect || rect.width === 0) return 0
+    return ((clientX - rect.left) / rect.width) * SVG_W
+  }
+  function valueFromSvgX(svgX: number): number {
     const pct = Math.max(0, Math.min(SVG_W, svgX))
     const raw = logScale
       ? fromLogPos((pct / SVG_W) * LOG_STEPS, min, max)
       : fromSvgX(pct, min, max)
     const snapped = logScale ? raw : Math.round(raw / step) * step
-    onChange(Math.max(min, Math.min(max, snapped)))
+    return Math.max(min, Math.min(max, snapped))
+  }
+
+  // Value only changes by grabbing and dragging the gem — taps elsewhere do
+  // nothing. Dragging is relative to the grab point so the gem never jumps.
+  const GEM_HIT = 90 // grab tolerance (SVG_W units) around the gem
+  const dragRef = useRef<{ startX: number; startGemX: number } | null>(null)
+  function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    if (disabled) return
+    const sx = svgXFromClient(e.clientX)
+    if (Math.abs(sx - gemX) > GEM_HIT) return // not on the gem — ignore
+    dragRef.current = { startX: sx, startGemX: gemX }
+    try { svgRef.current?.setPointerCapture(e.pointerId) } catch { /**/ }
+  }
+  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
+    const d = dragRef.current
+    if (!d) return
+    onChange(valueFromSvgX(d.startGemX + (svgXFromClient(e.clientX) - d.startX)))
+  }
+  function handlePointerUp(e: React.PointerEvent<SVGSVGElement>) {
+    if (!dragRef.current) return
+    dragRef.current = null
+    try { svgRef.current?.releasePointerCapture(e.pointerId) } catch { /**/ }
   }
 
   return (
-    <div className="relative select-none" style={{ userSelect: "none" }}>
+    <div className="relative select-none" data-no-swipe style={{ userSelect: "none" }}>
       {isChanged && (
         <style>{`
           @keyframes gem-changed-pulse {
@@ -186,12 +210,13 @@ export function GemSlider({
       )}
       <svg
         ref={svgRef}
-        width="100%"
-        height={SVG_H}
         viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-        preserveAspectRatio="none"
-        onClick={handleSvgClick}
-        className={disabled ? "cursor-default" : "cursor-pointer"}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className={disabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"}
+        style={{ width: "100%", height: "auto", display: "block", touchAction: "pan-y" }}
         aria-hidden="true"
       >
         <defs>
@@ -285,6 +310,7 @@ export function GemSlider({
           opacity: 0,
           cursor: disabled ? "default" : "pointer",
           margin: 0,
+          pointerEvents: "none", // keyboard/ARIA only; pointer dragging handled on the SVG gem
         }}
         aria-label={formatValue ? formatValue(value) : String(value)}
       />

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -130,11 +131,16 @@ interface PredictionFormProps {
   isUnvested?: boolean
   onSave?: () => void
   onDirtyChange?: (dirty: boolean) => void
+  onRequestClose?: () => void
+  mobile?: boolean
 }
 
 const PLAYERS_MIN = 100
 const PLAYERS_MAX = 2000000
 const PLAYERS_STEP = 100
+
+// Absolute booster-slot ceiling: 2 base + 1 Sigil of Multiplicity + 1 Clockwork Familiar
+const MAX_BOOSTER_SLOTS = 4
 
 const RITES = [
   { slug: "ritual_of_augury",    name: "Ritual of Augury",      cost: 10,              placeholder: "👁", image: "/rites/ritual-of-augury.png",      description: "Reveals the crowd's prediction distribution as a heatmap on the sliders for 2 minutes.", confirmText: "Perform the Ritual of Augury?",        confirmBtn: "Perform", auraColor: "cyan",   reusable: true  },
@@ -144,14 +150,28 @@ const RITES = [
   { slug: "auspicious_omens",    name: "Auspicious Omens",      cost: null as number | null, placeholder: "★", image: "/rites/auspicious-omens.png", description: "Mark this game as destined for the Top 8. If any marked game misses, all Auspicious Omens rewards are forfeited.", confirmText: "Mark this game with Auspicious Omens?", confirmBtn: "Mark It", auraColor: "purple", reusable: false },
 ] as const
 
+// Renders fixed-position overlays (tooltips, popovers) into document.body so they
+// escape the card's transform: scale() wrapper — otherwise `position: fixed` is
+// resolved relative to the transformed ancestor and lands off-screen.
+function BodyPortal({ children }: { children: React.ReactNode }) {
+  if (typeof document === "undefined") return null
+  return createPortal(children, document.body)
+}
+
 function RiteCircle({ rite, isPerformed, disabled, onConfirm }: { rite: typeof RITES[number] & { image?: string }; isPerformed: boolean; disabled: boolean; onConfirm: () => void }) {
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [popoverPos, setPopoverPos] = useState({ x: 0, y: 0 })
   const ref = useRef<HTMLDivElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    function h(e: MouseEvent) {
+      const t = e.target as Node
+      // popRef is portaled to body, so it isn't inside ref — check it separately.
+      if (ref.current?.contains(t) || popRef.current?.contains(t)) return
+      setOpen(false)
+    }
     document.addEventListener("mousedown", h)
     return () => document.removeEventListener("mousedown", h)
   }, [])
@@ -199,10 +219,11 @@ function RiteCircle({ rite, isPerformed, disabled, onConfirm }: { rite: typeof R
           </div>
         )}
       </div>
-      <div className="font-display text-[9px] text-muted-foreground text-center leading-tight max-w-[80px]">{rite.name}</div>
+      <div className="font-display text-[9px] text-center leading-tight max-w-[80px]" style={{ color: "#e8dcc0" }}>{rite.name}</div>
 
       {/* Hover tooltip — fixed, appears to the right of the cursor */}
       {hovered && !open && (
+        <BodyPortal>
         <div
           className="fixed z-[9999] w-44 bg-[rgba(10,10,25,0.98)] border border-purple-500/30 rounded-xl p-2.5 shadow-2xl pointer-events-none flex flex-col gap-1.5"
           style={{ left: mousePos.x + 14, top: mousePos.y - 10 }}
@@ -216,11 +237,14 @@ function RiteCircle({ rite, isPerformed, disabled, onConfirm }: { rite: typeof R
             </div>
           )}
         </div>
+        </BodyPortal>
       )}
 
       {/* Confirmation popover — fixed, anchored to right edge of rite circle */}
       {open && (
+        <BodyPortal>
         <div
+          ref={popRef}
           className="fixed z-[9999] w-48 bg-[rgba(10,10,25,0.98)] border border-purple-500/30 rounded-xl p-3 shadow-2xl flex flex-col gap-2"
           style={{ left: popoverPos.x, top: popoverPos.y, transform: "translateY(-50%)" }}
         >
@@ -234,6 +258,7 @@ function RiteCircle({ rite, isPerformed, disabled, onConfirm }: { rite: typeof R
             <button onClick={() => setOpen(false)} className="flex-1 py-1 rounded-lg text-[10px] font-display bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10 transition-colors">Cancel</button>
           </div>
         </div>
+        </BodyPortal>
       )}
     </div>
   )
@@ -275,9 +300,10 @@ function BoosterTile({ inv, isApplied, canApply, isSavedLocked, onToggle }: { in
           {/* Applied checkmark — top-right for applied+unlocked boosters */}
           {isApplied && !isSavedLocked && <div className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-amber-500/90 border border-amber-400 flex items-center justify-center z-10 text-[7px] text-white font-bold">✓</div>}
         </div>
-        <div className="font-display text-[8px] text-muted-foreground text-center leading-tight line-clamp-2 w-full">{inv.items.name}</div>
+        <div className="font-display text-[8px] text-center leading-tight line-clamp-2 w-full" style={{ color: "#e8dcc0" }}>{inv.items.name}</div>
       </button>
       {hovering && (
+        <BodyPortal>
         <div
           className="fixed z-[9999] w-44 bg-[rgba(10,10,25,0.98)] border border-amber-500/25 rounded-xl p-2.5 shadow-2xl pointer-events-none flex flex-col gap-1"
           style={{ left: mousePos.x + 14, top: mousePos.y - 10 }}
@@ -287,6 +313,7 @@ function BoosterTile({ inv, isApplied, canApply, isSavedLocked, onToggle }: { in
             {isSavedLocked ? "Applied & locked — boosters cannot be removed after saving" : inv.items.description}
           </div>
         </div>
+        </BodyPortal>
       )}
     </div>
   )
@@ -389,9 +416,10 @@ interface ActiveEffectsPanelProps {
   performedRites: Set<string>
   aoMarked: boolean
   firstPredictionBonusEligible: boolean
+  mobile?: boolean
 }
 
-function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters, performedRites, aoMarked, firstPredictionBonusEligible }: ActiveEffectsPanelProps) {
+function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters, performedRites, aoMarked, firstPredictionBonusEligible, mobile = false }: ActiveEffectsPanelProps) {
   const sourcedGroups: EffectGroup[] = []
 
   if (equipmentSlug) {
@@ -430,7 +458,7 @@ function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters
   return (
     <div
       className="bg-[rgba(10,10,20,0.6)] border border-white/8 rounded-xl p-3 flex flex-col gap-1.5"
-      style={{ height: "148px" }}
+      style={{ height: mobile ? "230px" : "148px" }}
     >
       <style>{`
         .effects-scroll::-webkit-scrollbar { width: 4px; }
@@ -483,11 +511,12 @@ function ActiveEffectsPanel({ equipmentSlug, equipmentTierScore, appliedBoosters
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function EmptyLadderSlot({ rank, isOverflow, onDragEnter, onDragEnd }: {
-  rank: number; isOverflow: boolean; onDragEnter: () => void; onDragEnd: () => void;
+function EmptyLadderSlot({ rank, index, isOverflow, onDragEnter, onDragEnd }: {
+  rank: number; index: number; isOverflow: boolean; onDragEnter: () => void; onDragEnd: () => void;
 }) {
   return (
     <div
+      data-ladder-index={index}
       onDragEnter={onDragEnter}
       onDragEnd={onDragEnd}
       onDragOver={e => e.preventDefault()}
@@ -504,11 +533,15 @@ function EmptyLadderSlot({ rank, isOverflow, onDragEnter, onDragEnd }: {
   )
 }
 
-function LadderTile({ game, rank, isLocked, isExcluded, isOverflow, isCurrentGame, isAoMarked, totalGames, onDragStart, onDragEnter, onDragEnd }: {
-  game: LadderGame; rank: number; isLocked: boolean; isExcluded: boolean; isOverflow: boolean; isCurrentGame: boolean; isAoMarked: boolean; totalGames: number;
-  onDragStart: () => void; onDragEnter: () => void; onDragEnd: () => void;
+function LadderTile({ game, rank, index, isLocked, isExcluded, isOverflow, isCurrentGame, isAoMarked, totalGames, onDragStart, onDragEnter, onDragEnd, onTouchOver, onTouchDrop }: {
+  game: LadderGame; rank: number; index: number; isLocked: boolean; isExcluded: boolean; isOverflow: boolean; isCurrentGame: boolean; isAoMarked: boolean; totalGames: number;
+  onDragStart: () => void; onDragEnter: () => void; onDragEnd: () => void; onTouchOver: (idx: number) => void; onTouchDrop: () => void;
 }) {
   const [hovered, setHovered] = useState(false)
+  const [touchDragging, setTouchDragging] = useState(false)
+  const tStart = useRef<{ x: number; y: number } | null>(null)
+  const tAxis = useRef<"h" | "v" | null>(null)
+  const draggable = !isLocked && !isExcluded
   const baseHeight = Math.max(28, 52 - (totalGames - 1) * 3)
   const imgHeight = hovered ? Math.max(baseHeight, 52) : baseHeight
   const borderClass = isOverflow ? "border-dashed border-red-500/40"
@@ -517,16 +550,53 @@ function LadderTile({ game, rank, isLocked, isExcluded, isOverflow, isCurrentGam
     : isCurrentGame ? "border-emerald-500/40"
     : isLocked ? "border-white/8 opacity-55"
     : "border-white/8 hover:border-purple-500/35"
+
+  // Touch-based reordering (HTML5 drag doesn't fire from touch). A vertical drag
+  // reorders; a horizontal drag is ignored so it bubbles to the panel swipe.
+  function handleTouchStart(e: React.TouchEvent) {
+    if (!draggable) return
+    const t = e.touches[0]
+    tStart.current = { x: t.clientX, y: t.clientY }
+    tAxis.current = null
+  }
+  function handleTouchMove(e: React.TouchEvent) {
+    const s = tStart.current
+    if (!s) return
+    const t = e.touches[0]
+    const dx = t.clientX - s.x
+    const dy = t.clientY - s.y
+    if (tAxis.current === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+      tAxis.current = Math.abs(dy) >= Math.abs(dx) ? "v" : "h"
+      if (tAxis.current === "v") { onDragStart(); setTouchDragging(true) }
+    }
+    if (tAxis.current !== "v") return
+    const el = document.elementFromPoint(t.clientX, t.clientY) as HTMLElement | null
+    const slot = el?.closest("[data-ladder-index]")
+    if (slot) {
+      const idx = Number(slot.getAttribute("data-ladder-index"))
+      if (!Number.isNaN(idx)) onTouchOver(idx)
+    }
+  }
+  function handleTouchEnd() {
+    tStart.current = null
+    if (tAxis.current === "v") onTouchDrop()
+    tAxis.current = null
+    setTouchDragging(false)
+  }
+
   return (
-    <div draggable={!isLocked && !isExcluded} onDragStart={onDragStart} onDragEnter={onDragEnter} onDragEnd={onDragEnd} onDragOver={e => e.preventDefault()}
+    <div data-ladder-index={index} draggable={draggable} onDragStart={onDragStart} onDragEnter={onDragEnter} onDragEnd={onDragEnd} onDragOver={e => e.preventDefault()}
+      onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      className={`rounded-lg border overflow-hidden bg-[rgba(15,12,25,0.9)] transition-all duration-200 ${borderClass} ${!isLocked && !isExcluded ? "cursor-grab active:cursor-grabbing" : ""}`}>
+      style={{ touchAction: draggable ? "none" : undefined, opacity: touchDragging ? 0.6 : undefined }}
+      className={`rounded-lg border overflow-hidden bg-[rgba(15,12,25,0.9)] transition-all duration-200 ${borderClass} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}>
       <div className={`w-full relative overflow-hidden transition-all duration-300 ${isLocked ? "grayscale" : ""}`} style={{ height: `${imgHeight}px` }}>
         {game.header_image_url ? <img src={game.header_image_url} alt={game.name} className="w-full h-full object-cover" style={{ objectPosition: game.header_image_position ?? "50% 50%" }} /> : <div className="w-full h-full bg-purple-950/30" />}
         {isOverflow && <div className="absolute inset-0 bg-red-950/60" />}
         {!isExcluded && <div className={`absolute top-1 left-1.5 font-display text-[9px] px-1.5 py-0.5 rounded bg-black/70 ${isCurrentGame ? "text-emerald-400" : isOverflow ? "text-red-400" : "text-muted-foreground"}`}>{isOverflow ? "—" : rank}</div>}
         {isAoMarked && (
-          <img src="/icons/AO-flag.png" alt="AO" className="absolute top-1 right-1 pointer-events-none" style={{ width: 64, height: 35 }} />
+          <img src="/icons/AO-flag.png" alt="AO" className="absolute top-1 right-1 pointer-events-none" style={{ width: 22, height: 22 }} />
         )}
         {isLocked && !isExcluded && <div className="absolute bottom-1 right-1.5"><Lock className="h-2.5 w-2.5 text-muted-foreground/50" /></div>}
       </div>
@@ -568,6 +638,8 @@ export function PredictionForm({
   isUnvested = false,
   onSave,
   onDirtyChange,
+  onRequestClose,
+  mobile = false,
 }: PredictionFormProps) {
   const predictedSet = new Set(predictedGameIds)
   const router = useRouter()
@@ -629,7 +701,9 @@ export function PredictionForm({
     const currentTop8 = ladder.slice(0, 8).filter((id): id is string => id !== null)
     const savedTop8 = existingLadder.slice(0, 8)
     const ladderSame = currentTop8.length === savedTop8.length && currentTop8.every((id, i) => id === savedTop8[i])
-    return !playersSame || !reviewsSame || !ladderSame
+    const savedBoosters = existingPrediction?.applied_boosters ?? []
+    const boostersSame = appliedBoosters.length === savedBoosters.length && appliedBoosters.every(s => savedBoosters.includes(s))
+    return !playersSame || !reviewsSame || !ladderSame || !boostersSame
   })()
 
   useEffect(() => { onDirtyChange?.(isDirty) }, [isDirty]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -688,6 +762,24 @@ export function PredictionForm({
     const next = [...ladder]; const [d] = next.splice(dragItem.current, 1); next.splice(dragOverItem.current, 0, d)
     setLadder(next); dragItem.current = null; dragOverItem.current = null
   }
+
+  // Live reorder for touch dragging: the dragged item follows the finger rank by
+  // rank instead of snapping only on release. dragItem.current tracks its moving
+  // index; validity is already ensured because touch drag only starts on a
+  // draggable (unlocked, non-excluded) tile.
+  function liveMove(toIndex: number) {
+    const from = dragItem.current
+    if (from === null || from === toIndex) return
+    setLadder(prev => {
+      if (from < 0 || from >= prev.length) return prev
+      const next = [...prev]
+      const [d] = next.splice(from, 1)
+      next.splice(Math.max(0, Math.min(next.length, toIndex)), 0, d)
+      return next
+    })
+    dragItem.current = toIndex
+  }
+  function handleTouchDrop() { dragItem.current = null; dragOverItem.current = null }
 
   function toggleBooster(slug: string) {
     if (isFullyLocked) return
@@ -825,6 +917,55 @@ export function PredictionForm({
 
   const orbs = Array.from({ length: maxSlots }, (_, i) => i < appliedBoosters.length)
 
+  // Mobile: the second column swipes between the Week-1 prediction view and the
+  // ladder. The track follows the finger live (dragOffset in px) and snaps on release.
+  const [mobileView, setMobileView] = useState<"predictions" | "ladder">("predictions")
+  const hasLadder = ladderGames.length > 0
+  const [dragOffset, setDragOffset] = useState<number | null>(null) // px translateX while actively dragging
+  const swipeStart = useRef<{ x: number; y: number } | null>(null)
+  const swipeAxis = useRef<"h" | "v" | null>(null)
+  const swipeCellRef = useRef<HTMLDivElement>(null)
+  const swipeWidthRef = useRef(0)
+
+  function onCardTouchStart(e: React.TouchEvent) {
+    if (!hasLadder) return
+    // Don't start a panel swipe on the sliders — they own horizontal drag.
+    if ((e.target as HTMLElement).closest("input, [data-no-swipe]")) { swipeStart.current = null; return }
+    const t = e.touches[0]
+    swipeStart.current = { x: t.clientX, y: t.clientY }
+    swipeAxis.current = null
+    swipeWidthRef.current = swipeCellRef.current?.clientWidth ?? 0
+  }
+  function onCardTouchMove(e: React.TouchEvent) {
+    const s = swipeStart.current
+    if (!s) return
+    const t = e.touches[0]
+    const dx = t.clientX - s.x
+    const dy = t.clientY - s.y
+    // Lock the gesture axis on first meaningful movement so vertical
+    // scrolls / ladder drags aren't hijacked by the panel swipe.
+    if (swipeAxis.current === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+      swipeAxis.current = Math.abs(dx) > Math.abs(dy) ? "h" : "v"
+    }
+    if (swipeAxis.current !== "h") return
+    const W = swipeWidthRef.current || 1
+    const base = mobileView === "ladder" ? -W : 0
+    setDragOffset(Math.max(-W, Math.min(0, base + dx))) // clamp within one panel width
+  }
+  function onCardTouchEnd(e: React.TouchEvent) {
+    const s = swipeStart.current
+    const axis = swipeAxis.current
+    swipeStart.current = null
+    swipeAxis.current = null
+    if (!s || axis !== "h") { setDragOffset(null); return }
+    const dx = e.changedTouches[0].clientX - s.x
+    const threshold = (swipeWidthRef.current || 1) * 0.3
+    if (mobileView === "predictions" && dx < -threshold) setMobileView("ladder")
+    else if (mobileView === "ladder" && dx > threshold) setMobileView("predictions")
+    setDragOffset(null) // clearing it snaps to the settled position (with transition)
+  }
+
   return (
     <>
     <style>{`
@@ -835,21 +976,20 @@ export function PredictionForm({
       }
     `}</style>
     <Card className="border-0 bg-transparent shadow-none" style={{ filter: isFullyLocked ? "grayscale(1)" : undefined }}>
-      <CardContent className="p-2">
+      <CardContent className="p-3" style={{ background: "rgba(14,11,22,0.82)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 8px 30px rgba(0,0,0,0.55)", backdropFilter: "blur(2px)", WebkitBackdropFilter: "blur(2px)" }}>
         {error && <Alert variant="destructive" className="mb-3"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
 
-        <div className="grid gap-2" style={{ gridTemplateColumns: "120px 1fr 160px" }}>
-
-          {/* LEFT — Rites / Boosters */}
-          <div className="flex flex-col gap-2 rounded-xl border border-white/8 bg-[rgba(15,12,25,0.75)] p-2">
+        {(() => {
+          const leftColumn = (
+          <div className="flex flex-col gap-2">
             {/* Tab toggle */}
-            <div className="flex rounded overflow-hidden border border-white/10" style={{ fontSize: 9 }}>
+            <div className={`flex rounded overflow-hidden border border-white/10 ${mobile ? "mb-2" : ""}`} style={{ fontSize: 9 }}>
               <button
                 onClick={() => setLeftTab("rites")}
                 className={`flex-1 py-1 font-display tracking-widest uppercase transition-colors ${
                   leftTab === "rites"
                     ? "bg-purple-900/50 text-purple-300"
-                    : "bg-transparent text-muted-foreground/40 hover:text-muted-foreground/70"
+                    : "bg-transparent text-[#e8dcc0]/55 hover:text-[#e8dcc0]/85"
                 }`}
               >
                 Rites
@@ -859,7 +999,7 @@ export function PredictionForm({
                 className={`flex-1 py-1 font-display tracking-widest uppercase transition-colors ${
                   leftTab === "boosters"
                     ? "bg-amber-900/40 text-amber-400"
-                    : "bg-transparent text-muted-foreground/40 hover:text-muted-foreground/70"
+                    : "bg-transparent text-[#e8dcc0]/55 hover:text-[#e8dcc0]/85"
                 }`}
               >
                 Boosters
@@ -884,13 +1024,7 @@ export function PredictionForm({
 
             {leftTab === "boosters" && !isSeasonClosed && (
               <div className="space-y-1.5">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {orbs.map((filled, i) => (
-                    <div key={i} className={`w-5 h-5 rounded-sm border-2 transition-all duration-300 ${filled ? "border-amber-400 bg-gradient-to-br from-yellow-300 via-amber-500 to-amber-700 shadow-[0_0_8px_rgba(251,191,36,0.4)]" : "border-amber-900/50 bg-transparent"}`} />
-                  ))}
-                  <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase flex items-center gap-1">Slots <GuideLink section="boosters" label="About boosters" /></span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className={`grid grid-cols-2 gap-x-1.5 ${mobile ? "gap-y-4" : "gap-y-1.5"}`}>
                   {inventory.map(inv => {
                     if (!inv.items) return null
                     const isApplied = appliedBoosters.includes(inv.items.slug)
@@ -903,15 +1037,23 @@ export function PredictionForm({
               </div>
             )}
           </div>
+          )
 
-          {/* CENTER — Sliders + Boosters + Actions */}
-          <div className="flex flex-col gap-2">
+          const centerBody = (
+          <>
+            {/* Game name */}
+            <div
+              className="text-center leading-tight pb-1 mb-0.5 border-b border-white/10 truncate whitespace-nowrap"
+              style={{ fontFamily: "var(--font-body)", color: "#f3e8cf", fontSize: "0.95rem", textTransform: "uppercase", letterSpacing: "0.05em" }}
+            >
+              {gameName}
+            </div>
 
             {/* Week 1 sliders — wrapped together so the early lock overlay spans both */}
             <div className="relative flex flex-col gap-3">
               <div className={`space-y-1 transition-opacity duration-200 ${isEarlyLocked ? "opacity-30" : ""}`}>
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] tracking-wide uppercase flex items-center gap-1" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>Highest Player Count · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
+                  <label className="text-[10px] tracking-wide flex items-center gap-1" style={{ fontFamily: "var(--font-body)", color: "#ede0c4" }}>Highest Player Count · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -927,16 +1069,16 @@ export function PredictionForm({
                     }}
                     onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }}
                     className={`font-bold bg-transparent rounded px-1.5 py-0.5 text-right w-24 outline-none transition-colors border ${isSlidersLocked ? "cursor-default border-emerald-500/10" : "cursor-text border-emerald-500/25 hover:border-emerald-500/50 focus:border-emerald-500/70"}`}
-                    style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05", fontSize: "0.75rem" }}
+                    style={{ fontFamily: "var(--font-typewriter)", color: "#ede0c4", fontSize: "0.75rem" }}
                   />
                 </div>
                 <GemSlider min={PLAYERS_MIN} max={PLAYERS_MAX} step={PLAYERS_STEP} value={Math.max(PLAYERS_MIN, playersMidpoint)} savedValue={existingPrediction?.players_midpoint ?? 10000} onChange={setPlayersMidpoint} disabled={isSlidersLocked} windowLow={Math.max(0, playersWindow.low)} windowHigh={playersWindow.high} auguryGradient={auguryGradientPlayers} formatValue={v => v.toLocaleString() + " players"} logScale />
-                <div className="text-[10px] text-center" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>{playersWindow.low.toLocaleString()} – {playersWindow.high.toLocaleString()}</div>
+                <div className="text-[10px] text-center" style={{ fontFamily: "var(--font-typewriter)", color: "#ede0c4" }}>{playersWindow.low.toLocaleString()} – {playersWindow.high.toLocaleString()}</div>
               </div>
 
               <div className={`space-y-1 transition-opacity duration-200 ${isEarlyLocked ? "opacity-30" : ""}`}>
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] tracking-wide uppercase flex items-center gap-1" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>% Positive Reviews · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
+                  <label className="text-[10px] tracking-wide flex items-center gap-1" style={{ fontFamily: "var(--font-body)", color: "#ede0c4" }}>Positive Reviews Percentage · Week 1 <GuideLink section="sliders" label="About sliders" /></label>
                   <div className="flex items-center">
                     <input
                       type="text"
@@ -953,13 +1095,13 @@ export function PredictionForm({
                       }}
                       onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }}
                       className={`font-bold bg-transparent rounded px-1.5 py-0.5 text-right w-8 outline-none transition-colors border ${isSlidersLocked ? "cursor-default border-emerald-500/10" : "cursor-text border-emerald-500/25 hover:border-emerald-500/50 focus:border-emerald-500/70"}`}
-                      style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05", fontSize: "0.75rem" }}
+                      style={{ fontFamily: "var(--font-typewriter)", color: "#ede0c4", fontSize: "0.75rem" }}
                     />
-                    <span className="text-xs font-bold" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>%</span>
+                    <span className="text-xs font-bold" style={{ fontFamily: "var(--font-typewriter)", color: "#ede0c4" }}>%</span>
                   </div>
                 </div>
                 <GemSlider min={0} max={100} step={1} value={reviewsMidpoint} savedValue={existingPrediction?.reviews_midpoint ?? 75} onChange={setReviewsMidpoint} disabled={isSlidersLocked} windowLow={reviewsWindow.low} windowHigh={reviewsWindow.high} auguryGradient={auguryGradientReviews} formatValue={v => v + "% positive"} />
-                <div className="text-[10px] text-center" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>{reviewsWindow.low}% – {reviewsWindow.high}%</div>
+                <div className="text-[10px] text-center" style={{ fontFamily: "var(--font-typewriter)", color: "#ede0c4" }}>{reviewsWindow.low}% – {reviewsWindow.high}%</div>
               </div>
 
               {/* Single padlock overlay for the whole week 1 panel */}
@@ -998,9 +1140,16 @@ export function PredictionForm({
             {!isSeasonClosed && existingPrediction && !isEarlyLocked && !isReleased && !isFullyLocked && (
               <div className="relative">
                 <button onClick={() => { setShowLockPop(p => !p); setShowSavePop(false) }} disabled={saving}
-                  className="w-full py-1.5 rounded-lg text-xs tracking-wide bg-transparent hover:bg-black/5 transition-colors"
-                  style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05", border: "1.5px solid #1c0e05" }}>
-                  <Lock className="inline h-3 w-3 mr-1" />Early Lock (+{earlyLockMana} mana bonus) <GuideLink section="early-lock" label="About early lock" />
+                  className="w-full py-1.5 rounded-lg text-xs tracking-wide bg-amber-500/12 hover:bg-amber-500/22 transition-colors"
+                  style={{ fontFamily: "var(--font-body)", color: "#ede0c4", border: "1.5px solid rgba(237,224,196,0.55)" }}>
+                  {mobile ? (
+                    <span className="flex flex-col items-center leading-tight">
+                      <span className="flex items-center ml-3"><Lock className="inline h-3 w-3 mr-1" />Early Lock <GuideLink section="early-lock" label="About early lock" /></span>
+                      <span>+{earlyLockMana} mana bonus</span>
+                    </span>
+                  ) : (
+                    <><Lock className="inline h-3 w-3 mr-1" />Early Lock (+{earlyLockMana} mana bonus) <GuideLink section="early-lock" label="About early lock" /></>
+                  )}
                 </button>
                 <ActionPopover open={showLockPop} title="Apply Early Lock?" description="Your week-one sliders and prediction window will be frozen, securing your early lock mana bonus. Boosters, rites, and the season ladder remain fully editable." confirmLabel="Lock It" onConfirm={handleEarlyLock} onCancel={() => setShowLockPop(false)} colorClass="amber" />
               </div>
@@ -1011,52 +1160,78 @@ export function PredictionForm({
               <AuguryCountdown expiry={auguryExpiry} />
             )}
             {auguryGradientPlayers && (
-              <div className="text-[9px] text-center italic" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>
+              <div className="text-[9px] text-center italic" style={{ fontFamily: "var(--font-body)", color: "#ede0c4" }}>
                 {auguryIsSparse
                   ? "Few prophecies recorded — heatmap may not be representative"
                   : "Showing crowd prediction distribution"}
               </div>
             )}
 
-            {/* Active Effects panel */}
-            <ActiveEffectsPanel
-              equipmentSlug={equipmentSlug}
-              equipmentTierScore={equipmentTierScore}
-              appliedBoosters={appliedBoosters}
-              performedRites={performedRites}
-              aoMarked={aoMarked}
-              firstPredictionBonusEligible={firstPredictionBonusEligible ?? false}
-            />
-
-            {/* Action buttons */}
+            {/* Booster slot indicators */}
             {!isSeasonClosed && (
-              <div className="flex flex-col gap-1.5">
-                {!isFullyLocked && (
-                  <div className="relative">
+              <div className={`flex flex-wrap items-center gap-1.5 ${mobile ? "mt-3" : ""}`}>
+                <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase flex items-center gap-1">Slots <GuideLink section="boosters" label="About boosters" /></span>
+                {orbs.map((filled, i) => (
+                  <div key={i} className={`w-5 h-5 rounded-sm border-2 transition-all duration-300 ${filled ? "border-amber-400 bg-gradient-to-br from-yellow-300 via-amber-500 to-amber-700 shadow-[0_0_8px_rgba(251,191,36,0.4)]" : "border-amber-900/50 bg-transparent"}`} />
+                ))}
+                {/* Ghost frames — one per still-unlockable slot (max 4: +1 Sigil of Multiplicity, +1 Clockwork Familiar) */}
+                {Array.from({ length: Math.max(0, MAX_BOOSTER_SLOTS - maxSlots) }).map((_, i) => (
+                  <div key={`ghost-${i}`} className="w-5 h-5 rounded-sm border-2 border-dashed border-amber-400/25 bg-transparent opacity-50" title="Another slot can be unlocked (Sigil of Multiplicity, Clockwork Familiar)" />
+                ))}
+              </div>
+            )}
+
+            {/* Active Effects panel */}
+            <div className={mobile ? "mt-3" : ""}>
+              <ActiveEffectsPanel
+                equipmentSlug={equipmentSlug}
+                equipmentTierScore={equipmentTierScore}
+                appliedBoosters={appliedBoosters}
+                performedRites={performedRites}
+                aoMarked={aoMarked}
+                firstPredictionBonusEligible={firstPredictionBonusEligible ?? false}
+                mobile={mobile}
+              />
+            </div>
+          </>
+          )
+
+          // Action buttons — Save (left) + Close (right)
+          const actionsBlock = (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex gap-1.5">
+                {!isSeasonClosed && !isFullyLocked && (
+                  <div className="relative flex-1">
                     <button
-                      onClick={() => { setShowSavePop(p => !p); setShowLockPop(false) }}
-                      disabled={saving}
+                      onClick={() => { if (!isDirty) return; setShowSavePop(p => !p); setShowLockPop(false) }}
+                      disabled={!isDirty || saving}
                       onAnimationEnd={() => setSaveFlash(false)}
-                      style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05", border: "1.5px solid #1c0e05", ...(saveFlash ? { animation: "save-btn-flash 0.55s ease-out forwards" } : {}) }}
-                      className={`w-full py-1.5 rounded-lg text-xs tracking-wide bg-transparent hover:bg-black/5 transition-opacity disabled:opacity-50 ${isDirty ? "opacity-100" : "opacity-45"}`}
+                      style={{ fontFamily: "var(--font-body)", color: "#ede0c4", border: "1.5px solid rgba(237,224,196,0.55)", ...(saveFlash ? { animation: "save-btn-flash 0.55s ease-out forwards" } : {}) }}
+                      className={`w-full py-1.5 rounded-lg text-xs tracking-wide transition-all ${isDirty ? "opacity-100 bg-emerald-500/15 hover:bg-emerald-500/25 cursor-pointer" : "opacity-40 bg-[rgba(237,224,196,0.06)] cursor-not-allowed"}`}
                     >
                       {saving ? <Loader2 className="inline h-3 w-3 animate-spin mr-1" /> : null}
-                      Update Prediction
+                      Save
                     </button>
                     <ActionPopover open={showSavePop} title="Update your prediction?" description="Your midpoints, window adjustments, and applied boosters will be recorded." confirmLabel="Confirm" onConfirm={handleSavePrediction} onCancel={() => setShowSavePop(false)} colorClass="emerald" />
                   </div>
                 )}
-                {countdown && <div className="text-[9px] text-center tracking-widest" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>{countdown}</div>}
-                {isReleased && existingPrediction && <div className="text-[9px] text-center tracking-widest" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}><Lock className="inline h-2.5 w-2.5 mr-1" />Locked on release · awaiting scoring</div>}
+                <button
+                  onClick={() => onRequestClose?.()}
+                  style={{ fontFamily: "var(--font-body)", color: "#ede0c4", border: "1.5px solid rgba(237,224,196,0.55)" }}
+                  className="flex-1 py-1.5 rounded-lg text-xs tracking-wide bg-[rgba(237,224,196,0.10)] hover:bg-[rgba(237,224,196,0.18)] transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
               </div>
-            )}
-          </div>
+              {!isSeasonClosed && countdown && <div className="text-[9px] text-center tracking-widest" style={{ fontFamily: "var(--font-body)", color: "#ede0c4" }}>{countdown}</div>}
+              {!isSeasonClosed && isReleased && existingPrediction && <div className="text-[9px] text-center tracking-widest" style={{ fontFamily: "var(--font-body)", color: "#ede0c4" }}><Lock className="inline h-2.5 w-2.5 mr-1" />Locked on release · awaiting scoring</div>}
+            </div>
+          )
 
-          {/* RIGHT — Ladder */}
-          {ladderGames.length > 0 && (
+          const rightColumn = hasLadder ? (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <span className="text-[9px] tracking-widest uppercase" style={{ fontFamily: "var(--font-typewriter)", color: "#1c0e05" }}>Ladder</span>
+                <span className="text-[9px] tracking-widest uppercase" style={{ fontFamily: "var(--font-body)", color: "#ede0c4" }}>Ladder</span>
                 <GuideLink section="ladder-scoring" label="How ladder scoring works" />
               </div>
               {isUnvested ? (
@@ -1070,7 +1245,7 @@ export function PredictionForm({
                     const isOverflow = index === 8
                     if (gId === null) {
                       return (
-                        <EmptyLadderSlot key={`empty-${index}`} rank={index + 1} isOverflow={isOverflow} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
+                        <EmptyLadderSlot key={`empty-${index}`} rank={index + 1} index={index} isOverflow={isOverflow} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
                       )
                     }
                     const game = ladderGames.find(g => g.id === gId)
@@ -1080,14 +1255,63 @@ export function PredictionForm({
                     const isExcluded = gameReleased && !predictedSet.has(gId)
                     const isCurrentGame = gId === gameId
                     return (
-                      <LadderTile key={gId} game={game} rank={index + 1} isLocked={isLockedPos} isExcluded={isExcluded} isOverflow={isOverflow} isCurrentGame={isCurrentGame} isAoMarked={(isCurrentGame && aoMarked) || new Set(aoMarkedGameIds).has(gId)} totalGames={isFullyLocked ? ladder.filter(id => id !== null).length : 9} onDragStart={() => handleDragStart(index)} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} />
+                      <LadderTile key={gId} game={game} rank={index + 1} index={index} isLocked={isLockedPos} isExcluded={isExcluded} isOverflow={isOverflow} isCurrentGame={isCurrentGame} isAoMarked={(isCurrentGame && aoMarked) || new Set(aoMarkedGameIds).has(gId)} totalGames={isFullyLocked ? ladder.filter(id => id !== null).length : 9} onDragStart={() => handleDragStart(index)} onDragEnter={() => handleDragEnter(index)} onDragEnd={handleDragEnd} onTouchOver={liveMove} onTouchDrop={handleTouchDrop} />
                     )
                   })}
                 </div>
               )}
             </div>
-          )}
-        </div>
+          ) : null
+
+          if (mobile) {
+            return (
+              <>
+                {hasLadder && (
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <button onClick={() => setMobileView("predictions")} aria-label="Show predictions" style={{ width: mobileView === "predictions" ? 20 : 7, height: 7, borderRadius: 4, border: "none", background: mobileView === "predictions" ? "rgba(243,232,207,0.85)" : "rgba(243,232,207,0.30)", cursor: "pointer", padding: 0, transition: "width 0.3s ease, background 0.3s ease" }} />
+                    <button onClick={() => setMobileView("ladder")} aria-label="Show ladder" style={{ width: mobileView === "ladder" ? 20 : 7, height: 7, borderRadius: 4, border: "none", background: mobileView === "ladder" ? "rgba(243,232,207,0.85)" : "rgba(243,232,207,0.30)", cursor: "pointer", padding: 0, transition: "width 0.3s ease, background 0.3s ease" }} />
+                  </div>
+                )}
+                <div className="grid gap-2" style={{ gridTemplateColumns: "120px minmax(0, 1fr)", touchAction: "pan-y" }} onTouchStart={onCardTouchStart} onTouchMove={onCardTouchMove} onTouchEnd={onCardTouchEnd}>
+                  {leftColumn}
+                  <div ref={swipeCellRef} className="relative overflow-hidden">
+                    {rightColumn ? (
+                      // Both panels live side-by-side in a 200%-wide track; the track
+                      // follows the finger live (dragOffset px) and eases to the settled
+                      // position (0 / -50%) on release.
+                      <div style={{
+                        display: "flex",
+                        width: "200%",
+                        transform: dragOffset !== null
+                          ? `translateX(${dragOffset}px)`
+                          : `translateX(${mobileView === "ladder" ? "-50%" : "0"})`,
+                        transition: dragOffset !== null ? "none" : "transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)",
+                      }}>
+                        <div style={{ width: "50%", flexShrink: 0, minWidth: 0 }}>
+                          <div className="flex flex-col gap-2 min-w-0">{centerBody}</div>
+                        </div>
+                        <div style={{ width: "50%", flexShrink: 0 }}>
+                          {rightColumn}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2 min-w-0">{centerBody}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-2">{actionsBlock}</div>
+              </>
+            )
+          }
+
+          return (
+            <div className="grid gap-2" style={{ gridTemplateColumns: "120px minmax(0, 1fr) 160px" }}>
+              {leftColumn}
+              <div className="flex flex-col gap-2 min-w-0">{centerBody}{actionsBlock}</div>
+              {rightColumn}
+            </div>
+          )
+        })()}
       </CardContent>
     </Card>
     </>

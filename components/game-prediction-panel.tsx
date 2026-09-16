@@ -1,11 +1,55 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { PredictionFormClient } from "@/components/prediction-form-client"
 import { ScoredResultsUpper, ScoredResultsMiddle, ScoredResultsLower } from "@/components/prediction-form"
 import type { ExistingPrediction } from "@/components/prediction-form"
+
+// Natural design width of the prediction card. It's authored at this width
+// (center slider column lands near the gem SVG's native 600px) and then
+// uniformly scaled to fit the panel, so proportions — and the gems — never
+// distort. Tune this to change the card's baseline size.
+const CARD_NATURAL_W = 780
+// Don't upscale past this on very large displays.
+const CARD_MAX_SCALE = 1.8
+
+// Renders children at a fixed natural width, then uniformly transform-scales
+// them to fit the available box (both width and height). Scales up on large
+// displays and down on small ones so the card never clips.
+function ScaleToFit({ naturalWidth, maxScale = CARD_MAX_SCALE, children }: { naturalWidth: number; maxScale?: number; children: React.ReactNode }) {
+  const outerRef = useRef<HTMLDivElement>(null)
+  const innerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  useLayoutEffect(() => {
+    const outer = outerRef.current
+    const inner = innerRef.current
+    if (!outer || !inner) return
+    const compute = () => {
+      const ow = outer.clientWidth
+      const oh = outer.clientHeight
+      const iw = naturalWidth
+      const ih = inner.scrollHeight  // natural content height at naturalWidth (transform ignored)
+      if (!iw || !ih || !ow || !oh) return
+      setScale(Math.min(ow / iw, oh / ih, maxScale))
+    }
+    const ro = new ResizeObserver(compute)
+    ro.observe(outer)
+    ro.observe(inner)
+    compute()
+    return () => ro.disconnect()
+  }, [naturalWidth, maxScale])
+
+  return (
+    <div ref={outerRef} style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", overflow: "hidden" }}>
+      <div ref={innerRef} style={{ width: naturalWidth, flexShrink: 0, transform: `scale(${scale})`, transformOrigin: "center center" }}>
+        {children}
+      </div>
+    </div>
+  )
+}
 
 interface GamePredictionPanelProps {
   gameId: string
@@ -212,6 +256,46 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
   const canPredict = hasJoinedSeason && seasonData?.status === "active"
   const showForm = canPredict || !!data?.existingPrediction
 
+  const predictionFormEl = !loading && !error && data && showForm ? (
+    <PredictionFormClient
+      gameId={gameId}
+      gameName={game?.name as string}
+      seasonId={seasonId}
+      seasonStatus={seasonData?.status as string}
+      existingPrediction={data.existingPrediction as Parameters<typeof PredictionFormClient>[0]["existingPrediction"]}
+      isReleased={(game?.is_released as boolean) || (() => {
+        const t = game?.release_time_override
+          ? new Date(game.release_time_override as string)
+          : game?.release_date ? new Date(game.release_date as string) : null
+        return t !== null && t <= new Date()
+      })()}
+      releaseDate={(game?.release_date as string | null) ?? null}
+      snapshotPlayerCount={data.weekOneSnapshot?.player_count}
+      snapshotReviewPositive={data.weekOneSnapshot?.review_positive}
+      snapshotReviewNegative={data.weekOneSnapshot?.review_negative}
+      snapshotCapturedAt={data.weekOneSnapshot?.captured_at}
+      equipmentSlug={seasonEntry?.equipment_id ?? null}
+      equipmentTierScore={seasonEntry?.equipment_tier_score ?? 0}
+      ladderGames={data.seasonGames}
+      existingLadder={data.existingLadder}
+      lockedLadderGameIds={data.lockedLadderGameIds}
+      aoMarkCount={data.aoMarkCount}
+      aoMarkedGameIds={data.aoMarkedGameIds}
+      predictedGameIds={data.predictedGameIds}
+      inventory={data.inventory}
+      isUnvested={isUnvested}
+      onSave={handleSave}
+      onDirtyChange={setIsFormDirty}
+      onRequestClose={handleRequestClose}
+      mobile={isMobile}
+    />
+  ) : null
+
+  // The live editable form carries its own Close button; the panel-level Close
+  // is only needed for the scored view, notices, loading, and errors.
+  const scoredPred = data?.existingPrediction as ExistingPrediction | null
+  const liveFormShown = !!predictionFormEl && !(scoredPred?.scored_at && scoredPred.result)
+
   return (
     <div
       style={{
@@ -228,22 +312,23 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
       {/* Parchment background — vertically centered, overflows top/bottom */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/prediction-parchment.png"
+        src={isMobile ? "/prediction-parchment.png" : "/prediction-card-background.png"}
         alt=""
         draggable={false}
         style={{
           position: "absolute",
           left: "50%",
-          width: isMobile ? "95%" : "80%",
+          width: isMobile ? "95%" : "105.6%",
           top: "50%",
-          transform: "translateX(-50%) translateY(-50%)",
+          transform: isMobile ? "translateX(-50%) translateY(-50%)" : "translateX(-50%) translateY(calc(-50% - 25px))",
           height: "auto",
           pointerEvents: "none",
           userSelect: "none",
         }}
       />
 
-      {/* Shared title */}
+      {/* Shared title — the live form carries its own game-name header */}
+      {!liveFormShown && (
       <div
         style={{
           position: "absolute",
@@ -263,8 +348,10 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
           {loading ? "Loading…" : (game?.name as string | undefined) ?? "Prediction"}
         </div>
       </div>
+      )}
 
-      {/* Close button — bottom of parchment */}
+      {/* Close button — bottom of parchment (hidden when the live form provides its own) */}
+      {!liveFormShown && (
       <div style={{ position: "absolute", bottom: "8%", left: 0, right: 0, zIndex: 2, display: "flex", justifyContent: "center" }}>
         <button
           onClick={handleRequestClose}
@@ -286,23 +373,27 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
           <span style={{ fontFamily: "var(--font-typewriter)", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>Close</span>
         </button>
       </div>
+      )}
 
       {/* Unsaved-changes confirmation strip */}
       {(showExitConfirm || !!pendingSwitchId) && (
         <div
           style={{
-            position: "absolute",
-            top: "calc(14% + 32px)",
-            left: inset,
-            right: inset,
-            zIndex: 20,
+            position: "fixed",
+            top: "calc(50% + 30px)",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "min(90vw, 420px)",
+            zIndex: 210,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "6px 16px 7px",
-            background: "rgba(60,25,5,0.92)",
-            borderTop: "1px solid rgba(217,119,6,0.25)",
-            borderBottom: "1px solid rgba(217,119,6,0.25)",
+            gap: "8px",
+            padding: "8px 16px",
+            borderRadius: 10,
+            background: "rgba(60,25,5,0.95)",
+            border: "1px solid rgba(217,119,6,0.35)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
             backdropFilter: "blur(4px)",
           }}
         >
@@ -374,78 +465,48 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         return null
       })()}
 
-      {/* Non-scored: scrollable content layer */}
+      {/* Non-scored content layer */}
       {!(() => {
         const pred = data?.existingPrediction as ExistingPrediction | null
         return !loading && !error && data && pred?.scored_at && pred.result
-      })() && (
-        <div style={{ position: "absolute", top: "40%", transform: "translateY(-50%)", left: inset, right: inset, maxHeight: "72vh", zIndex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {/* Scrollable content */}
-          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-            {loading && (
-              <div
-                style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(245,230,200,0.35)" }}
-                className="font-display"
-              >
-                <div style={{ fontSize: "0.9rem" }}>Consulting the arcane…</div>
-              </div>
-            )}
+      })() && (() => {
+        const stateNode = loading ? (
+          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(245,230,200,0.35)" }} className="font-display">
+            <div style={{ fontSize: "0.9rem" }}>Consulting the arcane…</div>
+          </div>
+        ) : error ? (
+          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(239,68,68,0.7)", fontSize: "0.85rem" }} className="font-body">
+            {error}
+          </div>
+        ) : (data && !showForm) ? (
+          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(245,230,200,0.35)", fontSize: "0.85rem" }} className="font-body">
+            {seasonData?.status !== "active" ? "Predictions are closed for this season." : "Join the season to make predictions."}
+          </div>
+        ) : null
 
-            {!loading && error && (
-              <div
-                style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(239,68,68,0.7)", fontSize: "0.85rem" }}
-                className="font-body"
-              >
-                {error}
+        // Mobile: keep the original vertically-centered scroll layout.
+        if (isMobile) {
+          return (
+            <div style={{ position: "absolute", top: "40%", transform: "translateY(-50%)", left: inset, right: inset, maxHeight: "72vh", zIndex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+                {stateNode}
+                {predictionFormEl}
               </div>
-            )}
+            </div>
+          )
+        }
 
-            {!loading && !error && data && showForm && (
-              <PredictionFormClient
-                gameId={gameId}
-                gameName={game?.name as string}
-                seasonId={seasonId}
-                seasonStatus={seasonData?.status as string}
-                existingPrediction={data.existingPrediction as Parameters<typeof PredictionFormClient>[0]["existingPrediction"]}
-                isReleased={(game?.is_released as boolean) || (() => {
-                  const t = game?.release_time_override
-                    ? new Date(game.release_time_override as string)
-                    : game?.release_date ? new Date(game.release_date as string) : null
-                  return t !== null && t <= new Date()
-                })()}
-                releaseDate={(game?.release_date as string | null) ?? null}
-                snapshotPlayerCount={data.weekOneSnapshot?.player_count}
-                snapshotReviewPositive={data.weekOneSnapshot?.review_positive}
-                snapshotReviewNegative={data.weekOneSnapshot?.review_negative}
-                snapshotCapturedAt={data.weekOneSnapshot?.captured_at}
-                equipmentSlug={seasonEntry?.equipment_id ?? null}
-                equipmentTierScore={seasonEntry?.equipment_tier_score ?? 0}
-                ladderGames={data.seasonGames}
-                existingLadder={data.existingLadder}
-                lockedLadderGameIds={data.lockedLadderGameIds}
-                aoMarkCount={data.aoMarkCount}
-                aoMarkedGameIds={data.aoMarkedGameIds}
-                predictedGameIds={data.predictedGameIds}
-                inventory={data.inventory}
-                isUnvested={isUnvested}
-                onSave={handleSave}
-                onDirtyChange={setIsFormDirty}
-              />
-            )}
-
-            {!loading && !error && data && !showForm && (
-              <div
-                style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(245,230,200,0.35)", fontSize: "0.85rem" }}
-                className="font-body"
-              >
-                {seasonData?.status !== "active"
-                  ? "Predictions are closed for this season."
-                  : "Join the season to make predictions."}
-              </div>
+        // Desktop: scale the fixed-width card to fit the available box.
+        return (
+          <div style={{ position: "absolute", top: "calc(13% - 25px)", bottom: "calc(13% + 25px)", left: inset, right: inset, zIndex: 1 }}>
+            {predictionFormEl ? (
+              <ScaleToFit naturalWidth={CARD_NATURAL_W}>{predictionFormEl}</ScaleToFit>
+            ) : (
+              stateNode
             )}
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
