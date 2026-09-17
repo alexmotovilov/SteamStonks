@@ -16,10 +16,15 @@ function deriveTicker(name: string): string {
 
 function getScoringTime(releaseDate: string, releaseTimeOverride: string | null): Date {
   const base = releaseTimeOverride ? new Date(releaseTimeOverride) : new Date(releaseDate)
-  const d = new Date(base)
-  d.setUTCDate(d.getUTCDate() + 7)
-  d.setUTCHours(7, 0, 0, 0)
-  return d
+  // Mirror the score-calculator cron: a game is scored at the first 07:00 UTC run
+  // AFTER a full 7×24h has elapsed from the (override) launch. Flattening to the
+  // same day's 07:00 (the old behaviour) showed the countdown up to ~a day early
+  // for games launched after 07:00 UTC.
+  const windowEnd = new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const scoreAt = new Date(windowEnd)
+  scoreAt.setUTCHours(7, 0, 0, 0)
+  if (scoreAt < windowEnd) scoreAt.setUTCDate(scoreAt.getUTCDate() + 1)
+  return scoreAt
 }
 
 export default async function GamesPage() {
@@ -137,9 +142,19 @@ export default async function GamesPage() {
       name: g.name,
       ticker: (g.ticker_symbol ?? deriveTicker(g.name)) as string,
       release_date: g.release_date as string,
+      // True launch instant (override wins) — used only as a stable tie-breaker.
+      launch_at: (g.release_time_override ?? g.release_date) as string,
       scoring_at: getScoringTime(g.release_date, g.release_time_override ?? null).toISOString(),
     }))
-    .sort((a: any, b: any) => new Date(a.scoring_at).getTime() - new Date(b.scoring_at).getTime())
+    // Sort by scoring time; break ties by real launch instant, then id, so two
+    // games scored in the same cron run keep a deterministic, launch-ordered slot.
+    .sort((a: any, b: any) => {
+      const s = new Date(a.scoring_at).getTime() - new Date(b.scoring_at).getTime()
+      if (s !== 0) return s
+      const l = new Date(a.launch_at).getTime() - new Date(b.launch_at).getTime()
+      if (l !== 0) return l
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+    })
     .slice(0, 3)
 
   const scoringGameIds = scoringGames.map((g: any) => g.id)
