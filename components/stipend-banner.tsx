@@ -27,7 +27,16 @@ export function StipendBanner({ claimable, seasonId, locked = false }: StipendBa
   }, [hovering])
 
   async function handleCollect() {
-    if (localClaimed || claiming || locked) return
+    if (locked) {
+      // Mobile: tapping the greyed-out (locked) chest rocks the Free Entry panel
+      // to point the player at it — reuses the desktop shake (body class + CSS).
+      document.body.classList.remove("chest-hovered")
+      void document.body.offsetWidth // restart the animation on repeat taps
+      document.body.classList.add("chest-hovered")
+      window.setTimeout(() => document.body.classList.remove("chest-hovered"), 600)
+      return
+    }
+    if (localClaimed || claiming) return
     setAnimating(true)
     setTimeout(() => setAnimating(false), 700)
     setClaiming(true)

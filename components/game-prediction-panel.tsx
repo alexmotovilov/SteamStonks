@@ -270,6 +270,7 @@ export function GamePredictionPanel({ gameId, seasonId, onClose, onDirtyChange, 
         return t !== null && t <= new Date()
       })()}
       releaseDate={(game?.release_date as string | null) ?? null}
+      releaseTimeOverride={(game?.release_time_override as string | null) ?? null}
       snapshotPlayerCount={data.weekOneSnapshot?.player_count}
       snapshotReviewPositive={data.weekOneSnapshot?.review_positive}
       snapshotReviewNegative={data.weekOneSnapshot?.review_negative}

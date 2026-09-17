@@ -68,8 +68,11 @@ function formatReview(pct: number | null): string {
   return String(Math.round(pct)).padStart(3) + "%"
 }
 
-function trendIcon(trend: "up" | "down" | "flat" | null): string {
-  return trend === "down" ? "▼" : "▲"
+function trendIcon(trend: "up" | "down" | "flat" | null): React.ReactNode {
+  if (trend === "down") return "▼"
+  if (trend === "up") return "▲"
+  // flat / no trend → a slightly shortened horizontal bar
+  return <span style={{ display: "inline-block", transform: "scaleX(0.72)" }}>▬</span>
 }
 
 function trendColor(trend: "up" | "down" | "flat" | null): string {

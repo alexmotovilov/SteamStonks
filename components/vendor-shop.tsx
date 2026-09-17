@@ -385,6 +385,8 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
       <style>{`
         body.bag-hovered .bag-blur { filter: blur(3px); }
         body.chest-hovered .chest-blur { filter: blur(3px); }
+        .free-entry-panel { transition: filter 0.3s ease; }
+        body.bag-hovered .free-entry-panel { filter: blur(3px); }
       `}</style>
 
       {/* Desktop layout */}
@@ -445,7 +447,6 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
           const canAfford = localMana >= item.vendor_price
           const isBuying = purchasing === item.slug
           const remaining = item.vendor_weekly_limit - bought
-          const isConfirming = confirmingSlug === item.slug
 
           return (
             <div
@@ -455,34 +456,6 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
               onMouseLeave={() => setHoveredSlug(null)}
               onMouseMove={e => setMousePos({ x: e.clientX, y: e.clientY })}
             >
-              {/* Purchase confirmation popout */}
-              {isConfirming && (
-                <div className="absolute bottom-[calc(100%+6px)] left-0 right-0 z-50 bg-[rgba(10,10,25,0.98)] border border-amber-500/30 rounded-xl p-3 shadow-2xl flex flex-col items-center gap-2.5">
-                  <div className="absolute bottom-[-6px] left-1/2 w-3 h-3 bg-[rgba(10,10,25,0.98)] border-r border-b border-amber-500/30" style={{ transform: "translateX(-50%) rotate(45deg)" }} />
-                  <div className="font-display text-[10px] text-foreground text-center leading-snug">
-                    Purchase {item.name}?
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <img src="/icons/mana-icon.png" alt="mana" width={12} height={12} className="shrink-0" />
-                    <span className="font-display text-[11px] text-cyan-300">{item.vendor_price}</span>
-                  </div>
-                  <div className="flex gap-1.5 w-full">
-                    <button
-                      onClick={() => handlePurchase(item)}
-                      className="flex-1 py-1.5 rounded-lg font-display text-[10px] border border-amber-500/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 transition-colors cursor-pointer"
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      onClick={() => setConfirmingSlug(null)}
-                      className="flex-1 py-1.5 rounded-lg font-display text-[10px] border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* Clickable frame wrapping image + name */}
               <div
                 className={`relative px-4 pt-4 pb-0 flex flex-col items-center gap-3 rounded-xl border w-full select-none
@@ -656,14 +629,16 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
         </div>
         </div>{/* /overflow wrapper */}
 
-        {/* Mobile purchase confirmation — fixed centered overlay */}
-        {confirmingSlug && (() => {
+        {/* Purchase confirmation (both layouts) — portaled to body so it escapes
+            wrapper stacking contexts and layers above (and blurs) everything,
+            including the free-entry panel. */}
+        {confirmingSlug && typeof document !== "undefined" && (() => {
           const item = items.find(i => i.slug === confirmingSlug)
           if (!item) return null
-          return (
+          return createPortal(
             <>
-              <div className="fixed inset-0 z-40" style={{ backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} onClick={() => setConfirmingSlug(null)} />
-              <div className="fixed z-50 bg-[rgba(10,10,25,0.98)] border border-amber-500/30 rounded-xl p-4 shadow-2xl flex flex-col items-center gap-3" style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "200px" }}>
+              <div className="fixed inset-0 z-[200]" style={{ backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} onClick={() => setConfirmingSlug(null)} />
+              <div className="fixed z-[201] bg-[rgba(10,10,25,0.98)] border border-amber-500/30 rounded-xl p-4 shadow-2xl flex flex-col items-center gap-3" style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "200px" }}>
                 <div className="font-display text-[11px] text-foreground text-center leading-snug">Purchase {item.name}?</div>
                 <div className="flex items-center gap-1">
                   <img src="/icons/mana-icon.png" alt="mana" width={13} height={13} className="shrink-0" />
@@ -674,18 +649,47 @@ export function VendorShop({ items, purchasedCounts, manaBalance, seasonId, stip
                   <button onClick={() => setConfirmingSlug(null)} className="flex-1 py-2 rounded-lg font-display text-[11px] border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 transition-colors cursor-pointer">Cancel</button>
                 </div>
               </div>
-            </>
+            </>,
+            document.body
           )
         })()}
 
-        {/* Inventory — fixed to bottom of viewport */}
-        {inventory && inventory.filter(i => i.quantity > 0).length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 px-4 pt-3 pb-10 space-y-2 z-20" style={{ background: "linear-gradient(to bottom, transparent 0%, rgba(5,3,14,0.95) 20%)" }}>
-            <div className="font-display text-[10px] text-amber-300/60 uppercase tracking-widest">Your Stock</div>
-            <div className="grid grid-cols-4 gap-2">
-              {inventory.filter(i => i.quantity > 0).map(inv => (
-                <BoosterDisplayTile key={inv.item_id} inv={inv} />
-              ))}
+        {/* Inventory — desktop open-bag view, reoriented 90° CCW for mobile */}
+        {inventory && inventory.length > 0 && (
+          <div
+            className="fixed bottom-0 left-0 right-0 z-20 flex flex-col items-center pt-4 pb-5"
+            style={{ background: "linear-gradient(to bottom, transparent 0%, rgba(5,3,14,0.95) 24%)" }}
+          >
+            {/* Label — top of the reoriented grid */}
+            <div className="mb-1 rounded border border-amber-500/30 bg-black/40 relative z-10" style={{ padding: "1px 8px", transform: "translateY(46px)" }}>
+              <span className="font-display text-[11px] text-amber-300/80" style={{ letterSpacing: "0.2em" }}>Inventory</span>
+            </div>
+
+            {/* Open bag, rotated 90° CCW so the portrait sack lies landscape */}
+            <div style={{ position: "relative", width: "88vw", aspectRatio: "1021 / 644" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/booster-bag.png"
+                alt=""
+                draggable={false}
+                className="select-none pointer-events-none"
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  height: "88vw",        // becomes the landscape width after the -90° rotation
+                  width: "auto",
+                  transform: "translate(-50%, -50%) rotate(-90deg)",
+                }}
+              />
+              {/* Grid overlay — upright tiles within the bag interior */}
+              <div style={{ position: "absolute", inset: "12% 9%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div className="grid grid-cols-4" style={{ columnGap: "45px", rowGap: "6px", transform: "translate(-17px, 5px) scale(0.84)" }}>
+                  {inventory.slice(0, 8).map(inv => (
+                    <BoosterDisplayTile key={inv.item_id} inv={inv} />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}

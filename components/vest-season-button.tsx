@@ -53,8 +53,8 @@ interface VestSeasonButtonProps {
 
 function TierRow({ label, text, color }: { label: string; text: string; color: string }) {
   return (
-    <div className="flex items-start gap-2 text-xs py-1 border-t border-border/50">
-      <span className="font-display text-[9px] text-muted-foreground/50 tracking-widest uppercase w-12 shrink-0 pt-0.5">
+    <div className="flex flex-col md:flex-row md:items-start gap-0.5 md:gap-2 text-xs py-1 border-t border-border/50">
+      <span className="font-display text-[9px] text-slate-300 tracking-widest uppercase md:w-12 md:shrink-0 md:pt-0.5">
         {label}
       </span>
       <span className={`${color} leading-tight`}>{text}</span>
@@ -73,29 +73,29 @@ function EquipmentCard({ item, isSelected, onSelect }: {
   return (
     <div
       onClick={onSelect}
-      className={`rounded-xl border overflow-hidden cursor-pointer transition-all duration-200 ${
+      className={`flex flex-col h-full rounded-xl border overflow-hidden cursor-pointer transition-all duration-200 ${
         isSelected
           ? "border-amber-500 shadow-[0_0_0_1px_rgba(217,119,6,0.3)] bg-amber-950/20"
           : "border-border bg-[rgba(15,12,25,0.9)] hover:border-purple-500/40"
       }`}
     >
-      <div className="aspect-square w-full overflow-hidden bg-purple-950/30">
+      <div className="aspect-square w-full overflow-hidden bg-purple-950/30 shrink-0">
         {image ? (
           <img src={image} alt={item.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl opacity-40">⚗</div>
         )}
       </div>
-      <div className="p-3">
-        <div className="font-display text-sm text-foreground mb-3">{item.name}</div>
+      <div className="p-3 flex flex-col flex-1">
+        <div className="font-display text-[13px] text-foreground mb-3">{item.name}</div>
         {tiers && (
-          <div>
+          <div className="flex flex-col justify-evenly flex-1">
             <TierRow label="Tier I"   text={tiers.t0} color={EQUIPMENT_COLORS[item.slug] ?? "text-muted-foreground"} />
             <TierRow label="Tier II"  text={tiers.t3} color={EQUIPMENT_COLORS[item.slug] ?? "text-muted-foreground"} />
             <TierRow label="Tier III" text={tiers.t6} color={EQUIPMENT_COLORS[item.slug] ?? "text-muted-foreground"} />
           </div>
         )}
-        <div className={`w-full py-1.5 mt-3 rounded-lg font-display text-[10px] tracking-wide text-center transition-colors ${
+        <div className={`hidden md:block w-full py-1.5 mt-3 rounded-lg font-display text-[10px] tracking-wide text-center transition-colors ${
           isSelected
             ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
             : "border border-purple-500/30 text-purple-400 hover:bg-purple-950/30"
@@ -165,12 +165,12 @@ export function VestSeasonButton({ seasonId, entryFee, currentBalance }: VestSea
         disabled={!canAfford}
         className={`font-display text-sm px-5 py-2.5 rounded-xl border transition-colors tracking-wide ${
           canAfford
-            ? "border-purple-500/40 bg-purple-950/30 text-purple-300 hover:bg-purple-950/50 hover:border-purple-500/60 cursor-pointer"
+            ? "border-emerald-500/50 bg-emerald-600/25 text-amber-300 hover:bg-emerald-600/40 hover:border-emerald-400/70 cursor-pointer"
             : "border-white/10 bg-white/5 text-muted-foreground cursor-not-allowed"
         }`}
       >
         {canAfford
-          ? `Vest into Season (${entryFee} tokens)`
+          ? `Spend ${entryFee} Tokens to Vest Now`
           : `Insufficient Tokens (${currentBalance}/${entryFee})`}
       </button>
 
@@ -179,22 +179,18 @@ export function VestSeasonButton({ seasonId, entryFee, currentBalance }: VestSea
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(4px)" }}
         >
-          <div className="bg-[rgba(10,10,20,0.98)] border border-purple-500/20 rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div className="bg-[rgba(10,10,20,0.98)] border border-purple-500/20 rounded-2xl p-6 w-full max-w-[54rem] max-h-[90vh] overflow-y-auto shadow-2xl">
 
             <div className="text-center mb-6">
               <h2 className="font-display text-2xl text-foreground tracking-wide mb-2">
-                Choose Your Equipment
+                Choose Your Artifact
               </h2>
               <p className="text-sm text-muted-foreground mb-1">
-                Vesting costs {entryFee} tokens (you have {currentBalance}).
-                Unlocks the Season Ladder, Auspicious Omens, equipment bonuses, and the weekly stipend.
-              </p>
-              <p className="text-xs text-amber-400 font-display tracking-wide">
-                ⚠ Your equipment choice is permanent for this season
+                Pick which artifact you wish to equip for the season. If vesting from a free entry, previously successful predictions will be applied to its tier level.
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-3 mb-3">
               {equipment.map(item => (
                 <EquipmentCard
                   key={item.id}
@@ -210,6 +206,10 @@ export function VestSeasonButton({ seasonId, entryFee, currentBalance }: VestSea
               )}
             </div>
 
+            <p className="text-xs text-amber-400 font-display tracking-wide text-center mb-6">
+              ⚠ Your choice is permanent for this season
+            </p>
+
             {error && <p className="text-sm text-destructive text-center mb-4">{error}</p>}
 
             <div className="flex items-center justify-between pt-4 border-t border-border">
@@ -220,15 +220,12 @@ export function VestSeasonButton({ seasonId, entryFee, currentBalance }: VestSea
                 ← Cancel
               </button>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">
-                  Entry fee: <span className="text-amber-400">{entryFee} tokens</span>
-                </span>
                 <button
                   onClick={handleConfirmVest}
                   disabled={!selectedSlug || vesting}
                   className={`font-display text-sm px-5 py-2 rounded-xl border transition-colors ${
                     selectedSlug && !vesting
-                      ? "bg-emerald-500/12 text-emerald-300 border-emerald-500/25 hover:bg-emerald-500/20"
+                      ? "bg-emerald-500/12 text-amber-300 border-emerald-500/25 hover:bg-emerald-500/20"
                       : "bg-white/5 text-muted-foreground border-white/10 cursor-not-allowed"
                   }`}
                 >
@@ -238,7 +235,7 @@ export function VestSeasonButton({ seasonId, entryFee, currentBalance }: VestSea
                       Vesting…
                     </span>
                   ) : (
-                    "Confirm Equipment & Vest →"
+                    "Confirm Your Artifact & Pay The Entry Fee"
                   )}
                 </button>
               </div>

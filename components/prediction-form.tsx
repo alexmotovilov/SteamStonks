@@ -114,6 +114,7 @@ interface PredictionFormProps {
   existingPrediction: ExistingPrediction | null
   isReleased: boolean
   releaseDate: string | null
+  releaseTimeOverride?: string | null
   snapshotPlayerCount?: number | null
   snapshotReviewPositive?: number | null
   snapshotReviewNegative?: number | null
@@ -629,7 +630,7 @@ function ActionPopover({ open, title, description, confirmLabel, onConfirm, onCa
 }
 
 export function PredictionForm({
-  gameId, gameName, seasonId, seasonStatus, existingPrediction, isReleased, releaseDate,
+  gameId, gameName, seasonId, seasonStatus, existingPrediction, isReleased, releaseDate, releaseTimeOverride,
   snapshotPlayerCount, snapshotReviewPositive, snapshotReviewNegative,
   equipmentSlug, equipmentTierScore, ladderGames, existingLadder, lockedLadderGameIds, inventory, aoMarkCount = 0,
   aoMarkedGameIds = [],
@@ -743,6 +744,25 @@ export function PredictionForm({
     }
     update(); const t = setInterval(update, 60000); return () => clearInterval(t)
   }, [releaseDate, isReleased])
+
+  // Live countdown to scoring for a released-but-unscored game — mirrors the
+  // scoring countdown board (7×24h from the override launch, first 07:00 UTC run).
+  const [scoringCountdown, setScoringCountdown] = useState<string | null>(null)
+  useEffect(() => {
+    const base = releaseTimeOverride ? new Date(releaseTimeOverride) : releaseDate ? new Date(releaseDate) : null
+    if (!isReleased || !base) return
+    const scoreAt = new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000)
+    scoreAt.setUTCHours(7, 0, 0, 0)
+    if (scoreAt.getTime() < base.getTime() + 7 * 24 * 60 * 60 * 1000) scoreAt.setUTCDate(scoreAt.getUTCDate() + 1)
+    function update() {
+      const ms = scoreAt.getTime() - Date.now()
+      if (ms <= 0) { setScoringCountdown(null); return }
+      const s = Math.floor(ms / 1000)
+      const dd = Math.floor(s / 86400), hh = Math.floor((s % 86400) / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60
+      setScoringCountdown([dd, hh, mm, ss].map(n => String(n).padStart(2, "0")).join(":"))
+    }
+    update(); const t = setInterval(update, 1000); return () => clearInterval(t)
+  }, [releaseTimeOverride, releaseDate, isReleased])
 
   useEffect(() => {
     if (!auguryExpiry) return
@@ -1224,7 +1244,13 @@ export function PredictionForm({
                 </button>
               </div>
               {!isSeasonClosed && countdown && <div className="text-[9px] text-center tracking-widest" style={{ fontFamily: "var(--font-body)", color: "#ede0c4" }}>{countdown}</div>}
-              {!isSeasonClosed && isReleased && existingPrediction && <div className="text-[9px] text-center tracking-widest" style={{ fontFamily: "var(--font-body)", color: "#ede0c4" }}><Lock className="inline h-2.5 w-2.5 mr-1" />Locked on release · awaiting scoring</div>}
+              {!isSeasonClosed && isReleased && existingPrediction && (
+                <div className="text-[13px] text-center tracking-widest" style={{ fontFamily: "var(--font-body)", color: "#ede0c4" }}>
+                  {scoringCountdown
+                    ? <><Lock className="inline h-3 w-3 mr-1" />Results in <span className="tabular-nums">{scoringCountdown}</span></>
+                    : <><Lock className="inline h-3 w-3 mr-1" />Awaiting scoring</>}
+                </div>
+              )}
             </div>
           )
 

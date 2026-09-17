@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import type { PredictionData } from "./game-card"
 import { PerfectMoteOverlay } from "./perfect-mote-overlay"
@@ -21,6 +21,7 @@ interface Props {
   currentSeasonId: string | null
   onSelect?: (gameId: string) => void
   isPanelOpen?: boolean
+  selectedGameId?: string | null
 }
 
 // Card widths in vw units
@@ -29,9 +30,12 @@ const CARD_HOV_VW = 15.5 // hover — subtle enlarge
 const CARD_EXP_VW = 20   // clicked/expanded — full
 const RISE_VH     = 5
 const SPREAD_VW   = 1.2
-// Pagination arrow size in vw so it scales with the (vw-based) tiles.
-// 6.9vw ≈ 89px at the reference display; tune this one knob to resize the arrows.
-const NAV_BTN_VW  = 6.9
+// Pagination arrow width in vw so it scales with the (vw-based) tiles.
+// Tune this one knob to resize the arrows.
+const NAV_BTN_VW  = 5.87
+// Source aspect ratios used to attach the arrows to the ends of the backdrop.
+const BACKDROP_ASPECT = 264 / 2012  // gametile-backdrop.png (h/w)
+const ARROW_ASPECT    = 252 / 201   // rolodex-pagination.png (h/w)
 
 function fmtDate(d: string | null) {
   if (!d) return null
@@ -65,7 +69,7 @@ function predDisplay(pred: PredictionData | null): string | null {
   return `${playerRange} / ${reviewRange}`
 }
 
-export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPanelOpen = false }: Props) {
+export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPanelOpen = false, selectedGameId = null }: Props) {
   const router = useRouter()
   const [hoveredId, setHoveredId]   = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -108,29 +112,59 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
   const atStart = offset <= 0
   const atEnd   = offset >= maxOffset
 
+  // Arrow buttons attach to the ends of the stone backdrop, vertically centred on it.
+  // The backdrop is centered, width VIEW_VW, bottom 5px; arrows straddle each end edge.
+  const arrowBottom = `calc(5px + ${(VIEW_VW * BACKDROP_ASPECT - NAV_BTN_VW * ARROW_ASPECT) / 2}vw)`
+  const arrowEdge = VIEW_VW / 2
+
   function moveBy(delta: number) {
     setOffset(o => Math.max(0, Math.min(maxOffset, o + delta)))
     setExpandedId(null)
   }
 
-  const navBtn = (onClick: () => void, disabled: boolean, icon: string, alt: string) => (
+  // Press-and-hold pagination: one step on press, then continuous scroll while held.
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  function stopHold() {
+    if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null }
+    if (holdInterval.current) { clearInterval(holdInterval.current); holdInterval.current = null }
+  }
+  function startHold(delta: number) {
+    moveBy(delta)                                   // immediate single step
+    holdTimer.current = setTimeout(() => {          // after a short delay, scroll continuously
+      holdInterval.current = setInterval(() => moveBy(delta), 180)
+    }, 350)
+  }
+  useEffect(() => stopHold, [])
+
+  const pageBtn = (delta: number, disabled: boolean, flip: boolean, alt: string) => (
     <button
-      onClick={disabled ? undefined : onClick}
       disabled={disabled}
+      aria-label={alt}
+      onPointerDown={e => {
+        if (disabled) return
+        ;(e.currentTarget as HTMLButtonElement).style.transform = "scale(0.9)"
+        startHold(delta)
+      }}
+      onPointerUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; stopHold() }}
+      onPointerLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; stopHold() }}
+      onPointerCancel={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; stopHold() }}
       style={{
         opacity: disabled ? 0.3 : 1,
         cursor: disabled ? "default" : "pointer",
         background: "none", border: "none", padding: 0,
-        marginTop: `${-(NAV_BTN_VW * 16 / 89)}vw`,
         pointerEvents: disabled ? "none" : "auto",
+        touchAction: "none",
         transition: "transform 0.1s",
       }}
-      onMouseDown={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.88)" }}
-      onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)" }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/icons/${icon}`} alt={alt} style={{ width: `${NAV_BTN_VW}vw`, height: `${NAV_BTN_VW}vw`, objectFit: "contain", display: "block" }} draggable={false} />
+      <img
+        src="/icons/rolodex-pagination.png"
+        alt={alt}
+        draggable={false}
+        style={{ width: `${NAV_BTN_VW}vw`, height: "auto", objectFit: "contain", display: "block", transform: flip ? "scaleX(-1)" : "none", filter: "drop-shadow(0 5px 9px rgba(0,0,0,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.4))" }}
+      />
     </button>
   )
 
@@ -169,20 +203,20 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
           height: "auto",
           zIndex: 33,
           pointerEvents: "none",
+          filter: isPanelOpen ? "grayscale(1) blur(2px)" : "none",
+          transition: "filter 0.32s ease",
           WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
           maskImage: "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
         }}
       />
-      {/* Left buttons — anchored to the left margin, stacked vertically */}
-      <div style={{ position: "fixed", left: "16px", bottom: "20px", height: "80vh", display: "flex", flexDirection: "column", justifyContent: "flex-end", paddingBottom: "calc(5vh - 40px)", gap: "0px", zIndex: 36, pointerEvents: "auto" }}>
-        {navBtn(() => moveBy(-1),        atStart, "left.png",        "Back one tile")}
-        {navBtn(() => moveBy(-PER_PAGE), atStart, "double-left.png", "Back a page")}
+      {/* Left button — attached to the left end of the backdrop */}
+      <div style={{ position: "fixed", bottom: arrowBottom, left: `calc(50% - ${arrowEdge}vw)`, transform: "translateX(-50%)", zIndex: 36, pointerEvents: isPanelOpen ? "none" : "auto", filter: isPanelOpen ? "grayscale(1) blur(2px)" : "none", transition: "filter 0.32s ease" }}>
+        {pageBtn(-1, atStart, true, "Back")}
       </div>
 
-      {/* Right buttons — anchored to the right margin, stacked vertically */}
-      <div style={{ position: "fixed", right: "16px", bottom: "20px", height: "80vh", display: "flex", flexDirection: "column", justifyContent: "flex-end", paddingBottom: "calc(5vh - 40px)", gap: "0px", zIndex: 36, pointerEvents: "auto" }}>
-        {navBtn(() => moveBy(1),        atEnd, "right.png",        "Forward one tile")}
-        {navBtn(() => moveBy(PER_PAGE), atEnd, "double-right.png", "Forward a page")}
+      {/* Right button — attached to the right end of the backdrop */}
+      <div style={{ position: "fixed", bottom: arrowBottom, left: `calc(50% + ${arrowEdge}vw)`, transform: "translateX(-50%)", zIndex: 36, pointerEvents: isPanelOpen ? "none" : "auto", filter: isPanelOpen ? "grayscale(1) blur(2px)" : "none", transition: "filter 0.32s ease" }}>
+        {pageBtn(1, atEnd, false, "Forward")}
       </div>
 
       {/* Tiles viewport — centered; clips to 6 tiles, track slides */}
@@ -220,6 +254,9 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
           const status = gameStatus(game)
           // A launched game the player never predicted on: greyed + static.
           const isInactive = status.label !== "Upcoming" && !pred
+          // The tile whose prediction card is currently open — stays sharp while
+          // the rest (and the backdrop) blur.
+          const isSelected = isPanelOpen && game.id === selectedGameId
 
           let resultColor = "#67e8f9"
           let resultLabel: string | null = null
@@ -237,13 +274,14 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
 
           // Enlarge via transform scale (not width) so all card content — text
           // included — scales uniformly and never re-wraps to a different line count.
-          const scaleFactor = isExp ? CARD_EXP_VW / CARD_VW : isHov ? CARD_HOV_VW / CARD_VW : 1
+          // The open card's tile sits in the hover (slightly enlarged) state.
+          const scaleFactor = isExp ? CARD_EXP_VW / CARD_VW : (isHov || isSelected) ? CARD_HOV_VW / CARD_VW : 1
           const riseY = isExp ? -RISE_VH : 0
 
           // Shaped shadow that follows the parchment's torn silhouette
           const dropShadow = isExp
             ? "drop-shadow(0 12px 16px rgba(0,0,0,0.6)) drop-shadow(0 5px 8px rgba(0,0,0,0.45))"
-            : isHov
+            : (isHov || isSelected)
             ? "drop-shadow(0 8px 12px rgba(0,0,0,0.55)) drop-shadow(0 4px 6px rgba(0,0,0,0.42))"
             : "drop-shadow(0 5px 9px rgba(0,0,0,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.38))"
 
@@ -254,11 +292,13 @@ export function GamesRolodex({ games, predMap, currentSeasonId, onSelect, isPane
                 position: "absolute",
                 left: `${FADE_VW + i * STEP_VW}vw`,
                 bottom: 0,
-                zIndex: isExp ? 100 : isHov ? 50 : N - i,
+                zIndex: isSelected ? 101 : isExp ? 100 : isHov ? 50 : N - i,
                 transform: `translateX(${spreadX}vw) translateY(${riseY}vh)`,
                 transition: "transform 0.32s ease, filter 0.32s ease",
                 pointerEvents: isPanelOpen ? "none" : "auto",
-                filter: isPanelOpen ? "grayscale(1) blur(2px)" : isInactive ? `grayscale(1) ${dropShadow}` : dropShadow,
+                filter: isPanelOpen
+                  ? (isSelected ? dropShadow : "grayscale(1) blur(2px)")
+                  : isInactive ? `grayscale(1) ${dropShadow}` : dropShadow,
               }}
             >
               <div

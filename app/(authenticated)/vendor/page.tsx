@@ -4,7 +4,7 @@ import { VendorShop, type InventoryItem } from "@/components/vendor-shop"
 import { VendorCountdown } from "@/components/vendor-countdown"
 import { NoScroll } from "@/components/no-scroll"
 import { CrystalBulletinBoard } from "@/components/crystal-bulletin-board"
-import { VestSeasonButton } from "@/components/vest-season-button"
+import Link from "next/link"
 
 const CYCLE_A_SLUGS = ["scrying_orb_polish", "blood_bargain", "infernal_patrons_pact"]
 const CYCLE_B_SLUGS = ["crystal_focus", "black_gem_accumulator", "tincture_of_divination"]
@@ -102,16 +102,29 @@ export default async function VendorPage() {
       <NoScroll />
 
       {isUnvested && (
-        <div className="free-entry-panel fixed top-[calc(var(--header-height,64px)+76px)] left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3 px-5 py-3 rounded-xl border border-purple-500/30 bg-[rgba(10,5,25,0.92)] shadow-xl backdrop-blur-sm" style={{ maxWidth: "min(45vw, 280px)", width: "100%" }}>
-          <div className="w-full min-w-0">
-            <p className="font-display text-xs text-purple-300 tracking-wide mb-0.5">Free Entry</p>
-            <p className="font-body text-[11px] text-muted-foreground/70 leading-tight">Vest to unlock the Season Ladder, Auspicious Omens, equipment, and the weekly stipend.</p>
-          </div>
-          <VestSeasonButton
-            seasonId={season.id}
-            entryFee={season.entry_fee_tokens ?? 0}
-            currentBalance={(profile as { token_balance?: number | null } | null)?.token_balance ?? 0}
+        <div className="free-entry-panel fixed z-30 flex flex-col items-center gap-3 px-5 py-3 top-[calc(30vh+15px)] right-[10px] w-[33vw] md:left-1/2 md:right-auto md:top-[calc(var(--header-height,64px)+106px)] md:w-full md:max-w-[min(45vw,280px)] md:-translate-x-1/2">
+          {/* Background layer — faded to transparent at the edges */}
+          <div
+            aria-hidden
+            className="absolute inset-0 rounded-xl bg-[rgba(10,5,25,0.7)] backdrop-blur-sm"
+            style={{
+              WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 15%, black 60%, transparent 100%)",
+              WebkitMaskComposite: "destination-in",
+              maskImage: "linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 15%, black 60%, transparent 100%)",
+              maskComposite: "intersect",
+            }}
           />
+          <div className="relative w-full min-w-0 text-center">
+            <p className="font-display text-xs text-purple-300 tracking-wide mb-0.5">Free Entry</p>
+            <p className="font-body text-[11px] md:text-[13px] text-purple-100/90 leading-snug">Vest to unlock the Season Ladder, Auspicious Omens, equipment, and the weekly stipend.</p>
+          </div>
+          <Link
+            href="/dashboard?vest=1"
+            className="relative font-display text-[11px] md:text-xs px-5 py-2.5 rounded-xl border border-amber-500/50 bg-purple-950/30 text-amber-300 hover:bg-purple-950/50 hover:border-amber-400/70 transition-colors tracking-wide text-center cursor-pointer"
+          >
+            <span className="md:hidden">Vest now</span>
+            <span className="hidden md:inline">Vest your season entry now.</span>
+          </Link>
         </div>
       )}
 

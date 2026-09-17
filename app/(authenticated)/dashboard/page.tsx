@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { Trophy, Target, TrendingUp, ArrowRight, Calendar, Users } from "lucide-react"
 import { DashboardLadder } from "@/components/dashboard-ladder"
+import { DashboardVestPanel } from "@/components/dashboard-vest-panel"
 
 // ─── Equipment card ────────────────────────────────────────────────────────────
 
@@ -212,6 +213,10 @@ export default async function DashboardPage() {
 
   const aoGameIds = new Set((aoMarkedPreds ?? []).map(p => p.game_id))
 
+  // Free-entry players who haven't vested see a vesting panel in place of the
+  // equipment + ladder columns.
+  const isUnvested = !!activeSeason && !!seasonEntry?.is_free_entry && !seasonEntry?.vested_at
+
   async function signOut() {
     "use server"
     const supabase = await createClient()
@@ -347,27 +352,38 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {/* Center — Equipment card */}
-        <div>
-          {activeSeason && seasonEntry?.equipment_id ? (
-            <EquipmentCard
-              slug={seasonEntry.equipment_id as string}
-              tierScore={seasonEntry.equipment_tier_score ?? 0}
-            />
-          ) : (
-            <Card className="border-border h-full">
-              <CardContent className="flex items-center justify-center py-12 text-sm text-muted-foreground font-body text-center h-full">
-                {activeSeason ? "Join the season to equip an artifact." : "No active season."}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        {isUnvested ? (
+          /* Unvested free entry — vest panel spans the equipment + ladder columns */
+          <DashboardVestPanel
+            seasonId={activeSeason.id}
+            entryFee={activeSeason.entry_fee_tokens ?? 0}
+            tokenBalance={profile?.token_balance ?? 0}
+          />
+        ) : (
+          <>
+            {/* Center — Equipment card */}
+            <div>
+              {activeSeason && seasonEntry?.equipment_id ? (
+                <EquipmentCard
+                  slug={seasonEntry.equipment_id as string}
+                  tierScore={seasonEntry.equipment_tier_score ?? 0}
+                />
+              ) : (
+                <Card className="border-border h-full">
+                  <CardContent className="flex items-center justify-center py-12 text-sm text-muted-foreground font-body text-center h-full">
+                    {activeSeason ? "Join the season to equip an artifact." : "No active season."}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
-        {/* Right — Season Ladder (vertical 1–8) */}
-        <DashboardLadder
-          games={ladderGames}
-          aoGameIds={[...aoGameIds]}
-        />
+            {/* Right — Season Ladder (vertical 1–8) */}
+            <DashboardLadder
+              games={ladderGames}
+              aoGameIds={[...aoGameIds]}
+            />
+          </>
+        )}
       </div>
     </div>
   )

@@ -845,7 +845,7 @@ function ScoringMessageCard({ msg, isRead, isExpanded, onToggle, onRead, onDelet
               {manaClaimed ? (
                 <div className="flex items-center gap-2 text-xs text-emerald-400">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span className="font-display">+{(msg.mana_reward ?? 0).toLocaleString()} mana added to spending balance</span>
+                  <span className="font-display">+{(msg.mana_reward ?? 0).toLocaleString()} mana added</span>
                 </div>
               ) : (msg.mana_reward ?? 0) > 0 ? (
                 <ClaimManaButton
@@ -1052,7 +1052,7 @@ function AdminMessageCard({ msg, isRead, isClaimed, isExpanded, onToggle, onRead
               manaClaimed ? (
                 <div className="flex items-center gap-2 text-xs text-emerald-400">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span className="font-display">+{(msg.mana_reward ?? 0).toLocaleString()} mana added to spending balance</span>
+                  <span className="font-display">+{(msg.mana_reward ?? 0).toLocaleString()} mana added</span>
                 </div>
               ) : (
                 <ClaimManaButton
